@@ -17,6 +17,7 @@ import { formatPrice } from '@/lib/utils';
 import { Clock, Eye, X as CloseIcon } from 'lucide-react';
 
 import { useAuth } from '@/components/auth/AuthContext';
+import { SidebarLink } from '@/components/admin/SidebarLink';
 
 export default function DashboardPage() {
     const t = useTranslations('admin');
@@ -345,19 +346,6 @@ export default function DashboardPage() {
     );
 }
 
-export function SidebarLink({ icon, label, active = false, onClick }: { icon: React.ReactNode, label: string, active?: boolean, onClick?: () => void }) {
-    return (
-        <button
-            onClick={onClick}
-            className={`flex items-center gap-4 w-full px-6 py-4 rounded-[2rem] font-black text-sm uppercase tracking-widest transition-all duration-300 ${active
-                ? 'bg-primary-500 text-white shadow-xl shadow-primary-500/20'
-                : 'text-secondary-400 hover:bg-secondary-50 hover:text-secondary-900'
-                }`}>
-            {icon}
-            <span>{label}</span>
-        </button>
-    );
-}
 
 function StatCard({ icon, label, value, trend, bgColor, delay }: { icon: React.ReactNode, label: string, value: string, trend?: string, bgColor: string, delay: string }) {
     return (

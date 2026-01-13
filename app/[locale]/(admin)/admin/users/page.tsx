@@ -19,7 +19,7 @@ import {
     Loader2,
     X as CloseIcon
 } from 'lucide-react';
-import { SidebarLink } from '../dashboard/page';
+import { SidebarLink } from '@/components/admin/SidebarLink';
 import { getStaffUsers, createStaffUser, deleteStaffUser, updateStaffUser } from '@/lib/actions/users';
 
 import { useAuth } from '@/components/auth/AuthContext';

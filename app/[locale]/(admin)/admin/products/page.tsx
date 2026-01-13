@@ -20,7 +20,7 @@ import {
     ChefHat
 } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
-import { SidebarLink } from '../dashboard/page';
+import { SidebarLink } from '@/components/admin/SidebarLink';
 
 import { useAuth } from '@/components/auth/AuthContext';
 

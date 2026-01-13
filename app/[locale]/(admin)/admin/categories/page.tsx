@@ -18,7 +18,7 @@ import {
     Image as ImageIcon,
     ChefHat
 } from 'lucide-react';
-import { SidebarLink } from '../dashboard/page';
+import { SidebarLink } from '@/components/admin/SidebarLink';
 
 import { useAuth } from '@/components/auth/AuthContext';
 

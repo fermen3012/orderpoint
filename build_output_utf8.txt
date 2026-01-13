@@ -1,0 +1,38 @@
+﻿
+> orderpoint@0.1.0 build
+> next build
+
+   Γû▓ Next.js 15.1.0
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully
+   Linting and checking validity of types ...
+node.exe : Failed to compile.
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~
+    + CategoryInfo          : NotSpecified: (Failed to compile.: 
+   String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+./actions/modifiers.ts:12:47
+Type error: An interface can only extend an 
+identifier/qualified-name with optional type arguments.
+
+[0m [90m 10 |[39m }[33m;[39m[0m
+[0m [90m 11 |[39m[0m
+[0m[31m[1m>[22m[39m[90m 12 |[39m [36mexport[39m 
+[36minterface[39m [33mProductWithModifiers[39m 
+[36mextends[39m [33mDatabase[39m[[32m'public'[39m][[32m'Ta
+bles'[39m][[32m'products'[39m][[32m'Row'[39m] {[0m
+[0m [90m    |[39m                                             
+  [31m[1m^[22m[39m[0m
+[0m [90m 13 |[39m     product_modifier_groups[33m:[39m {[0m
+[0m [90m 14 |[39m         sort_order[33m:[39m 
+number[33m;[39m[0m
+[0m [90m 15 |[39m         modifier_groups[33m:[39m 
+[33mModifierGroup[39m[33m;[39m[0m
