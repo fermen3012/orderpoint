@@ -1,0 +1,20 @@
+﻿app/[locale]/(kiosk)/kiosk/page.tsx(45,40): error TS2339: Property 'id' does not exist on type 'never'.
+app/[locale]/(kiosk)/kiosk/page.tsx(45,49): error TS2339: Property 'name' does not exist on type 'never'.
+app/[locale]/(kiosk)/kiosk/page.tsx(102,18): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "orders", never, "POST">', gave the following error.
+    Argument of type '{ restaurant_id: string; total_amount: number; status: "pending"; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "orders", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'restaurant_id' does not exist in type 'never[]'.
+app/[locale]/(kiosk)/kiosk/page.tsx(114,33): error TS2339: Property 'id' does not exist on type 'never'.
+app/[locale]/(kiosk)/kiosk/page.tsx(123,25): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "order_items", never, "POST">', gave the following error.
+    Argument of type '{ order_id: any; product_id: string; quantity: number; unit_price: number; modifiers_json: any; }[]' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "order_items", never, "POST">', gave the following error.
+    Argument of type '{ order_id: any; product_id: string; quantity: number; unit_price: number; modifiers_json: any; }[]' is not assignable to parameter of type 'never[]'.
+      Type '{ order_id: any; product_id: string; quantity: number; unit_price: number; modifiers_json: any; }' is not assignable to type 'never'.
+app/[locale]/(kiosk)/kiosk/page.tsx(129,70): error TS2339: Property 'order_number' does not exist on type 'never'.
+app/[locale]/(kitchen)/kitchen/page.tsx(53,40): error TS2339: Property 'id' does not exist on type 'never'.
+app/[locale]/(kitchen)/kitchen/page.tsx(53,49): error TS2339: Property 'name' does not exist on type 'never'.
+app/[locale]/(kitchen)/kitchen/page.tsx(71,38): error TS2345: Argument of type 'string | null' is not assignable to parameter of type '{}'.
+  Type 'null' is not assignable to type '{}'.
+app/[locale]/(kitchen)/kitchen/page.tsx(119,21): error TS2345: Argument of type '{ status: any; }' is not assignable to parameter of type 'never'.

@@ -1,0 +1,1 @@
+﻿app/[locale]/(kitchen)/kitchen/page.tsx(119,21): error TS2345: Argument of type 'any' is not assignable to parameter of type 'never'.
