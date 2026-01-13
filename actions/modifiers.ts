@@ -9,12 +9,12 @@ export type ModifierGroup = Database['public']['Tables']['modifier_groups']['Row
     modifiers: Modifier[];
 };
 
-export interface ProductWithModifiers extends Database['public']['Tables']['products']['Row'] {
+export type ProductWithModifiers = Database['public']['Tables']['products']['Row'] & {
     product_modifier_groups: {
         sort_order: number;
-        modifier_groups: ModifierGroup;
+        modifier_groups: ModifierGroup | null;
     }[];
-}
+};
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -46,10 +46,14 @@ export async function getModifiersByProduct(productId: string) {
         return { error: error.message, data: null };
     }
 
+    const typedData = data as any;
+
     // Sort the modifier groups according to the pivot table's sort_order
-    if (data && data.product_modifier_groups) {
-        data.product_modifier_groups.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    if (typedData && typedData.product_modifier_groups) {
+        typedData.product_modifier_groups.sort((a: any, b: any) =>
+            (a.sort_order || 0) - (b.sort_order || 0)
+        );
     }
 
-    return { data: data as unknown as ProductWithModifiers, error: null };
+    return { data: typedData as ProductWithModifiers, error: null };
 }
