@@ -1,12 +1,8 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function updateSession(request: NextRequest) {
-    let response = NextResponse.next({
-        request: {
-            headers: request.headers,
-        },
-    })
+export async function updateSession(request: NextRequest, response: NextResponse) {
+    let supabaseResponse = response;
 
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,12 +18,7 @@ export async function updateSession(request: NextRequest) {
                         value,
                         ...options,
                     })
-                    response = NextResponse.next({
-                        request: {
-                            headers: request.headers,
-                        },
-                    })
-                    response.cookies.set({
+                    supabaseResponse.cookies.set({
                         name,
                         value,
                         ...options,
@@ -39,12 +30,7 @@ export async function updateSession(request: NextRequest) {
                         value: '',
                         ...options,
                     })
-                    response = NextResponse.next({
-                        request: {
-                            headers: request.headers,
-                        },
-                    })
-                    response.cookies.set({
+                    supabaseResponse.cookies.set({
                         name,
                         value: '',
                         ...options,
@@ -104,5 +90,5 @@ export async function updateSession(request: NextRequest) {
         // If auth fails in middleware, we let it pass but components will handle the lack of user
     }
 
-    return response
+    return supabaseResponse
 }

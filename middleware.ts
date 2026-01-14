@@ -6,16 +6,11 @@ import { updateSession } from './lib/supabase/middleware';
 const intlMiddleware = createMiddleware(routing);
 
 export default async function middleware(request: NextRequest) {
-    // 1. Handle session and super-admin protection
-    const supabaseResponse = await updateSession(request);
+    // 1. Handle internationalization first to get the base response
+    const response = intlMiddleware(request);
 
-    // If updateSession returned a redirect, return it immediately
-    if (supabaseResponse.status === 307 || supabaseResponse.status === 308) {
-        return supabaseResponse;
-    }
-
-    // 2. Handle internationalization
-    return intlMiddleware(request);
+    // 2. Update session using that response
+    return await updateSession(request, response);
 }
 
 export const config = {
