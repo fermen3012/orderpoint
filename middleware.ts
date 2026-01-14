@@ -6,10 +6,15 @@ import { updateSession } from './lib/supabase/middleware';
 const intlMiddleware = createMiddleware(routing);
 
 export default async function middleware(request: NextRequest) {
-    // 1. Handle internationalization first to get the base response
+    // 1. Handle internationalization first
     const response = intlMiddleware(request);
 
-    // 2. Update session using that response
+    // If it's a redirect or rewrite from next-intl, return it early
+    if (response.status >= 300 && response.status < 400) {
+        return response;
+    }
+
+    // 2. Update session using that response only if we stay on the same page
     return await updateSession(request, response);
 }
 

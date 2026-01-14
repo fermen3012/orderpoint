@@ -23,13 +23,7 @@ export default async function RootLayout({
         notFound();
     }
 
-    let messages;
-    try {
-        messages = await getMessages();
-    } catch (error) {
-        console.error('Failed to load messages:', error);
-        notFound();
-    }
+    const messages = await getMessages();
 
     return (
         <NextIntlClientProvider messages={messages} locale={locale}>
