@@ -54,54 +54,54 @@ export async function updateSession(request: NextRequest) {
         }
     )
 
-    const { data: { user } } = await supabase.auth.getUser()
-    const pathname = request.nextUrl.pathname
+    try {
+        const { data: { user } } = await supabase.auth.getUser()
+        const pathname = request.nextUrl.pathname
 
-    // Protected route check
-    const isSuperAdminRoute = pathname.includes('/super-admin')
-    const isKitchenRoute = pathname.includes('/kitchen')
-    const isKioskRoute = pathname.includes('/kiosk')
-    const isAdminRoute = pathname.match(/\/(es|en)\/admin/) // Protects /admin but not /login or /set-password
+        // Protected route check
+        const isSuperAdminRoute = pathname.includes('/super-admin')
+        const isKitchenRoute = pathname.includes('/kitchen')
+        const isKioskRoute = pathname.includes('/kiosk')
+        const isAdminRoute = pathname.match(/\/(es|en)\/admin/)
 
-    if (isSuperAdminRoute || isKitchenRoute || isKioskRoute || isAdminRoute) {
-        const localeMatch = pathname.match(/^\/(es|en)/);
-        const locale = localeMatch ? localeMatch[0] : '/es';
+        if (isSuperAdminRoute || isKitchenRoute || isKioskRoute || isAdminRoute) {
+            const localeMatch = pathname.match(/^\/(es|en)/);
+            const locale = localeMatch ? localeMatch[0] : '/es';
 
-        if (!user) {
-            return NextResponse.redirect(new URL(`${locale}/login`, request.url))
+            if (!user) {
+                return NextResponse.redirect(new URL(`${locale}/login`, request.url))
+            }
+
+            const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('role, is_super_admin')
+                .eq('id', user.id)
+                .single()
+
+            if (error || !profile) {
+                return NextResponse.redirect(new URL(`${locale}/login`, request.url))
+            }
+
+            // Authorization logic
+            if (isSuperAdminRoute && !profile.is_super_admin) {
+                return NextResponse.redirect(new URL(`${locale}/login`, request.url))
+            }
+
+            if (isKitchenRoute && profile.role !== 'kitchen' && profile.role !== 'admin') {
+                return NextResponse.redirect(new URL(`${locale}/login`, request.url))
+            }
+
+            if (isKioskRoute && profile.role !== 'kiosk' && profile.role !== 'admin') {
+                return NextResponse.redirect(new URL(`${locale}/login`, request.url))
+            }
+
+            if (isAdminRoute && profile.role !== 'admin' && profile.role !== 'owner') {
+                return NextResponse.redirect(new URL(`${locale}/login`, request.url))
+            }
         }
-
-        const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('role, is_super_admin')
-            .eq('id', user.id)
-            .single()
-
-        if (error || !profile) {
-            return NextResponse.redirect(new URL(`${locale}/login`, request.url))
-        }
-
-        // Super Admin has access to everything
-        if (profile.is_super_admin) {
-            return response
-        }
-
-        // Logic for specific routes
-        if (isSuperAdminRoute && !profile.is_super_admin) {
-            return NextResponse.redirect(new URL(`${locale}/login`, request.url))
-        }
-
-        if (isKitchenRoute && profile.role !== 'kitchen' && profile.role !== 'admin') {
-            return NextResponse.redirect(new URL(`${locale}/login`, request.url))
-        }
-
-        if (isKioskRoute && profile.role !== 'kiosk' && profile.role !== 'admin') {
-            return NextResponse.redirect(new URL(`${locale}/login`, request.url))
-        }
-
-        if (isAdminRoute && profile.role !== 'admin' && profile.role !== 'owner') {
-            return NextResponse.redirect(new URL(`${locale}/login`, request.url))
-        }
+    } catch (e) {
+        console.error('Middleware Auth Error:', e)
+        // If auth fails in middleware, we let it pass but components will handle the lack of user
     }
 
     return response
