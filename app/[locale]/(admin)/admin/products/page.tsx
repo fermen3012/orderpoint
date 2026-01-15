@@ -273,288 +273,226 @@ export default function ProductsPage() {
     }
 
     return (
-        <div className="flex min-h-screen bg-background">
-            {/* Sidebar */}
-            <aside className="w-72 bg-white border-r border-secondary-100 hidden lg:flex flex-col sticky top-0 h-screen">
-                <div className="p-8">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-primary-500 rounded-2xl flex items-center justify-center shadow-lg shadow-primary-200">
-                            <span className="text-white font-black text-xl">O</span>
+        <div className="p-4 md:p-8 lg:p-10">
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+                <div>
+                    <h1 className="text-3xl md:text-4xl font-black text-secondary-900 tracking-tight">{t('products')}</h1>
+                    <p className="text-secondary-500 font-bold mt-1 text-sm md:text-base">Gestiona el menú de tu restaurante.</p>
+                </div>
+                <button
+                    onClick={() => {
+                        setEditingProduct(null); // Ensure editingProduct is reset
+                        resetForm();
+                        setIsModalOpen(true);
+                    }}
+                    className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-primary-500 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:-translate-y-1 transition-all active:scale-95"
+                >
+                    <Plus className="w-5 h-5" />
+                    <span>Añadir Producto</span>
+                </button>
+            </header>
+
+            {/* Search and Filters */}
+            <div className="mb-10 animate-slide-up">
+                <div className="relative group max-w-2xl">
+                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary-400 group-focus-within:text-primary-500 transition-colors" />
+                    <input
+                        type="text"
+                        placeholder="Buscar por nombre o categoría..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-16 pr-8 py-5 bg-white border border-secondary-100 rounded-[2rem] shadow-sm focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900"
+                    />
+                </div>
+            </div>
+
+            {/* Products Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 md:gap-8 animate-slide-up" style={{ animationDelay: '100ms' }}>
+                {filteredProducts.map((product) => (
+                    <div key={product.id} className="bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-xl shadow-secondary-900/5 border border-secondary-100 overflow-hidden group hover:-translate-y-2 transition-all duration-500">
+                        {/* Status Badge */}
+                        <div className="absolute top-4 right-4 z-10">
+                            <button
+                                onClick={() => handleToggleAvailability(product.id, product.is_available)}
+                                className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg ${product.is_available
+                                    ? 'bg-accent-500 text-white'
+                                    : 'bg-red-500 text-white'
+                                    }`}
+                            >
+                                {product.is_available ? 'Disponible' : 'No Disp.'}
+                            </button>
                         </div>
-                        <span className="text-2xl font-black text-secondary-900 tracking-tighter">OrderPoint</span>
-                    </div>
-                </div>
 
-                <nav className="flex-1 px-4 space-y-2">
-                    <SidebarLink
-                        icon={<LayoutDashboard className="w-5 h-5" />}
-                        label={t('dashboard')}
-                        onClick={() => router.push('/admin/dashboard')}
-                    />
-                    <SidebarLink
-                        icon={<ShoppingBag className="w-5 h-5" />}
-                        label={t('orders')}
-                    />
-                    <SidebarLink
-                        icon={<Package className="w-5 h-5" />}
-                        label={t('products')}
-                        active
-                    />
-                    <SidebarLink
-                        icon={<List className="w-5 h-5" />}
-                        label={t('categories')}
-                        onClick={() => router.push('/admin/categories')}
-                    />
-                    <SidebarLink
-                        icon={<ChefHat className="w-5 h-5" />}
-                        label="Ingredientes"
-                        onClick={() => router.push('/admin/ingredients')}
-                    />
-                </nav>
-
-                <div className="p-6 mt-auto">
-                    <button
-                        onClick={handleLogout}
-                        className="flex items-center gap-3 w-full px-6 py-4 text-secondary-500 hover:bg-red-50 hover:text-red-600 rounded-[2rem] transition-all duration-300 font-bold group"
-                    >
-                        <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                        <span>Cerrar Sesión</span>
-                    </button>
-                </div>
-            </aside>
-
-            {/* Main Content */}
-            <main className="flex-1 p-6 md:p-10 overflow-y-auto">
-                <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10 animate-slide-up">
-                    <div>
-                        <h1 className="text-4xl font-black text-secondary-900 tracking-tight">{t('products')}</h1>
-                        <p className="text-secondary-500 font-bold mt-1">Administra los platillos y bebidas de tu menú.</p>
-                    </div>
-                    <div className="flex items-center gap-4 w-full md:w-auto">
-                        <div className="relative flex-1 md:w-64">
-                            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary-400" />
-                            <input
-                                type="text"
-                                placeholder="Buscar producto..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-14 pr-6 py-4 bg-white border border-secondary-100 rounded-[1.5rem] focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all font-bold shadow-sm"
-                            />
+                        <div className="aspect-square bg-secondary-50 relative overflow-hidden">
+                            {product.image_url ? (
+                                <img
+                                    src={product.image_url}
+                                    alt={product.name}
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                                />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                    <Package className="w-12 h-12 text-secondary-200" />
+                                </div>
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-secondary-900/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-8">
+                                <div className="flex gap-3 w-full">
+                                    <button
+                                        onClick={() => handleEditClick(product)}
+                                        className="flex-1 bg-white text-secondary-900 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-primary-500 hover:text-white transition-all shadow-xl"
+                                    >
+                                        Editar
+                                    </button>
+                                    <button
+                                        onClick={() => handleDeleteProduct(product.id)}
+                                        className="p-3 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all shadow-xl"
+                                    >
+                                        <Trash2 className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <button
-                            onClick={() => {
-                                setEditingProduct(null);
-                                resetForm();
-                                setIsModalOpen(true);
-                            }}
-                            className="flex items-center gap-3 bg-primary-500 text-white px-8 py-4 rounded-[2rem] font-black uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:-translate-y-1 transition-all active:scale-95 whitespace-nowrap"
-                        >
-                            <Plus className="w-5 h-5" />
-                            <span>Nuevo Producto</span>
-                        </button>
-                    </div>
-                </header>
 
-                <div className="bg-white rounded-[2.5rem] shadow-xl shadow-secondary-900/5 border border-secondary-100 overflow-hidden animate-slide-up">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead className="bg-secondary-50/50 text-secondary-400 text-xs uppercase font-black tracking-widest">
-                                <tr>
-                                    <th className="px-8 py-5">Producto</th>
-                                    <th className="px-8 py-5">Categoría</th>
-                                    <th className="px-8 py-5">Precio</th>
-                                    <th className="px-8 py-5">Estado</th>
-                                    <th className="px-8 py-5 text-right">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-secondary-50">
-                                {filteredProducts.map((product) => (
-                                    <tr key={product.id} className="hover:bg-secondary-50/30 transition-colors group">
-                                        <td className="px-8 py-6">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-xl bg-secondary-50 flex items-center justify-center overflow-hidden border border-secondary-100">
-                                                    {product.image_url ? (
-                                                        <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <Package className="w-6 h-6 text-secondary-200" />
-                                                    )}
-                                                </div>
-                                                <div>
-                                                    <p className="font-black text-secondary-900">{product.name}</p>
-                                                    <p className="text-xs text-secondary-400 font-bold line-clamp-1">{product.description}</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-6">
-                                            <span className="px-4 py-1.5 bg-secondary-100 text-secondary-600 rounded-full text-[10px] font-black uppercase tracking-widest">
-                                                {product.categories?.name}
-                                            </span>
-                                        </td>
-                                        <td className="px-8 py-6 font-black text-secondary-900">
-                                            {formatPrice(product.price, 'es-SV')}
-                                        </td>
-                                        <td className="px-8 py-6">
-                                            <button
-                                                onClick={() => handleToggleAvailability(product.id, product.is_available)}
-                                                className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm transition-all active:scale-95 ${product.is_available
-                                                    ? 'bg-accent-100 text-accent-700 hover:bg-accent-200'
-                                                    : 'bg-red-100 text-red-700 hover:bg-red-200'
-                                                    }`}
-                                            >
-                                                <div className={`w-2 h-2 rounded-full ${product.is_available ? 'bg-accent-500' : 'bg-red-500'}`} />
-                                                {product.is_available ? 'Disponible' : 'Agotado'}
-                                            </button>
-                                        </td>
-                                        <td className="px-8 py-6 text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <button
-                                                    onClick={() => handleEditClick(product)}
-                                                    className="p-3 text-secondary-300 hover:text-primary-600 hover:bg-primary-50 rounded-2xl transition-all"
-                                                >
-                                                    <Pencil className="w-5 h-5" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteProduct(product.id)}
-                                                    className="p-3 text-secondary-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
-                                                >
-                                                    <Trash2 className="w-5 h-5" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        <div className="p-6 md:p-8">
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 className="text-xl md:text-2xl font-black text-secondary-900 tracking-tight line-clamp-1">{product.name}</h3>
+                                    <span className="text-[10px] md:text-xs font-black text-primary-500 uppercase tracking-widest bg-primary-50 px-3 py-1 rounded-full border border-primary-100 mt-2 inline-block">
+                                        {product.categories?.name}
+                                    </span>
+                                </div>
+                                <span className="text-xl md:text-2xl font-black text-secondary-900">{formatPrice(product.price, 'es-SV')}</span>
+                            </div>
+                            <p className="text-secondary-500 font-bold text-sm line-clamp-2 min-h-[3rem]">
+                                {product.description || 'Sin descripción disponible.'}
+                            </p>
+                        </div>
                     </div>
+                ))}
+            </div>
+
+            {/* Empty State */}
+            {filteredProducts.length === 0 && (
+                <div className="text-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-secondary-100">
+                    <div className="w-20 h-20 bg-secondary-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Package className="w-10 h-10 text-secondary-200" />
+                    </div>
+                    <h3 className="text-2xl font-black text-secondary-900 tracking-tight">No se encontraron productos</h3>
+                    <p className="text-secondary-500 font-bold mt-2">Prueba con otra búsqueda o añade un nuevo producto.</p>
                 </div>
+            )}
 
-                {/* Add/Edit Product Modal */}
-                {isModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-secondary-900/60 backdrop-blur-sm animate-in fade-in duration-300 overflow-y-auto">
-                        <div className="bg-white w-full max-w-2xl rounded-[2rem] sm:rounded-[3rem] shadow-2xl overflow-hidden animate-scale-in my-auto max-h-[95vh] flex flex-col">
-                            <div className="p-6 sm:p-8 border-b border-secondary-50 flex justify-between items-center bg-secondary-50/30 flex-shrink-0">
-                                <h2 className="text-xl sm:text-2xl font-black text-secondary-900 tracking-tight">
+            {/* Product Modal */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-in fade-in duration-300 overflow-y-auto">
+                    <div className="bg-white w-full max-w-4xl rounded-[2rem] md:rounded-[3rem] shadow-2xl overflow-hidden animate-scale-in my-8">
+                        <div className="p-6 md:p-10 border-b border-secondary-50 flex justify-between items-center bg-secondary-50/30">
+                            <div>
+                                <h2 className="text-2xl md:text-3xl font-black text-secondary-900 tracking-tight">
                                     {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
                                 </h2>
-                                <button
-                                    onClick={() => setIsModalOpen(false)}
-                                    className="p-2 sm:p-3 hover:bg-white rounded-xl sm:rounded-2xl transition-all shadow-sm border border-secondary-100"
-                                >
-                                    <CloseIcon className="w-5 sm:w-6 h-5 sm:h-6 text-secondary-400" />
-                                </button>
+                                <p className="text-secondary-500 font-bold mt-1 text-sm">Completa la información del producto.</p>
                             </div>
+                            <button
+                                onClick={() => setIsModalOpen(false)}
+                                className="p-2 md:p-3 hover:bg-white rounded-xl md:rounded-2xl transition-all shadow-sm border border-secondary-100"
+                            >
+                                <XIcon className="w-5 h-5 md:w-6 md:h-6 text-secondary-400" />
+                            </button>
+                        </div>
 
-                            <form onSubmit={handleSaveProduct} className="p-6 sm:p-8 overflow-y-auto custom-scrollbar">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                                    <div className="md:col-span-2">
-                                        <label className="block text-[10px] sm:text-xs font-black text-secondary-400 uppercase tracking-widest mb-2 px-2">Nombre del Producto</label>
+                        <form onSubmit={handleSaveProduct} className="p-6 md:p-10">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
+                                {/* Image Upload */}
+                                <div className="space-y-4">
+                                    <label className="block text-xs font-black text-secondary-400 uppercase tracking-widest px-2">Imagen del Producto</label>
+                                    <div className="relative aspect-square rounded-[2rem] overflow-hidden bg-secondary-50 border-2 border-dashed border-secondary-200 group transition-all hover:border-primary-500">
+                                        {newProduct.image_url ? (
+                                            <>
+                                                <img src={newProduct.image_url} alt="Preview" className="w-full h-full object-cover" />
+                                                <div className="absolute inset-0 bg-secondary-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                                                    <label className="cursor-pointer bg-white text-secondary-900 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-primary-500 hover:text-white transition-all shadow-xl">
+                                                        Cambiar Imagen
+                                                        <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
+                                                    </label>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-white transition-colors">
+                                                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm mb-4">
+                                                    {uploadingImage ? <Loader2 className="w-8 h-8 text-primary-500 animate-spin" /> : <ImageIcon className="w-8 h-8 text-secondary-200" />}
+                                                </div>
+                                                <span className="text-sm font-black text-secondary-400 uppercase tracking-widest">{uploadingImage ? 'Subiendo...' : 'Subir Imagen'}</span>
+                                                <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
+                                            </label>
+                                        )}
+                                    </div>
+                                    <p className="text-[10px] text-secondary-400 font-bold text-center px-4">Utiliza una imagen de alta calidad (JPG, PNG, WEBP) para mejores resultados.</p>
+                                </div>
+
+                                {/* Form Fields */}
+                                <div className="space-y-6">
+                                    <div className="space-y-2">
+                                        <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest px-2">Nombre del Producto</label>
                                         <input
                                             type="text"
                                             required
                                             value={newProduct.name}
                                             onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                                            className="w-full px-5 sm:px-6 py-3 sm:py-4 bg-secondary-50 border border-secondary-100 rounded-xl sm:rounded-[1.5rem] focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all font-bold"
-                                            placeholder="Ej: Hamburguesa con Queso"
+                                            className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900"
+                                            placeholder="Ej. Pizza Margarita"
                                         />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className="block text-[10px] sm:text-xs font-black text-secondary-400 uppercase tracking-widest mb-2 px-2">Descripción</label>
-                                        <textarea
-                                            rows={2}
-                                            value={newProduct.description}
-                                            onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                                            className="w-full px-5 sm:px-6 py-3 sm:py-4 bg-secondary-50 border border-secondary-100 rounded-xl sm:rounded-[1.5rem] focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all font-bold resize-none"
-                                            placeholder="Describe los ingredientes..."
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] sm:text-xs font-black text-secondary-400 uppercase tracking-widest mb-2 px-2">Precio ($)</label>
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            required
-                                            value={newProduct.price}
-                                            onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
-                                            className="w-full px-5 sm:px-6 py-3 sm:py-4 bg-secondary-50 border border-secondary-100 rounded-xl sm:rounded-[1.5rem] focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all font-bold"
-                                            placeholder="9.99"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] sm:text-xs font-black text-secondary-400 uppercase tracking-widest mb-2 px-2">Categoría</label>
-                                        <select
-                                            required
-                                            value={newProduct.category_id}
-                                            onChange={(e) => setNewProduct({ ...newProduct, category_id: e.target.value })}
-                                            className="w-full px-5 sm:px-6 py-3 sm:py-4 bg-secondary-50 border border-secondary-100 rounded-xl sm:rounded-[1.5rem] focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all font-bold appearance-none"
-                                        >
-                                            {categories.map(cat => (
-                                                <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className="block text-[10px] sm:text-xs font-black text-secondary-400 uppercase tracking-widest mb-2 px-2">Imagen del Producto</label>
-                                        <div className="flex flex-col gap-4">
-                                            {newProduct.image_url ? (
-                                                <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-secondary-100 group">
-                                                    <img src={newProduct.image_url} alt="Preview" className="w-full h-full object-cover" />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setNewProduct({ ...newProduct, image_url: '' })}
-                                                        className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-xl opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <label className="w-full aspect-video rounded-2xl border-2 border-dashed border-secondary-200 flex flex-col items-center justify-center gap-3 hover:border-primary-500 hover:bg-primary-50/30 transition-all cursor-pointer">
-                                                    <div className="w-12 h-12 rounded-2xl bg-secondary-50 flex items-center justify-center text-secondary-400">
-                                                        {uploadingImage ? (
-                                                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
-                                                        ) : (
-                                                            <ImageIcon className="w-6 h-6" />
-                                                        )}
-                                                    </div>
-                                                    <div className="text-center">
-                                                        <p className="text-sm font-black text-secondary-900">
-                                                            {uploadingImage ? 'Subiendo...' : 'Subir Imagen'}
-                                                        </p>
-                                                        <p className="text-[10px] text-secondary-400 font-bold uppercase tracking-widest">
-                                                            PNG, JPG o WEBP (Máx. 200KB)
-                                                        </p>
-                                                    </div>
-                                                    <input
-                                                        type="file"
-                                                        accept="image/*"
-                                                        onChange={handleImageUpload}
-                                                        className="hidden"
-                                                        disabled={uploadingImage}
-                                                    />
-                                                </label>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="md:col-span-2 flex items-center gap-3 px-2">
-                                        <input
-                                            type="checkbox"
-                                            id="is_available"
-                                            checked={newProduct.is_available}
-                                            onChange={(e) => setNewProduct({ ...newProduct, is_available: e.target.checked })}
-                                            className="w-5 h-5 rounded border-secondary-100 text-primary-500 focus:ring-primary-500"
-                                        />
-                                        <label htmlFor="is_available" className="text-sm font-black text-secondary-900 uppercase tracking-widest">Disponible para la venta</label>
                                     </div>
 
-                                    <div className="md:col-span-2 border-t border-secondary-50 pt-6">
-                                        <label className="block text-[10px] sm:text-xs font-black text-secondary-400 uppercase tracking-widest mb-4 px-2">Ingredientes del Plato</label>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            {allIngredients.map(ingredient => {
-                                                const isSelected = selectedIngredients.some(si => si.ingredient_id === ingredient.id);
-                                                const selectedData = selectedIngredients.find(si => si.ingredient_id === ingredient.id);
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest px-2">Precio ($)</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                required
+                                                value={newProduct.price}
+                                                onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                                                className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900"
+                                                placeholder="0.00"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest px-2">Categoría</label>
+                                            <select
+                                                required
+                                                value={newProduct.category_id}
+                                                onChange={(e) => setNewProduct({ ...newProduct, category_id: e.target.value })}
+                                                className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900 appearance-none"
+                                            >
+                                                <option value="">Seleccionar...</option>
+                                                {categories.map((cat) => (
+                                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest px-2">Descripción (Opcional)</label>
+                                        <textarea
+                                            value={newProduct.description}
+                                            onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                                            className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900 resize-none h-32"
+                                            placeholder="Breve descripción del producto..."
+                                        />
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest px-2">Ingredientes del Producto</label>
+                                        <div className="max-h-48 overflow-y-auto p-2 bg-secondary-50 rounded-2xl border border-secondary-100 space-y-2">
+                                            {allIngredients.map((ing) => {
+                                                const isSelected = selectedIngredients.some(si => si.ingredient_id === ing.id);
+                                                const selectedIng = selectedIngredients.find(si => si.ingredient_id === ing.id);
 
                                                 return (
                                                     <div
-                                                        key={ingredient.id}
+                                                        key={ing.id}
                                                         className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border transition-all flex flex-col gap-2 sm:gap-3 ${isSelected ? 'bg-primary-50 border-primary-200' : 'bg-secondary-50/50 border-secondary-100'
                                                             }`}
                                                     >
@@ -564,15 +502,15 @@ export default function ProductsPage() {
                                                                 checked={isSelected}
                                                                 onChange={(e) => {
                                                                     if (e.target.checked) {
-                                                                        setSelectedIngredients([...selectedIngredients, { ingredient_id: ingredient.id, is_removable: true }]);
+                                                                        setSelectedIngredients([...selectedIngredients, { ingredient_id: ing.id, is_removable: true }]);
                                                                     } else {
-                                                                        setSelectedIngredients(selectedIngredients.filter(si => si.ingredient_id !== ingredient.id));
+                                                                        setSelectedIngredients(selectedIngredients.filter(si => si.ingredient_id !== ing.id));
                                                                     }
                                                                 }}
                                                                 className="w-5 h-5 rounded border-secondary-200 text-primary-500 focus:ring-primary-500"
                                                             />
                                                             <span className={`font-bold text-sm ${isSelected ? 'text-primary-900' : 'text-secondary-600'}`}>
-                                                                {ingredient.name}
+                                                                {ing.name}
                                                             </span>
                                                         </div>
 
@@ -580,18 +518,18 @@ export default function ProductsPage() {
                                                             <div className="flex items-center gap-2 pl-8">
                                                                 <input
                                                                     type="checkbox"
-                                                                    id={`removable-${ingredient.id}`}
-                                                                    checked={selectedData?.is_removable}
+                                                                    id={`removable-${ing.id}`}
+                                                                    checked={selectedIng?.is_removable}
                                                                     onChange={(e) => {
                                                                         setSelectedIngredients(selectedIngredients.map(si =>
-                                                                            si.ingredient_id === ingredient.id
+                                                                            si.ingredient_id === ing.id
                                                                                 ? { ...si, is_removable: e.target.checked }
                                                                                 : si
                                                                         ));
                                                                     }}
                                                                     className="w-4 h-4 rounded border-secondary-200 text-primary-500 focus:ring-primary-500"
                                                                 />
-                                                                <label htmlFor={`removable-${ingredient.id}`} className="text-[9px] sm:text-[10px] font-black uppercase text-primary-600 tracking-wider">
+                                                                <label htmlFor={`removable-${ing.id}`} className="text-[9px] sm:text-[10px] font-black uppercase text-primary-600 tracking-wider">
                                                                     Cliente puede quitarlo
                                                                 </label>
                                                             </div>
@@ -615,11 +553,11 @@ export default function ProductsPage() {
                                         </button>
                                     </div>
                                 </div>
-                            </form>
-                        </div>
+                            </div>
+                        </form>
                     </div>
-                )}
-            </main>
+                </div>
+            )}
         </div>
     );
 }

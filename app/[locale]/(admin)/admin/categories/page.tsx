@@ -118,160 +118,108 @@ export default function CategoriesPage() {
     }
 
     return (
-        <div className="flex min-h-screen bg-background">
-            {/* Sidebar */}
-            <aside className="w-72 bg-white border-r border-secondary-100 hidden lg:flex flex-col sticky top-0 h-screen">
-                <div className="p-8">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-primary-500 rounded-2xl flex items-center justify-center shadow-lg shadow-primary-200">
-                            <span className="text-white font-black text-xl">O</span>
-                        </div>
-                        <span className="text-2xl font-black text-secondary-900 tracking-tighter">OrderPoint</span>
-                    </div>
+        <div className="p-4 md:p-8 lg:p-10">
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+                <div>
+                    <h1 className="text-3xl md:text-4xl font-black text-secondary-900 tracking-tight">{t('categories')}</h1>
+                    <p className="text-secondary-500 font-bold mt-1 text-sm md:text-base">Gestiona las categorías de tu menú.</p>
                 </div>
+                <button
+                    onClick={() => {
+                        setEditingCategory(null);
+                        setNewCategory({ name: '', image_url: '' });
+                        setIsModalOpen(true);
+                    }}
+                    className="w-full md:w-auto flex items-center justify-center gap-3 bg-primary-500 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:-translate-y-1 transition-all active:scale-95"
+                >
+                    <Plus className="w-5 h-5" />
+                    <span>Nueva Categoría</span>
+                </button>
+            </header>
 
-                <nav className="flex-1 px-4 space-y-2">
-                    <SidebarLink
-                        icon={<LayoutDashboard className="w-5 h-5" />}
-                        label={t('dashboard')}
-                        onClick={() => router.push('/admin/dashboard')}
-                    />
-                    <SidebarLink
-                        icon={<ShoppingBag className="w-5 h-5" />}
-                        label={t('orders')}
-                    />
-                    <SidebarLink
-                        icon={<Package className="w-5 h-5" />}
-                        label={t('products')}
-                        onClick={() => router.push('/admin/products')}
-                    />
-                    <SidebarLink
-                        icon={<List className="w-5 h-5" />}
-                        label={t('categories')}
-                        active
-                    />
-                    <SidebarLink
-                        icon={<ChefHat className="w-5 h-5" />}
-                        label="Ingredientes"
-                        onClick={() => router.push('/admin/ingredients')}
-                    />
-                </nav>
-
-                <div className="p-6 mt-auto">
-                    <button
-                        onClick={handleLogout}
-                        className="flex items-center gap-3 w-full px-6 py-4 text-secondary-500 hover:bg-red-50 hover:text-red-600 rounded-[2rem] transition-all duration-300 font-bold group"
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
+                {categories.map((category, idx) => (
+                    <div
+                        key={category.id}
+                        className="bg-white rounded-[2rem] p-6 shadow-xl shadow-secondary-900/5 border border-secondary-100 group hover:-translate-y-1 transition-all duration-300 animate-scale-in"
+                        style={{ animationDelay: `${idx * 50}ms` }}
                     >
-                        <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                        <span>Cerrar Sesión</span>
-                    </button>
-                </div>
-            </aside>
-
-            {/* Main Content */}
-            <main className="flex-1 p-6 md:p-10 overflow-y-auto">
-                <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10 animate-slide-up">
-                    <div>
-                        <h1 className="text-4xl font-black text-secondary-900 tracking-tight">{t('categories')}</h1>
-                        <p className="text-secondary-500 font-bold mt-1">Gestiona las categorías de tu menú.</p>
-                    </div>
-                    <button
-                        onClick={() => {
-                            setEditingCategory(null);
-                            setNewCategory({ name: '', image_url: '' });
-                            setIsModalOpen(true);
-                        }}
-                        className="flex items-center gap-3 bg-primary-500 text-white px-8 py-4 rounded-[2rem] font-black uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:-translate-y-1 transition-all active:scale-95"
-                    >
-                        <Plus className="w-5 h-5" />
-                        <span>Nueva Categoría</span>
-                    </button>
-                </header>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                    {categories.map((category, idx) => (
-                        <div
-                            key={category.id}
-                            className="bg-white rounded-[2.5rem] p-6 shadow-xl shadow-secondary-900/5 border border-secondary-100 group hover:-translate-y-1 transition-all duration-300 animate-scale-in"
-                            style={{ animationDelay: `${idx * 50}ms` }}
-                        >
-                            <div className="relative w-full aspect-square rounded-[2rem] bg-secondary-50 mb-6 overflow-hidden flex items-center justify-center border border-secondary-100">
-                                {category.image_url ? (
-                                    <img src={category.image_url} alt={category.name} className="w-full h-full object-cover" />
-                                ) : (
-                                    <List className="w-12 h-12 text-secondary-200" />
-                                )}
-                                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                                    <button
-                                        onClick={() => handleEditClick(category)}
-                                        className="p-3 bg-white/90 backdrop-blur-sm text-secondary-600 rounded-2xl hover:bg-primary-50 hover:text-primary-600 shadow-sm"
-                                    >
-                                        <Pencil className="w-5 h-5" />
-                                    </button>
-                                    <button
-                                        onClick={() => handleDeleteCategory(category.id)}
-                                        className="p-3 bg-white/90 backdrop-blur-sm text-red-500 rounded-2xl hover:bg-red-50 shadow-sm"
-                                    >
-                                        <Trash2 className="w-5 h-5" />
-                                    </button>
-                                </div>
-                            </div>
-                            <h3 className="text-xl font-black text-secondary-900 text-center">{category.name}</h3>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Add/Edit Category Modal */}
-                {isModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-                        <div className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl overflow-hidden animate-scale-in">
-                            <div className="p-8 border-b border-secondary-50 flex justify-between items-center bg-secondary-50/30">
-                                <h2 className="text-2xl font-black text-secondary-900 tracking-tight">
-                                    {editingCategory ? 'Editar Categoría' : 'Nueva Categoría'}
-                                </h2>
+                        <div className="relative w-full aspect-square rounded-[1.5rem] bg-secondary-50 mb-6 overflow-hidden flex items-center justify-center border border-secondary-100">
+                            {category.image_url ? (
+                                <img src={category.image_url} alt={category.name} className="w-full h-full object-cover" />
+                            ) : (
+                                <List className="w-12 h-12 text-secondary-200" />
+                            )}
+                            <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
                                 <button
-                                    onClick={() => setIsModalOpen(false)}
-                                    className="p-3 hover:bg-white rounded-2xl transition-all shadow-sm border border-secondary-100"
+                                    onClick={() => handleEditClick(category)}
+                                    className="p-3 bg-white/90 backdrop-blur-sm text-secondary-600 rounded-xl hover:bg-primary-50 hover:text-primary-600 shadow-sm"
                                 >
-                                    <CloseIcon className="w-6 h-6 text-secondary-400" />
+                                    <Pencil className="w-5 h-5" />
+                                </button>
+                                <button
+                                    onClick={() => handleDeleteCategory(category.id)}
+                                    className="p-3 bg-white/90 backdrop-blur-sm text-red-500 rounded-xl hover:bg-red-50 shadow-sm"
+                                >
+                                    <Trash2 className="w-5 h-5" />
                                 </button>
                             </div>
-
-                            <form onSubmit={handleSaveCategory} className="p-8 space-y-6">
-                                <div>
-                                    <label className="block text-xs font-black text-secondary-400 uppercase tracking-widest mb-2 px-2">Nombre</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={newCategory.name}
-                                        onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                                        className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-[1.5rem] focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all font-bold"
-                                        placeholder="Ej: Hamburguesas"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-black text-secondary-400 uppercase tracking-widest mb-2 px-2">URL de Imagen (Opcional)</label>
-                                    <input
-                                        type="url"
-                                        value={newCategory.image_url}
-                                        onChange={(e) => setNewCategory({ ...newCategory, image_url: e.target.value })}
-                                        className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-[1.5rem] focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all font-bold"
-                                        placeholder="https://ejemplo.com/imagen.jpg"
-                                    />
-                                </div>
-
-                                <button
-                                    type="submit"
-                                    disabled={saving}
-                                    className="w-full py-5 bg-primary-500 text-white rounded-[2rem] font-black uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0"
-                                >
-                                    {saving ? 'Guardando...' : (editingCategory ? 'Guardar Cambios' : 'Crear Categoría')}
-                                </button>
-                            </form>
                         </div>
+                        <h3 className="text-xl font-black text-secondary-900 text-center">{category.name}</h3>
                     </div>
-                )}
-            </main>
+                ))}
+            </div>
+
+            {/* Add/Edit Category Modal */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-white w-full max-w-md rounded-[2rem] md:rounded-[3rem] shadow-2xl overflow-hidden animate-scale-in">
+                        <div className="p-6 md:p-8 border-b border-secondary-50 flex justify-between items-center bg-secondary-50/30">
+                            <h2 className="text-xl md:text-2xl font-black text-secondary-900 tracking-tight">
+                                {editingCategory ? 'Editar Categoría' : 'Nueva Categoría'}
+                            </h2>
+                            <button
+                                onClick={() => setIsModalOpen(false)}
+                                className="p-2 md:p-3 hover:bg-white rounded-xl md:rounded-2xl transition-all shadow-sm border border-secondary-100"
+                            >
+                                <CloseIcon className="w-5 h-5 md:w-6 md:h-6 text-secondary-400" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveCategory} className="p-6 md:p-8 space-y-6">
+                            <div>
+                                <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-2 px-2">Nombre</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={newCategory.name}
+                                    onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                                    className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900"
+                                    placeholder="Ej: Hamburguesas"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-2 px-2">URL de Imagen (Opcional)</label>
+                                <input
+                                    type="url"
+                                    value={newCategory.image_url}
+                                    onChange={(e) => setNewCategory({ ...newCategory, image_url: e.target.value })}
+                                    className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900"
+                                    placeholder="https://ejemplo.com/imagen.jpg"
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={saving}
+                                className="w-full py-5 bg-primary-500 text-white rounded-[2rem] font-black uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0"
+                            >
+                                {saving ? 'Guardando...' : (editingCategory ? 'Guardar Cambios' : 'Crear Categoría')}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
