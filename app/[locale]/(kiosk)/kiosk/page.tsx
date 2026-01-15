@@ -9,6 +9,8 @@ import { ProductCard } from '@/components/kiosk/ProductCard';
 import { CategoryCard } from '@/components/kiosk/CategoryCard';
 import { Cart } from '@/components/kiosk/Cart';
 import { ProductCustomizationModal } from '@/components/kiosk/ProductCustomizationModal';
+import { getModifiersByProduct } from '@/actions/modifiers';
+import { ModifierSelection } from '@/store/cart-store';
 import { Globe, ArrowLeft } from 'lucide-react';
 import { useRouter, usePathname } from '@/i18n/routing';
 import type { Database } from '@/lib/supabase/types';
@@ -34,7 +36,7 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
     const [productIngredientsMap, setProductIngredientsMap] = useState<Record<string, any[]>>({});
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
-    const [customizingProduct, setCustomizingProduct] = useState<Product | null>(null);
+    const [customizingProduct, setCustomizingProduct] = useState<any | null>(null);
 
     // Load categories and products
     useEffect(() => {
@@ -81,37 +83,67 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
         loadData();
     }, [restaurantId]);
 
-    const handleAddToCart = (product: Product) => {
-        const ingredients = productIngredientsMap[product.id] || [];
+    const handleAddToCart = async (product: Product) => {
+        setLoading(true);
+        try {
+            const { data: productWithModifiers, error } = await getModifiersByProduct(product.id);
 
-        if (ingredients.length > 0) {
-            setCustomizingProduct(product);
-        } else {
-            addItem({
-                productId: product.id,
-                productName: product.name,
-                productPrice: Number(product.price),
-                productImage: product.image_url,
-                quantity: 1,
-                modifiers: [],
-                removedIngredients: [],
-                totalPrice: Number(product.price),
-            });
+            if (error) {
+                console.error('Error fetching modifiers:', error);
+                // Fallback to simple add if modifiers fail to fetch
+                addItem({
+                    productId: product.id,
+                    productName: product.name,
+                    productPrice: Number(product.price),
+                    productImage: product.image_url,
+                    quantity: 1,
+                    modifiers: [],
+                    removedIngredients: [],
+                    totalPrice: Number(product.price),
+                });
+                return;
+            }
+
+            // Transform data for the modal
+            const modifierGroups = productWithModifiers?.product_modifier_groups?.map((pmg: any) => ({
+                ...pmg.modifier_groups,
+                modifiers: pmg.modifier_groups?.modifiers || []
+            })) || [];
+
+            if (modifierGroups.length > 0) {
+                setCustomizingProduct({
+                    ...product,
+                    modifier_groups: modifierGroups
+                });
+            } else {
+                addItem({
+                    productId: product.id,
+                    productName: product.name,
+                    productPrice: Number(product.price),
+                    productImage: product.image_url,
+                    quantity: 1,
+                    modifiers: [],
+                    removedIngredients: [],
+                    totalPrice: Number(product.price),
+                });
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
         }
     };
 
-    const handleConfirmCustomization = (removedIngredientIds: string[]) => {
-        if (!customizingProduct) return;
-
+    const handleConfirmAdd = (product: any, selectedModifiers: ModifierSelection[], totalPrice: number) => {
         addItem({
-            productId: customizingProduct.id,
-            productName: customizingProduct.name,
-            productPrice: Number(customizingProduct.price),
-            productImage: customizingProduct.image_url,
+            productId: product.id,
+            productName: product.name,
+            productPrice: Number(product.price),
+            productImage: product.image_url,
             quantity: 1,
-            modifiers: [],
-            removedIngredients: removedIngredientIds,
-            totalPrice: Number(customizingProduct.price),
+            modifiers: selectedModifiers,
+            removedIngredients: [], // We can integrate this later if needed
+            totalPrice: totalPrice,
         });
 
         setCustomizingProduct(null);
@@ -301,10 +333,10 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
             {/* Customization Modal */}
             {customizingProduct && (
                 <ProductCustomizationModal
+                    open={!!customizingProduct}
                     product={customizingProduct}
-                    ingredients={productIngredientsMap[customizingProduct.id] || []}
                     onClose={() => setCustomizingProduct(null)}
-                    onConfirm={handleConfirmCustomization}
+                    onAdd={handleConfirmAdd}
                     locale={locale}
                 />
             )}
