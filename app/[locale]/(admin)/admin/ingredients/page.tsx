@@ -15,7 +15,8 @@ import {
     Pencil,
     X as CloseIcon,
     Search,
-    ChefHat
+    ChefHat,
+    Calendar
 } from 'lucide-react';
 import { SidebarLink } from '@/components/admin/SidebarLink';
 
@@ -114,14 +115,14 @@ export default function IngredientsPage() {
     }
 
     return (
-        <div className="p-4 md:p-8 lg:p-10">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
-                <div className="w-full md:w-auto">
+        <div className="p-4 md:p-8 lg:p-10 pb-20 md:pb-10">
+            <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mb-10">
+                <div className="w-full xl:w-auto">
                     <h1 className="text-3xl md:text-4xl font-black text-secondary-900 tracking-tight">Ingredientes</h1>
                     <p className="text-secondary-500 font-bold mt-1 text-sm md:text-base">Gestiona los ingredientes que los clientes pueden quitar.</p>
                 </div>
-                <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
-                    <div className="relative w-full sm:w-64">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full xl:w-auto">
+                    <div className="relative flex-1 sm:w-64">
                         <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary-400" />
                         <input
                             type="text"
@@ -137,7 +138,7 @@ export default function IngredientsPage() {
                             setNewName('');
                             setIsModalOpen(true);
                         }}
-                        className="w-full sm:w-auto flex items-center justify-center gap-3 bg-primary-500 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:-translate-y-1 transition-all active:scale-95 whitespace-nowrap"
+                        className="flex items-center justify-center gap-3 bg-primary-500 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:-translate-y-1 transition-all active:scale-95 whitespace-nowrap"
                     >
                         <Plus className="w-5 h-5" />
                         <span>Nuevo Ingrediente</span>
@@ -145,9 +146,55 @@ export default function IngredientsPage() {
                 </div>
             </header>
 
-            <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-xl shadow-secondary-900/5 border border-secondary-100 overflow-hidden">
+            {/* Mobile Card View */}
+            <div className="grid grid-cols-1 gap-4 md:hidden">
+                {filteredIngredients.map((ingredient) => (
+                    <div key={ingredient.id} className="bg-white p-5 rounded-[2rem] shadow-sm border border-secondary-100 relative group">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-2xl bg-secondary-50 flex items-center justify-center border border-secondary-100">
+                                    <ChefHat className="w-6 h-6 text-secondary-400" />
+                                </div>
+                                <div>
+                                    <h3 className="font-black text-secondary-900 text-lg leading-tight">{ingredient.name}</h3>
+                                    <div className="flex items-center gap-1.5 mt-1 text-secondary-400">
+                                        <Calendar className="w-3 h-3" />
+                                        <span className="text-xs font-bold">{new Date(ingredient.created_at).toLocaleDateString()}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 mt-4">
+                            <button
+                                onClick={() => handleEditClick(ingredient)}
+                                className="flex-1 py-3 bg-secondary-50 text-secondary-600 hover:bg-primary-50 hover:text-primary-600 rounded-xl flex items-center justify-center gap-2 font-black text-xs uppercase tracking-wider transition-colors"
+                            >
+                                <Pencil className="w-4 h-4" />
+                                Editar
+                            </button>
+                            <button
+                                onClick={() => handleDeleteIngredient(ingredient.id)}
+                                className="flex-1 py-3 bg-secondary-50 text-secondary-600 hover:bg-red-50 hover:text-red-500 rounded-xl flex items-center justify-center gap-2 font-black text-xs uppercase tracking-wider transition-colors"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                Eliminar
+                            </button>
+                        </div>
+                    </div>
+                ))}
+                {filteredIngredients.length === 0 && (
+                    <div className="bg-white p-10 rounded-3xl text-center border border-secondary-100">
+                        <ChefHat className="w-12 h-12 text-secondary-200 mx-auto mb-4" />
+                        <p className="font-bold text-secondary-400">No se encontraron ingredientes.</p>
+                    </div>
+                )}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-xl shadow-secondary-900/5 border border-secondary-100 overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left min-w-[700px] md:min-w-0">
+                    <table className="w-full text-left">
                         <thead className="bg-secondary-50/50 text-secondary-400 text-[10px] md:text-xs uppercase font-black tracking-widest">
                             <tr>
                                 <th className="px-6 md:px-8 py-4 md:py-5">Nombre del Ingrediente</th>

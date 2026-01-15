@@ -17,7 +17,9 @@ import {
     Mail,
     Lock,
     Loader2,
-    X as CloseIcon
+    X as CloseIcon,
+    ChefHat,
+    Store
 } from 'lucide-react';
 import { SidebarLink } from '@/components/admin/SidebarLink';
 import { getStaffUsers, createStaffUser, deleteStaffUser, updateStaffUser } from '@/lib/actions/users';
@@ -119,7 +121,7 @@ export default function UsersPage() {
     }
 
     return (
-        <div className="p-4 md:p-8 lg:p-10">
+        <div className="p-4 md:p-8 lg:p-10 pb-20 md:pb-10">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
                 <div>
                     <h1 className="text-3xl md:text-4xl font-black text-secondary-900 tracking-tight">Personal</h1>
@@ -137,9 +139,66 @@ export default function UsersPage() {
                 </button>
             </header>
 
-            <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-xl shadow-secondary-900/5 border border-secondary-100 overflow-hidden">
+            {/* Mobile Card View */}
+            <div className="grid grid-cols-1 gap-4 md:hidden">
+                {users.map((profile) => (
+                    <div key={profile.id} className="bg-white p-5 rounded-[2rem] shadow-sm border border-secondary-100 relative group">
+                        <div className="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 className="font-black text-secondary-900 text-lg leading-tight">{profile.full_name}</h3>
+                                <div className="flex items-center gap-1.5 mt-1 text-secondary-400">
+                                    <Mail className="w-3 h-3" />
+                                    <span className="text-xs font-bold">{profile.email || '—'}</span>
+                                </div>
+                            </div>
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm ${profile.role === 'admin' ? 'bg-primary-100 text-primary-700' :
+                                profile.role === 'kitchen' ? 'bg-blue-100 text-blue-700' :
+                                    'bg-accent-100 text-accent-700'
+                                }`}>
+                                {profile.role}
+                            </span>
+                        </div>
+
+                        <div className="mb-4">
+                            <div className="bg-secondary-50 p-3 rounded-2xl border border-secondary-100 flex items-center gap-3">
+                                <Store className="w-4 h-4 text-secondary-400" />
+                                <div>
+                                    <p className="text-[10px] text-secondary-400 font-bold uppercase tracking-wider">Restaurante</p>
+                                    <p className="text-xs font-bold text-secondary-700">{profile.restaurant?.name || 'Sistema'}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => handleEdit(profile)}
+                                className="flex-1 py-3 bg-secondary-50 text-secondary-600 hover:bg-primary-50 hover:text-primary-600 rounded-xl flex items-center justify-center gap-2 font-black text-xs uppercase tracking-wider transition-colors"
+                            >
+                                <Edit2 className="w-4 h-4" />
+                                Editar
+                            </button>
+                            <button
+                                onClick={() => handleDelete(profile.id)}
+                                className="flex-1 py-3 bg-secondary-50 text-secondary-600 hover:bg-red-50 hover:text-red-500 rounded-xl flex items-center justify-center gap-2 font-black text-xs uppercase tracking-wider transition-colors"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                Eliminar
+                            </button>
+                        </div>
+                    </div>
+                ))}
+                {users.length === 0 && (
+                    <div className="bg-white p-10 rounded-3xl text-center border border-secondary-100">
+                        <Users className="w-12 h-12 text-secondary-200 mx-auto mb-4" />
+                        <p className="font-bold text-secondary-400">No hay personal registrado.</p>
+                    </div>
+                )}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-xl shadow-secondary-900/5 border border-secondary-100 overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left min-w-[800px] md:min-w-0">
+                    <table className="w-full text-left">
                         <thead className="bg-secondary-50/50 text-secondary-400 text-[10px] md:text-xs uppercase font-black tracking-widest">
                             <tr>
                                 <th className="px-6 md:px-8 py-4 md:py-5">Nombre</th>

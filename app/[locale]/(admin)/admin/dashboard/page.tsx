@@ -11,10 +11,12 @@ import {
     TrendingUp,
     LogOut,
     Package,
-    List
+    List,
+    Clock,
+    Eye,
+    X as CloseIcon
 } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
-import { Clock, Eye, X as CloseIcon } from 'lucide-react';
 
 import { useAuth } from '@/components/auth/AuthContext';
 import { SidebarLink } from '@/components/admin/SidebarLink';
@@ -103,7 +105,7 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="p-4 md:p-8 lg:p-10">
+        <div className="p-4 md:p-8 lg:p-10 pb-20 md:pb-10">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10 animate-slide-up">
                 <div>
                     <h1 className="text-3xl md:text-4xl font-black text-secondary-900 tracking-tight">{t('dashboard')}</h1>
@@ -151,8 +153,52 @@ export default function DashboardPage() {
                 />
             </div>
 
-            {/* Recent Orders */}
-            <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-xl shadow-secondary-900/5 border border-secondary-100 overflow-hidden animate-slide-up" style={{ animationDelay: '500ms' }}>
+            {/* Recent Orders - Mobile Card View */}
+            <div className="md:hidden space-y-4 mb-10 animate-slide-up" style={{ animationDelay: '500ms' }}>
+                <div className="flex justify-between items-center mb-2">
+                    <h2 className="text-xl font-black text-secondary-900 tracking-tight">Pedidos Recientes</h2>
+                    <button className="text-primary-600 text-xs font-black uppercase tracking-widest">Ver todos</button>
+                </div>
+                {recentOrders.map((order) => (
+                    <div key={order.id} className="bg-white p-5 rounded-[2rem] shadow-sm border border-secondary-100 relative" onClick={() => setSelectedOrder(order)}>
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 className="font-black text-secondary-900 text-lg">#{order.order_number}</h3>
+                                <p className="text-xs font-bold text-secondary-400 mt-1">
+                                    {mounted ? new Date(order.created_at).toLocaleDateString('es-SV', {
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    }) : ''}
+                                </p>
+                            </div>
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm ${order.status === 'completed' ? 'bg-accent-100 text-accent-700' :
+                                order.status === 'pending' ? 'bg-primary-100 text-primary-700' :
+                                    'bg-blue-100 text-blue-700'
+                                }`}>
+                                {order.status}
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-secondary-500 font-bold text-xs">
+                                <Clock className="w-3 h-3" />
+                                <span>{order.ready_at ? calculateTime(order.created_at, order.ready_at) : 'En proceso...'}</span>
+                            </div>
+                            <span className="font-black text-primary-600 text-lg">
+                                {formatPrice(Number(order.total_amount), 'es-SV')}
+                            </span>
+                        </div>
+                    </div>
+                ))}
+                {recentOrders.length === 0 && (
+                    <div className="bg-white p-8 rounded-[2rem] text-center border border-secondary-100">
+                        <ShoppingBag className="w-8 h-8 text-secondary-200 mx-auto mb-2" />
+                        <p className="font-bold text-secondary-400 text-sm">Sin pedidos recientes.</p>
+                    </div>
+                )}
+            </div>
+
+            {/* Recent Orders - Desktop Table View */}
+            <div className="hidden md:block bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-xl shadow-secondary-900/5 border border-secondary-100 overflow-hidden animate-slide-up" style={{ animationDelay: '500ms' }}>
                 <div className="p-6 md:p-8 border-b border-secondary-50 flex justify-between items-center">
                     <h2 className="text-xl md:text-2xl font-black text-secondary-900 tracking-tight">Pedidos Recientes</h2>
                     <button className="bg-secondary-50 text-secondary-600 px-4 md:px-6 py-2 rounded-xl md:rounded-2xl font-black text-xs md:text-sm hover:bg-primary-500 hover:text-white transition-all duration-300">
@@ -160,7 +206,7 @@ export default function DashboardPage() {
                     </button>
                 </div>
                 <div className="overflow-x-auto min-w-full">
-                    <table className="w-full text-left min-w-[800px] md:min-w-0">
+                    <table className="w-full text-left">
                         <thead className="bg-secondary-50/50 text-secondary-400 text-[10px] md:text-xs uppercase font-black tracking-widest">
                             <tr>
                                 <th className="px-6 md:px-8 py-4 md:py-5">Orden</th>
@@ -292,7 +338,6 @@ export default function DashboardPage() {
         </div>
     );
 }
-
 
 function StatCard({ icon, label, value, trend, bgColor, delay }: { icon: React.ReactNode, label: string, value: string, trend?: string, bgColor: string, delay: string }) {
     return (
