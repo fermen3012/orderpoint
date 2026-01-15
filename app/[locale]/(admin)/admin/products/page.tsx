@@ -17,7 +17,8 @@ import {
     X as CloseIcon,
     Image as ImageIcon,
     Search,
-    ChefHat
+    ChefHat,
+    Loader2
 } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 import { SidebarLink } from '@/components/admin/SidebarLink';
@@ -397,7 +398,7 @@ export default function ProductsPage() {
                                 onClick={() => setIsModalOpen(false)}
                                 className="p-2 md:p-3 hover:bg-white rounded-xl md:rounded-2xl transition-all shadow-sm border border-secondary-100"
                             >
-                                <XIcon className="w-5 h-5 md:w-6 md:h-6 text-secondary-400" />
+                                <CloseIcon className="w-5 h-5 md:w-6 md:h-6 text-secondary-400" />
                             </button>
                         </div>
 
