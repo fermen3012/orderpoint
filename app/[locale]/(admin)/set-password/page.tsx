@@ -115,8 +115,8 @@ export default function SetPasswordPage() {
             // 2. Actualizar el nombre completo en el perfil público
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-                const { error: profileError } = await (supabase
-                    .from('profiles') as any)
+                const { error: profileError } = await (supabase as any)
+                    .from('profiles')
                     .update({ full_name: fullName })
                     .eq('id', user.id);
 
