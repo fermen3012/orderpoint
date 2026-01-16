@@ -30,6 +30,9 @@ export default function ProtectedAdminLayout({
     const [loading, setLoading] = useState(true);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [authData, setAuthData] = useState<{ userProfile: any, restaurantId: string | null } | null>(null);
+    const [restaurantName, setRestaurantName] = useState<string | null>(null);
+    const [restaurantLogo, setRestaurantLogo] = useState<string | null>(null);
+    const [loadingRestaurant, setLoadingRestaurant] = useState(false);
     const supabase = createClient();
 
     useEffect(() => {
@@ -45,7 +48,7 @@ export default function ProtectedAdminLayout({
                 .from('profiles')
                 .select('*')
                 .eq('id', session.user.id)
-                .single();
+                .single() as { data: any, error: any };
 
             if (error || !profile) {
                 router.push('/login');
@@ -67,6 +70,33 @@ export default function ProtectedAdminLayout({
         };
         checkAuth();
     }, [router, supabase]);
+
+    useEffect(() => {
+        const fetchRestaurant = async () => {
+            if (!authData?.restaurantId) return;
+            setLoadingRestaurant(true);
+            try {
+                const { data, error } = await supabase
+                    .from('restaurants')
+                    .select('name, logo_url')
+                    .eq('id', authData.restaurantId)
+                    .single() as { data: any, error: any };
+
+                if (data && !error) {
+                    setRestaurantName(data.name);
+                    setRestaurantLogo(data.logo_url);
+                }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setLoadingRestaurant(false);
+            }
+        };
+
+        if (authData?.restaurantId) {
+            fetchRestaurant();
+        }
+    }, [authData, supabase]);
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -108,11 +138,31 @@ export default function ProtectedAdminLayout({
                 `}>
                     <div className="flex flex-col h-full">
                         <div className="p-8 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-primary-500 rounded-2xl flex items-center justify-center shadow-lg shadow-primary-200">
-                                    <span className="text-white font-black text-xl">O</span>
-                                </div>
-                                <span className="text-2xl font-black text-slate-900 tracking-tighter">OrderPoint</span>
+                            <div className="w-10 h-10 bg-primary-500 rounded-2xl flex items-center justify-center shadow-lg shadow-primary-200 overflow-hidden">
+                                {restaurantLogo ? (
+                                    <img src={restaurantLogo} alt={restaurantName || ''} className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-white font-black text-xl">
+                                        {restaurantName ? restaurantName.charAt(0).toUpperCase() : 'O'}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                                {loadingRestaurant ? (
+                                    <>
+                                        <div className="h-6 w-32 bg-slate-200 animate-pulse rounded-md mb-1"></div>
+                                        <div className="h-3 w-20 bg-slate-100 animate-pulse rounded-sm"></div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="text-xl font-black text-slate-900 tracking-tighter truncate leading-tight">
+                                            {restaurantName || 'OrderPoint'}
+                                        </span>
+                                        <span className="text-[10px] font-black text-primary-600 uppercase tracking-widest leading-none">
+                                            Admin Panel
+                                        </span>
+                                    </>
+                                )}
                             </div>
                             <button
                                 className="lg:hidden p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl"
@@ -156,10 +206,18 @@ export default function ProtectedAdminLayout({
                     {/* Mobile Header */}
                     <header className="lg:hidden bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between sticky top-0 z-30">
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-primary-500 rounded-xl flex items-center justify-center shadow-lg shadow-primary-200">
-                                <span className="text-white font-black text-sm">O</span>
+                            <div className="w-8 h-8 bg-primary-500 rounded-xl flex items-center justify-center shadow-lg shadow-primary-200 overflow-hidden">
+                                {restaurantLogo ? (
+                                    <img src={restaurantLogo} alt={restaurantName || ''} className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-white font-black text-sm">
+                                        {restaurantName ? restaurantName.charAt(0).toUpperCase() : 'O'}
+                                    </span>
+                                )}
                             </div>
-                            <span className="text-lg font-black text-slate-900 tracking-tighter">OrderPoint</span>
+                            <span className="text-lg font-black text-slate-900 tracking-tighter truncate max-w-[150px]">
+                                {restaurantName || 'OrderPoint'}
+                            </span>
                         </div>
                         <button
                             className="p-2 text-slate-600 bg-slate-50 border border-slate-100 rounded-xl active:scale-95 transition-all"

@@ -77,7 +77,7 @@ export function ProductCard({
 
                 {/* Add to Cart Icon Overlay */}
                 {isAvailable && (
-                    <div className="absolute bottom-4 right-4 bg-primary-500 text-white p-3 rounded-2xl shadow-xl translate-y-12 group-hover:translate-y-0 transition-transform duration-300 ease-out">
+                    <div className="absolute bottom-4 right-4 bg-gradient-to-br from-green-400 to-green-600 text-white p-3 rounded-2xl shadow-xl translate-y-12 group-hover:translate-y-0 transition-transform duration-300 ease-out">
                         <Plus className="w-6 h-6" />
                     </div>
                 )}
@@ -86,27 +86,27 @@ export function ProductCard({
             {/* Content */}
             <div className="p-5 text-left">
                 <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-bold text-xl text-secondary-900 line-clamp-2 tablet-text leading-tight">
+                    <h3 className="font-bold text-xl text-slate-800 line-clamp-2 tablet-text leading-tight group-hover:text-green-600 transition-colors">
                         {name}
                     </h3>
                 </div>
 
                 {description && (
-                    <p className="text-secondary-600/70 text-sm mb-4 line-clamp-2 font-medium">
+                    <p className="text-slate-500 text-sm mb-4 line-clamp-2 font-medium">
                         {description}
                     </p>
                 )}
 
                 <div className="flex items-center justify-between mt-auto">
                     <div className="flex flex-col">
-                        <span className="text-xs font-bold text-secondary-400 uppercase tracking-wider">{t('price')}</span>
-                        <span className="text-2xl font-black text-primary-600">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('price')}</span>
+                        <span className="text-2xl font-black text-green-600">
                             {formatPrice(price, locale === 'es' ? 'es-SV' : 'en-US')}
                         </span>
                     </div>
 
                     {isAvailable && (
-                        <div className="bg-secondary-50 text-secondary-600 px-4 py-2 rounded-2xl font-bold text-sm border border-secondary-100 group-hover:bg-primary-500 group-hover:text-white group-hover:border-primary-500 transition-all duration-300">
+                        <div className="bg-slate-50 text-slate-600 px-4 py-2 rounded-2xl font-bold text-sm border border-slate-100 group-hover:bg-gradient-to-br group-hover:from-green-400 group-hover:to-green-600 group-hover:text-white group-hover:border-green-500 transition-all duration-300 shadow-sm group-hover:shadow-green-500/20">
                             <span className="hidden sm:inline">{t('add')}</span>
                             <Plus className="w-5 h-5 sm:hidden" />
                         </div>
