@@ -8,7 +8,8 @@ import {
     Users,
     Settings,
     LogOut,
-    ShieldCheck
+    ShieldCheck,
+    Activity
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/browser';
 import { useRouter, Link } from '@/i18n/routing';
@@ -79,7 +80,8 @@ export default function SuperAdminLayout({
                     <SidebarLink
                         icon={<Users className="w-5 h-5" />}
                         label="Usuarios Globales"
-                        href="#"
+                        href="/super-admin/users"
+                        active={pathname.includes('/super-admin/users')}
                         onClick={() => setIsSidebarOpen(false)}
                     />
 
@@ -90,6 +92,13 @@ export default function SuperAdminLayout({
                         icon={<ShieldCheck className="w-5 h-5" />}
                         label="Seguridad"
                         href="#"
+                        onClick={() => setIsSidebarOpen(false)}
+                    />
+                    <SidebarLink
+                        icon={<Activity className="w-5 h-5" />}
+                        label="Salud del Sistema"
+                        href="/super-admin/performance"
+                        active={pathname.includes('/super-admin/performance')}
                         onClick={() => setIsSidebarOpen(false)}
                     />
                     <SidebarLink

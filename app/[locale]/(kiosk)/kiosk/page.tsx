@@ -9,6 +9,9 @@ import { ProductCard } from '@/components/kiosk/ProductCard';
 import { CategoryCard } from '@/components/kiosk/CategoryCard';
 import { Cart } from '@/components/kiosk/Cart';
 import { ProductCustomizationModal } from '@/components/kiosk/ProductCustomizationModal';
+import { OrderTicket } from '@/components/kiosk/OrderTicket';
+import { useRef } from 'react';
+import { useReactToPrint } from 'react-to-print';
 import { getModifiersByProduct } from '@/actions/modifiers';
 import { ModifierSelection } from '@/store/cart-store';
 import { Globe, ArrowLeft } from 'lucide-react';
@@ -37,6 +40,20 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [customizingProduct, setCustomizingProduct] = useState<any | null>(null);
+    const [orderToPrint, setOrderToPrint] = useState<any | null>(null);
+    const ticketRef = useRef<HTMLDivElement>(null);
+
+    const handlePrint = useReactToPrint({
+        contentRef: ticketRef,
+        onAfterPrint: () => setOrderToPrint(null),
+    });
+
+    // Automatically trigger print when orderToPrint is set
+    useEffect(() => {
+        if (orderToPrint) {
+            handlePrint();
+        }
+    }, [orderToPrint, handlePrint]);
 
     // Load categories and products
     useEffect(() => {
@@ -159,11 +176,22 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
             console.log('Restaurant ID:', restaurantId);
             console.log('Cart Items:', items);
 
-            // Create order
+            // 1. Get next sequence number for THIS restaurant
+            const { data: nextNumber, error: rpcError } = await (supabase as any).rpc('get_next_order_number', {
+                p_restaurant_id: restaurantId
+            });
+
+            if (rpcError) {
+                console.error('RPC Error:', rpcError);
+                throw new Error(`Failed to generate order number: ${rpcError.message}`);
+            }
+
+            // 2. Create order with the manual number
             const orderData = {
                 restaurant_id: restaurantId,
                 total_amount: getTotal(),
                 status: 'pending' as const,
+                order_number: nextNumber
             };
             console.log('Inserting Order:', orderData);
 
@@ -203,9 +231,37 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
             console.log('Order Items Created Successfully');
             console.log('--- CHECKOUT SUCCESS ---');
 
+            // Prepare ticket data and trigger print
+            const ticketData = {
+                order_number: order.order_number,
+                created_at: order.created_at,
+                total_amount: order.total_amount,
+                type: 'DINE_IN' as const, // Default for now
+                items: items.map(item => ({
+                    name: item.productName,
+                    quantity: item.quantity,
+                    price: item.productPrice,
+                    modifiers: [
+                        ...item.modifiers.flatMap(group =>
+                            group.options.map(opt => ({
+                                name: opt.name,
+                                price_extra: opt.priceAdjustment,
+                                type: 'extra' as const
+                            }))
+                        ),
+                        ...(item.removedIngredients || []).map(ingId => ({
+                            name: productIngredientsMap[item.productId]?.find((pi: any) => pi.ingredient_id === ingId)?.ingredients?.name || 'Ingrediente',
+                            type: 'removal' as const
+                        }))
+                    ]
+                }))
+            };
+
+            setOrderToPrint(ticketData);
+
             // Clear cart and show success
             clearCart();
-            alert(`${t('orderPlaced')} ${t('orderNumber')}: #${order.order_number} `);
+            // alert(`${t('orderPlaced')} ${t('orderNumber')}: #${order.order_number} `);
         } catch (error: any) {
             console.error('--- CHECKOUT FAILED ---');
             console.error('Full Error Object:', JSON.stringify(error, null, 2));
@@ -340,6 +396,12 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
                     locale={locale}
                 />
             )}
+            {/* Hidden Ticket for Printing */}
+            <div className="hidden">
+                {orderToPrint && (
+                    <OrderTicket ref={ticketRef} order={orderToPrint} />
+                )}
+            </div>
         </div>
     );
 }
