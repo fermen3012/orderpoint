@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { adminSupabase } from '@/lib/supabase/admin-client';
+import { createClient } from '@/lib/supabase/browser';
 import { useRouter } from '@/i18n/routing';
 import {
     LayoutDashboard,
@@ -35,6 +35,7 @@ export default function DashboardPage() {
     const [recentOrders, setRecentOrders] = useState<any[]>([]);
     const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
     const [mounted, setMounted] = useState(false);
+    const supabase = createClient();
 
     useEffect(() => {
         setMounted(true);
@@ -49,13 +50,13 @@ export default function DashboardPage() {
         try {
             // Fetch stats
             const [ordersRes, productsRes, categoriesRes] = await Promise.all([
-                adminSupabase.from('orders')
+                supabase.from('orders')
                     .select('*, order_items(*, products(name))')
                     .eq('restaurant_id', restaurantId),
-                adminSupabase.from('products')
+                supabase.from('products')
                     .select('*', { count: 'exact', head: true })
                     .eq('restaurant_id', restaurantId),
-                adminSupabase.from('categories')
+                supabase.from('categories')
                     .select('*', { count: 'exact', head: true })
                     .eq('restaurant_id', restaurantId)
             ]);
@@ -84,7 +85,7 @@ export default function DashboardPage() {
     };
 
     const handleLogout = async () => {
-        await adminSupabase.auth.signOut();
+        await supabase.auth.signOut();
         router.push('/login');
     };
 

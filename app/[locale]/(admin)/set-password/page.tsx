@@ -1,12 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { createClient } from '@/lib/supabase/browser';
 import { useRouter } from '@/i18n/routing';
 import { Lock, User, Loader2, CheckCircle2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import Link from 'next/link';
 
 export default function SetPasswordPage() {
+    const params = useParams();
+    const locale = params.locale as string;
     const t = useTranslations('admin');
     const router = useRouter();
     const supabase = createClient();
@@ -19,6 +24,7 @@ export default function SetPasswordPage() {
     const [success, setSuccess] = useState(false);
     const [hasSession, setHasSession] = useState(false);
     const [checkingSession, setCheckingSession] = useState(true);
+    const [termsAccepted, setTermsAccepted] = useState(false);
 
     useEffect(() => {
         let isMounted = true;
@@ -117,7 +123,12 @@ export default function SetPasswordPage() {
             if (user) {
                 const { error: profileError } = await (supabase as any)
                     .from('profiles')
-                    .update({ full_name: fullName })
+                    .update({
+                        full_name: fullName,
+                        terms_accepted: true,
+                        terms_accepted_at: new Date().toISOString(),
+                        terms_version: 'v1.0'
+                    })
                     .eq('id', user.id);
 
                 if (profileError) {
@@ -275,6 +286,18 @@ export default function SetPasswordPage() {
                         </div>
                     </div>
 
+                    <div className="flex items-start gap-3 px-1">
+                        <Checkbox
+                            id="terms"
+                            checked={termsAccepted}
+                            onCheckedChange={(checked) => setTermsAccepted(!!checked)}
+                            className="mt-1"
+                        />
+                        <label htmlFor="terms" className="text-sm text-slate-500 font-medium leading-tight">
+                            He leído y acepto los <a href={`/${locale}/legal/terms`} target="_blank" rel="noopener noreferrer" className="text-primary-600 font-bold hover:underline">Términos y Condiciones</a> y la Política de Privacidad de OrderPoint.
+                        </label>
+                    </div>
+
                     {error && (
                         <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-sm font-bold flex items-center gap-3">
                             <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
@@ -284,8 +307,8 @@ export default function SetPasswordPage() {
 
                     <button
                         type="submit"
-                        disabled={loading}
-                        className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-5 rounded-[2rem] shadow-xl shadow-slate-200 transition-all active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-3 uppercase tracking-widest text-sm"
+                        disabled={loading || !termsAccepted}
+                        className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-5 rounded-[2rem] shadow-xl shadow-slate-200 transition-all active:scale-[0.98] disabled:opacity-50 disabled:bg-slate-300 disabled:shadow-none flex items-center justify-center gap-3 uppercase tracking-widest text-sm"
                     >
                         {loading ? (
                             <Loader2 className="w-5 h-5 animate-spin" />

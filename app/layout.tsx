@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import AppWatchdog from "@/components/system/AppWatchdog";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -19,6 +20,7 @@ export default function RootLayout({
     return (
         <html lang="es" suppressHydrationWarning>
             <body className={`${geistSans.variable} ${geistMono.variable} antialiased`} suppressHydrationWarning>
+                <AppWatchdog />
                 {children}
             </body>
         </html>
