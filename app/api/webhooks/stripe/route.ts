@@ -58,7 +58,7 @@ export async function POST(request: Request) {
                 currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1); // Default backup
 
                 if (session.subscription) {
-                    const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+                    const subscription = await stripe.subscriptions.retrieve(session.subscription as string) as Stripe.Subscription;
                     currentPeriodEnd = new Date(subscription.current_period_end * 1000);
                 }
 
