@@ -102,7 +102,7 @@ export async function POST(request: Request) {
 
             // Optional: Handle successful recurring payments to update the period end
             case 'invoice.payment_succeeded': {
-                const invoice = event.data.object as Stripe.Invoice;
+                const invoice: any = event.data.object;
                 if (invoice.subscription) {
                     const subscriptionId = invoice.subscription as string;
                     const subscription: any = await stripe.subscriptions.retrieve(subscriptionId);
