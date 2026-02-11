@@ -58,7 +58,7 @@ export async function POST(request: Request) {
                 currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1); // Default backup
 
                 if (session.subscription) {
-                    const subscription = await stripe.subscriptions.retrieve(session.subscription as string) as Stripe.Subscription;
+                    const subscription: any = await stripe.subscriptions.retrieve(session.subscription as string);
                     currentPeriodEnd = new Date(subscription.current_period_end * 1000);
                 }
 
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
                 const invoice = event.data.object as Stripe.Invoice;
                 if (invoice.subscription) {
                     const subscriptionId = invoice.subscription as string;
-                    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+                    const subscription: any = await stripe.subscriptions.retrieve(subscriptionId);
                     const customerId = subscription.customer as string;
 
                     await supabaseAdmin
