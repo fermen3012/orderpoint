@@ -19,7 +19,6 @@ import {
 import { formatPrice } from '@/lib/utils';
 
 import { useAuth } from '@/components/auth/AuthContext';
-import { SidebarLink } from '@/components/admin/SidebarLink';
 
 export default function DashboardPage() {
     const t = useTranslations('admin');
