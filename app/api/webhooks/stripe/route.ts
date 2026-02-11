@@ -3,9 +3,7 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { supabaseAdmin } from '@/lib/supabase/server-admin';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    typescript: true,
-});
+
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
@@ -14,7 +12,12 @@ export async function GET() {
     return new NextResponse('Stripe Webhook Endpoint is active. Please use POST to send events.', { status: 200 });
 }
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+        typescript: true,
+    });
     const body = await request.text();
     const sig = (await headers()).get('stripe-signature') as string;
 
