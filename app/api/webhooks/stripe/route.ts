@@ -15,7 +15,9 @@ export async function GET() {
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+    // Initialize Stripe with a fallback key to prevent build-time errors.
+    // The actual key check happens below.
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_build_placeholder', {
         typescript: true,
     });
     const body = await request.text();
@@ -24,9 +26,9 @@ export async function POST(request: Request) {
     let event: Stripe.Event;
 
     try {
-        if (!sig || !endpointSecret) {
-            console.error('Webhook Error: Missing signature or endpoint secret');
-            return new NextResponse('Webhook Error', { status: 400 });
+        if (!sig || !endpointSecret || !process.env.STRIPE_SECRET_KEY) {
+            console.error('Webhook Error: Missing signature, endpoint secret, or Stripe key');
+            return new NextResponse('Webhook Error: Configuration missing', { status: 400 });
         }
         event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
     } catch (err: any) {
