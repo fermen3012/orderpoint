@@ -15,7 +15,8 @@ import {
     LogOut,
     Menu,
     X,
-    ChefHat
+    ChefHat,
+    CreditCard
 } from 'lucide-react';
 import { SidebarLink } from '@/components/admin/SidebarLink';
 
@@ -117,6 +118,7 @@ export default function ProtectedAdminLayout({
         { icon: <Package className="w-5 h-5" />, label: t('products'), href: '/admin/products' },
         { icon: <List className="w-5 h-5" />, label: t('categories'), href: '/admin/categories' },
         { icon: <ChefHat className="w-5 h-5" />, label: 'Ingredientes', href: '/admin/ingredients' },
+        { icon: <CreditCard className="w-5 h-5" />, label: 'Facturación', href: '/admin/billing' },
         { icon: <Users className="w-5 h-5" />, label: t('users'), href: '/admin/users' },
     ];
 

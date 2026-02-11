@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { ModifierSelection } from '@/store/cart-store';
+import { Product, Modifier, ModifierGroup, SelectedModifier } from '@/types';
+import { supabase } from '@/lib/supabase/client';
 import {
     Dialog,
     DialogContent,
@@ -18,34 +19,11 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog';
 
-interface Modifier {
-    id: string;
-    name: string;
-    price_extra: number;
-}
-
-interface ModifierGroup {
-    id: string;
-    name: string;
-    min_selections: number;
-    max_selections: number | null;
-    modifiers: Modifier[];
-}
-
-interface Product {
-    id: string;
-    name: string;
-    description?: string;
-    price: number;
-    image_url?: string;
-    modifier_groups: ModifierGroup[];
-}
-
 interface ProductCustomizationModalProps {
     product: Product;
     open: boolean;
     onClose: () => void;
-    onAdd: (product: Product, selectedModifiers: ModifierSelection[], totalPrice: number) => void;
+    onAdd: (product: Product, selectedModifiers: SelectedModifier[], totalPrice: number, removedIngredients: { id: string; name: string }[]) => void;
     locale: string;
 }
 
@@ -61,9 +39,43 @@ export function ProductCustomizationModal({
     // State to store selected modifiers per group
     const [selectedModifiers, setSelectedModifiers] = useState<Record<string, string[]>>({});
 
+    // State for removable ingredients
+    const [ingredients, setIngredients] = useState<any[]>([]);
+    const [removedIngredients, setRemovedIngredients] = useState<string[]>([]);
+
+    useEffect(() => {
+        if (open && product.id) {
+            const fetchIngredients = async () => {
+                const { data } = await supabase
+                    .from('product_ingredients')
+                    .select('*, ingredients(id, name)')
+                    .eq('product_id', product.id)
+                    .eq('is_removable', true); // Only fetch removable ones
+
+                if (data) {
+                    const formattedIngredients = data.map((pi: any) => ({
+                        id: pi.ingredient_id,
+                        name: pi.ingredients.name // Access joined data
+                    }));
+                    setIngredients(formattedIngredients);
+                }
+            };
+            fetchIngredients();
+            setRemovedIngredients([]); // Reset on open
+        }
+    }, [open, product.id]);
+
+    const toggleIngredient = (ingredientId: string) => {
+        setRemovedIngredients(prev =>
+            prev.includes(ingredientId)
+                ? prev.filter(id => id !== ingredientId)
+                : [...prev, ingredientId]
+        );
+    };
+
     // Initialize state with default values if any
     useEffect(() => {
-        if (open) {
+        if (open && product.modifier_groups) {
             const initialState: Record<string, string[]> = {};
             product.modifier_groups.forEach(group => {
                 initialState[group.id] = [];
@@ -86,7 +98,7 @@ export function ProductCustomizationModal({
             const currentSelected = prev[groupId] || [];
             if (checked) {
                 // Check if we can add more (max_selections)
-                const group = product.modifier_groups.find(g => g.id === groupId);
+                const group = product.modifier_groups?.find(g => g.id === groupId);
                 if (group?.max_selections && currentSelected.length >= group.max_selections) {
                     return prev; // Don't add if limit reached
                 }
@@ -107,12 +119,12 @@ export function ProductCustomizationModal({
     const totalPrice = useMemo(() => {
         let total = Number(product.price);
         Object.entries(selectedModifiers).forEach(([groupId, modifierIds]) => {
-            const group = product.modifier_groups.find(g => g.id === groupId);
+            const group = product.modifier_groups?.find(g => g.id === groupId);
             if (group) {
                 modifierIds.forEach(modId => {
-                    const modifier = group.modifiers.find(m => m.id === modId);
+                    const modifier = group.options.find(m => m.id === modId);
                     if (modifier) {
-                        total += Number(modifier.price_extra);
+                        total += Number(modifier.price);
                     }
                 });
             }
@@ -128,31 +140,36 @@ export function ProductCustomizationModal({
 
     // Overall form validity
     const isFormValid = useMemo(() => {
-        return product.modifier_groups.every(group => isGroupValid(group));
+        return product.modifier_groups?.every(group => isGroupValid(group)) ?? true;
     }, [product, selectedModifiers]);
 
     const handleSubmit = () => {
-        const mappedModifiers: ModifierSelection[] = [];
+        const mappedModifiers: SelectedModifier[] = [];
 
         Object.entries(selectedModifiers).forEach(([groupId, modifierIds]) => {
-            const group = product.modifier_groups.find(g => g.id === groupId);
+            const group = product.modifier_groups?.find(g => g.id === groupId);
             if (group && modifierIds.length > 0) {
-                mappedModifiers.push({
-                    groupId: group.id,
-                    groupName: group.name,
-                    options: modifierIds.map(modId => {
-                        const modifier = group.modifiers.find(m => m.id === modId);
-                        return {
-                            id: modId,
-                            name: modifier?.name || '',
-                            priceAdjustment: Number(modifier?.price_extra || 0)
-                        };
-                    })
-                });
+                const selectedOptions = modifierIds.map(modId => {
+                    const modifier = group.options.find(m => m.id === modId);
+                    return modifier!;
+                }).filter(Boolean);
+
+                if (selectedOptions.length > 0) {
+                    mappedModifiers.push({
+                        groupId: group.id,
+                        groupName: group.name,
+                        options: selectedOptions
+                    });
+                }
             }
         });
 
-        onAdd(product, mappedModifiers, totalPrice);
+        const removedIngredientsList = removedIngredients.map(id => {
+            const ing = ingredients.find(i => i.id === id);
+            return { id: id, name: ing ? ing.name : 'Unknown Ingredient' };
+        });
+
+        onAdd(product, mappedModifiers, totalPrice, removedIngredientsList);
     };
 
     return (
@@ -192,8 +209,55 @@ export function ProductCustomizationModal({
                 {/* Content - Modifier Groups */}
                 <div className="p-6 sm:p-10 max-h-[50vh] overflow-y-auto custom-scrollbar bg-secondary-50/30">
                     <div className="space-y-10">
-                        {product.modifier_groups.map((group) => {
-                            const isRequired = group.min_selections > 0;
+                        {/* Removable Ingredients Section */}
+                        {ingredients.length > 0 && (
+                            <div className="space-y-4">
+                                <h3 className="text-xl font-black text-secondary-900 flex items-center gap-2">
+                                    {t('customizeTitle')}
+                                </h3>
+                                <p className="text-xs font-bold text-secondary-400 uppercase tracking-widest mt-1">
+                                    {t('customizeDesc', { product: product.name })}
+                                </p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {ingredients.map((ing) => {
+                                        const isRemoved = removedIngredients.includes(ing.id);
+                                        return (
+                                            <div
+                                                key={ing.id}
+                                                className={`
+                                                    relative flex items-center space-x-3 p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer
+                                                    ${isRemoved
+                                                        ? 'bg-red-50 border-red-500/50 shadow-sm'
+                                                        : 'bg-white border-secondary-100 hover:border-secondary-200'
+                                                    }
+                                                `}
+                                                onClick={() => toggleIngredient(ing.id)}
+                                            >
+                                                <Checkbox
+                                                    id={`ing-${ing.id}`}
+                                                    checked={!isRemoved} // Logic inverted: checked means INCLUDED
+                                                    className="data-[state=checked]:bg-primary-500 data-[state=checked]:border-primary-500 pointer-events-none"
+                                                />
+                                                <div className="flex-1">
+                                                    <Label
+                                                        htmlFor={`ing-${ing.id}`}
+                                                        className={`text-base font-bold cursor-pointer block ${isRemoved ? 'text-red-500 line-through' : 'text-secondary-900'}`}
+                                                    >
+                                                        {ing.name}
+                                                    </Label>
+                                                    <span className={`text-[10px] uppercase font-black tracking-wider ${isRemoved ? 'text-red-500' : 'text-primary-600'}`}>
+                                                        {isRemoved ? t('removed') : t('included')}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {product.modifier_groups?.map((group) => {
+                            const isRequired = group.required;
                             const groupValid = isGroupValid(group);
                             const selections = selectedModifiers[group.id] || [];
 
@@ -203,6 +267,11 @@ export function ProductCustomizationModal({
                                         <div>
                                             <h3 className="text-xl font-black text-secondary-900 flex items-center gap-2">
                                                 {group.name}
+                                                {group.max_selections && (
+                                                    <span className="text-sm font-bold text-secondary-400">
+                                                        ({selections.length}/{group.max_selections})
+                                                    </span>
+                                                )}
                                                 {isRequired && (
                                                     <span className={`text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full font-bold ${groupValid ? 'bg-accent-100 text-accent-700' : 'bg-red-100 text-red-600 animate-pulse'}`}>
                                                         {groupValid ? '✓' : t('required')}
@@ -211,7 +280,6 @@ export function ProductCustomizationModal({
                                             </h3>
                                             <p className="text-xs font-bold text-secondary-400 uppercase tracking-widest mt-1">
                                                 {group.min_selections > 0 && `${t('min')}: ${group.min_selections}`}
-                                                {group.max_selections && ` • ${t('max')}: ${group.max_selections}`}
                                                 {!group.max_selections && group.min_selections === 0 && t('optional')}
                                             </p>
                                         </div>
@@ -223,7 +291,7 @@ export function ProductCustomizationModal({
                                             onValueChange={(val) => handleRadioChange(group.id, val)}
                                             className="grid grid-cols-1 sm:grid-cols-2 gap-3"
                                         >
-                                            {group.modifiers.map((modifier) => (
+                                            {group.options.filter(m => m.is_available).map((modifier) => (
                                                 <div
                                                     key={modifier.id}
                                                     className={`
@@ -243,9 +311,9 @@ export function ProductCustomizationModal({
                                                         >
                                                             {modifier.name}
                                                         </Label>
-                                                        {modifier.price_extra > 0 && (
+                                                        {modifier.price > 0 && (
                                                             <span className="text-sm font-black text-primary-600">
-                                                                + {formatPrice(modifier.price_extra, locale === 'es' ? 'es-SV' : 'en-US')}
+                                                                + {formatPrice(modifier.price, locale === 'es' ? 'es-SV' : 'en-US')}
                                                             </span>
                                                         )}
                                                     </div>
@@ -259,7 +327,7 @@ export function ProductCustomizationModal({
                                         </RadioGroup>
                                     ) : (
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            {group.modifiers.map((modifier) => {
+                                            {group.options.filter(m => m.is_available).map((modifier) => {
                                                 const isChecked = selections.includes(modifier.id);
                                                 const canSelectMore = !group.max_selections || selections.length < group.max_selections;
                                                 const isDisabled = !isChecked && !canSelectMore;
@@ -291,9 +359,9 @@ export function ProductCustomizationModal({
                                                             >
                                                                 {modifier.name}
                                                             </Label>
-                                                            {modifier.price_extra > 0 && (
+                                                            {modifier.price > 0 && (
                                                                 <span className="text-sm font-black text-primary-600">
-                                                                    + {formatPrice(modifier.price_extra, locale === 'es' ? 'es-SV' : 'en-US')}
+                                                                    + {formatPrice(modifier.price, locale === 'es' ? 'es-SV' : 'en-US')}
                                                                 </span>
                                                             )}
                                                         </div>

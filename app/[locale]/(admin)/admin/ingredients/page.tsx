@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { adminSupabase } from '@/lib/supabase/admin-client';
+import { createClient } from '@/lib/supabase/browser';
 import { useRouter } from '@/i18n/routing';
 import {
     LayoutDashboard,
@@ -43,7 +43,8 @@ export default function IngredientsPage() {
     const loadIngredients = async () => {
         if (!restaurantId) return;
         setLoading(true);
-        const { data } = await adminSupabase
+        const supabase = createClient();
+        const { data } = await supabase
             .from('ingredients')
             .select('*')
             .eq('restaurant_id', restaurantId)
@@ -58,8 +59,11 @@ export default function IngredientsPage() {
         if (!restaurantId) return;
         setSaving(true);
 
+        const supabase = createClient();
+
         if (editingIngredient) {
-            const { error } = await (adminSupabase.from('ingredients') as any)
+            const { error } = await supabase
+                .from('ingredients')
                 .update({ name: newName })
                 .eq('id', editingIngredient.id);
 
@@ -70,10 +74,12 @@ export default function IngredientsPage() {
                 loadIngredients();
             }
         } else {
-            const { error } = await (adminSupabase.from('ingredients') as any).insert({
-                name: newName,
-                restaurant_id: restaurantId
-            });
+            const { error } = await supabase
+                .from('ingredients')
+                .insert({
+                    name: newName,
+                    restaurant_id: restaurantId
+                });
 
             if (!error) {
                 setIsModalOpen(false);
@@ -92,13 +98,15 @@ export default function IngredientsPage() {
 
     const handleDeleteIngredient = async (id: string) => {
         if (confirm('¿Estás seguro de eliminar este ingrediente?')) {
-            const { error } = await adminSupabase.from('ingredients').delete().eq('id', id);
+            const supabase = createClient();
+            const { error } = await supabase.from('ingredients').delete().eq('id', id);
             if (!error) loadIngredients();
         }
     };
 
     const handleLogout = async () => {
-        await adminSupabase.auth.signOut();
+        const supabase = createClient();
+        await supabase.auth.signOut();
         router.push('/login');
     };
 

@@ -6,19 +6,20 @@ import { supabase } from '@/lib/supabase/client';
 import { useCartStore } from '@/store/cart-store';
 import { ProductCard } from '@/components/kiosk/ProductCard';
 import { Cart } from '@/components/kiosk/Cart';
+import CartFloatingBar from '@/components/kiosk/CartFloatingBar';
 import { ProductCustomizationModal } from '@/components/kiosk/ProductCustomizationModal';
 import { OrderTicket } from '@/components/kiosk/OrderTicket';
 import { CategorySidebar } from '@/components/kiosk/CategorySidebar';
 import { useReactToPrint } from 'react-to-print';
 import { getModifiersByProduct } from '@/actions/modifiers';
-import { ModifierSelection } from '@/store/cart-store';
 import { Globe, ShoppingBag, ArrowLeft } from 'lucide-react';
 import { useRouter, usePathname } from '@/i18n/routing';
 import type { Database } from '@/lib/supabase/types';
 import { useAuth } from '@/components/auth/AuthContext';
 import { cn } from '@/lib/utils';
+import { Product as UIProduct, ModifierGroup as UIModifierGroup, Modifier as UIModifier, SelectedModifier } from '@/types';
 
-type Product = Database['public']['Tables']['products']['Row'];
+type DBProduct = Database['public']['Tables']['products']['Row'];
 type Category = Database['public']['Tables']['categories']['Row'];
 
 export default function KioskPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -29,14 +30,14 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
     const pathname = usePathname();
 
     const { restaurantId } = useAuth();
-    const { addItem } = useCartStore();
+    const { addToCart } = useCartStore();
 
     const [categories, setCategories] = useState<Category[]>([]);
-    const [products, setProducts] = useState<Product[]>([]);
+    const [products, setProducts] = useState<DBProduct[]>([]);
     const [productIngredientsMap, setProductIngredientsMap] = useState<Record<string, any[]>>({});
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
-    const [customizingProduct, setCustomizingProduct] = useState<any | null>(null);
+    const [customizingProduct, setCustomizingProduct] = useState<UIProduct | null>(null);
     const [restaurantName, setRestaurantName] = useState<string | null>(null);
     const [orderToPrint, setOrderToPrint] = useState<any | null>(null);
     const [isCartOpen, setIsCartOpen] = useState(false);
@@ -57,22 +58,40 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
             if (!restaurantId) return;
             setLoading(true);
             try {
-                const [categoriesRes, productsRes, ingredientsRes] = await Promise.all([
+                const [categoriesRes, productsRes] = await Promise.all([
                     supabase.from('categories').select('*').eq('restaurant_id', restaurantId).order('sort_order'),
-                    supabase.from('products').select('*').eq('restaurant_id', restaurantId).eq('is_available', true),
-                    supabase.from('product_ingredients').select('*, ingredients(name)')
+                    supabase.from('products').select('*').eq('restaurant_id', restaurantId).eq('is_available', true)
                 ]);
 
                 if (categoriesRes.data) setCategories(categoriesRes.data);
-                if (productsRes.data) setProducts(productsRes.data);
 
-                if (ingredientsRes.data) {
-                    const map: Record<string, any[]> = {};
-                    ingredientsRes.data.forEach((pi: any) => {
-                        if (!map[pi.product_id]) map[pi.product_id] = [];
-                        map[pi.product_id].push(pi);
-                    });
-                    setProductIngredientsMap(map);
+                if (productsRes.data) {
+                    setProducts(productsRes.data);
+                    console.log(`Loaded ${productsRes.data.length} products`);
+
+                    const productIds = productsRes.data.map(p => p.id);
+                    if (productIds.length > 0) {
+                        const { data: ingredientsData, error: ingError } = await supabase
+                            .from('product_ingredients')
+                            .select('*, ingredients(name), is_removable')
+                            .in('product_id', productIds);
+
+                        if (ingError) {
+                            console.error("Error loading ingredients:", ingError);
+                        }
+
+                        if (ingredientsData) {
+                            console.log(`Loaded ${ingredientsData.length} total ingredients associations`);
+                            const map: Record<string, any[]> = {};
+                            ingredientsData.forEach((pi: any) => {
+                                if (!map[pi.product_id]) map[pi.product_id] = [];
+                                map[pi.product_id].push(pi);
+                            });
+                            setProductIngredientsMap(map);
+                        }
+                    } else {
+                        setProductIngredientsMap({});
+                    }
                 }
             } catch (error) {
                 console.error('Error loading kiosk data:', error);
@@ -92,42 +111,82 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
         loadRestaurant();
     }, [restaurantId]);
 
-    const handleAddToCart = async (product: Product) => {
+    const handleAddToCart = async (product: DBProduct) => {
         setLoading(true);
         try {
             const { data: productWithModifiers, error } = await getModifiersByProduct(product.id);
             if (error) {
-                addItem({
-                    productId: product.id,
-                    productName: product.name,
-                    productPrice: Number(product.price),
-                    productImage: product.image_url,
-                    quantity: 1,
-                    modifiers: [],
-                    removedIngredients: [],
-                    totalPrice: Number(product.price),
-                });
+                console.error('Error fetching modifiers:', error);
+
+                // Even if modifier fetch fails, check for removable ingredients
+                const hasRemovableIngredients = productIngredientsMap[product.id]?.some((pi: any) => !!pi.is_removable) || false;
+
+                const uiProduct: UIProduct = {
+                    id: product.id,
+                    name: product.name,
+                    description: product.description,
+                    price: Number(product.price),
+                    image_url: product.image_url,
+                    is_available: product.is_available ?? true,
+                    modifier_groups: []
+                };
+
+                if (hasRemovableIngredients) {
+                    setCustomizingProduct(uiProduct);
+                } else {
+                    addToCart(uiProduct, [], 1);
+                }
                 return;
             }
 
-            const modifierGroups = productWithModifiers?.product_modifier_groups?.map((pmg: any) => ({
-                ...pmg.modifier_groups,
-                modifiers: pmg.modifier_groups?.modifiers || []
-            })) || [];
+            // Map DB structure to UI Interface
+            const modifierGroups: UIModifierGroup[] = productWithModifiers?.product_modifier_groups?.map((pmg: any) => {
+                const group = pmg.modifier_groups;
+                return {
+                    id: group.id,
+                    name: group.name,
+                    min_selections: group.min_selections,
+                    max_selections: group.max_selections,
+                    required: group.is_required,
+                    options: (group.modifiers || []).map((m: any) => ({
+                        id: m.id,
+                        name: m.name,
+                        price: Number(m.price_extra),
+                        is_available: m.is_available
+                    }))
+                };
+            }) || [];
 
-            if (modifierGroups.length > 0) {
-                setCustomizingProduct({ ...product, modifier_groups: modifierGroups });
+            // Check if product has removable ingredients
+            // We can look this up in the map we already loaded
+            const hasRemovableIngredients = productIngredientsMap[product.id]?.some((pi: any) => !!pi.is_removable) || false;
+
+            console.log('Product:', product.name, 'Modifiers:', modifierGroups.length, 'Removable:', hasRemovableIngredients, 'Ingredients:', productIngredientsMap[product.id]);
+
+            if (modifierGroups.length > 0 || hasRemovableIngredients) {
+                // Convert DBProduct to UIProduct
+                const uiProduct: UIProduct = {
+                    id: product.id,
+                    name: product.name,
+                    description: product.description,
+                    price: Number(product.price),
+                    image_url: product.image_url,
+                    is_available: product.is_available ?? true,
+                    modifier_groups: modifierGroups
+                };
+                setCustomizingProduct(uiProduct);
             } else {
-                addItem({
-                    productId: product.id,
-                    productName: product.name,
-                    productPrice: Number(product.price),
-                    productImage: product.image_url,
-                    quantity: 1,
-                    modifiers: [],
-                    removedIngredients: [],
-                    totalPrice: Number(product.price),
-                });
+                // No modifiers, just add directly
+                const uiProduct: UIProduct = {
+                    id: product.id,
+                    name: product.name,
+                    description: product.description,
+                    price: Number(product.price),
+                    image_url: product.image_url,
+                    is_available: product.is_available ?? true,
+                    modifier_groups: []
+                };
+                addToCart(uiProduct, [], 1);
             }
         } catch (err) {
             console.error(err);
@@ -136,29 +195,22 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
         }
     };
 
-    const handleConfirmAdd = (product: any, selectedModifiers: ModifierSelection[], totalPrice: number) => {
-        addItem({
-            productId: product.id,
-            productName: product.name,
-            productPrice: Number(product.price),
-            productImage: product.image_url,
-            quantity: 1,
-            modifiers: selectedModifiers,
-            removedIngredients: [],
-            totalPrice: totalPrice,
-        });
+    const handleConfirmAdd = (product: any, selectedModifiers: SelectedModifier[], totalPrice: number, removedIngredients: { id: string; name: string }[]) => {
+        // Price is recalculated in store for safety/consistency, but we trust logic here.
+        // We just pass product + modifiers.
+        addToCart(product, selectedModifiers, 1, removedIngredients);
         setCustomizingProduct(null);
     };
 
     const handleCheckout = async () => {
-        const { items, getTotal, clearCart } = useCartStore.getState();
+        const { items, getCartTotal, clearCart } = useCartStore.getState();
         if (items.length === 0 || !restaurantId) return;
 
         try {
             const { data: nextNumber } = await (supabase as any).rpc('get_next_order_number', { p_restaurant_id: restaurantId });
             const { data: order, error: orderError } = await (supabase.from('orders') as any).insert({
                 restaurant_id: restaurantId,
-                total_amount: getTotal(),
+                total_amount: getCartTotal(),
                 status: 'pending',
                 order_number: nextNumber
             }).select().single();
@@ -167,11 +219,11 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
 
             const orderItems = items.map((item) => ({
                 order_id: order.id,
-                product_id: item.productId,
+                product_id: item.product.id,
                 quantity: item.quantity,
-                unit_price: item.productPrice,
-                modifiers_json: item.modifiers || [],
-                removed_ingredients: item.removedIngredients?.length ? item.removedIngredients : null,
+                unit_price: item.product.price, // Base price, modifiers stored in JSON
+                modifiers_json: item.selectedModifiers || [],
+                removed_ingredients: item.removedIngredients?.length ? item.removedIngredients.map(ri => ri.id) : null,
             }));
 
             const { error: itemsError } = await (supabase.from('order_items') as any).insert(orderItems);
@@ -183,13 +235,13 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
                 total_amount: order.total_amount,
                 type: 'DINE_IN' as const,
                 items: items.map(item => ({
-                    name: item.productName,
+                    name: item.product.name,
                     quantity: item.quantity,
-                    price: item.productPrice,
+                    price: item.unitPrice,
                     modifiers: [
-                        ...item.modifiers.flatMap(group => group.options.map(opt => ({ name: opt.name, price_extra: opt.priceAdjustment, type: 'extra' as const }))),
-                        ...(item.removedIngredients || []).map(ingId => ({
-                            name: productIngredientsMap[item.productId]?.find((pi: any) => pi.ingredient_id === ingId)?.ingredients?.name || 'Item',
+                        ...item.selectedModifiers.flatMap(group => group.options.map(opt => ({ name: opt.name, price_extra: Number(opt.price), type: 'extra' as const }))),
+                        ...(item.removedIngredients || []).map(ri => ({
+                            name: ri.name,
                             type: 'removal' as const
                         }))
                     ]
@@ -274,7 +326,8 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
                         ))}
                     </div>
                     {/* Spacer for bottom */}
-                    <div className="h-20" />
+                    <div className="h-32" />
+                    <CartFloatingBar onOpenCart={() => setIsCartOpen(true)} />
                 </div>
             </main>
 
@@ -298,26 +351,36 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
             </div>
 
             {/* Customization Modal */}
-            {customizingProduct && (
-                <ProductCustomizationModal
-                    open={!!customizingProduct}
-                    product={customizingProduct}
-                    onClose={() => setCustomizingProduct(null)}
-                    onAdd={handleConfirmAdd}
-                    locale={locale}
-                />
-            )}
+            {
+                customizingProduct && (
+                    <ProductCustomizationModal
+                        open={!!customizingProduct}
+                        product={customizingProduct}
+                        onClose={() => setCustomizingProduct(null)}
+                        onAdd={handleConfirmAdd}
+                        locale={locale}
+                    />
+                )
+            }
 
             {/* Hidden Ticket for Printing */}
             <div className="hidden">
                 {orderToPrint && <OrderTicket ref={ticketRef} order={orderToPrint} />}
             </div>
-        </div>
+        </div >
     );
 }
 
 function CartCounter() {
     const items = useCartStore((state) => state.items);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) return null;
+
     const count = items.reduce((acc, item) => acc + item.quantity, 0);
 
     if (count === 0) return null;

@@ -1,36 +1,19 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-
-export interface ModifierSelection {
-    groupId: string;
-    groupName: string;
-    options: {
-        id: string;
-        name: string;
-        priceAdjustment: number;
-    }[];
-}
-
-export interface CartItem {
-    id: string; // Unique cart item ID
-    productId: string;
-    productName: string;
-    productPrice: number;
-    productImage: string | null;
-    quantity: number;
-    modifiers: ModifierSelection[];
-    removedIngredients: string[]; // Array of ingredient IDs
-    totalPrice: number;
-}
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { CartItem, Product, SelectedModifier } from '@/types';
 
 interface CartStore {
     items: CartItem[];
-    addItem: (item: Omit<CartItem, 'id'>) => void;
-    removeItem: (id: string) => void;
-    updateQuantity: (id: string, quantity: number) => void;
+    addToCart: (product: Product, modifiers: SelectedModifier[], quantity: number, removedIngredients?: { id: string; name: string }[]) => void;
+    removeFromCart: (uniqueId: string) => void;
+    updateQuantity: (uniqueId: string, delta: number) => void;
     clearCart: () => void;
-    getTotal: () => number;
-    getItemCount: () => number;
+
+    // Computed properties are derived from state in components usually, 
+    // but we can provide helper functions or getters if needed.
+    // Zustand doesn't have "computed" properties like Vue, but we can have selectors.
+    getCartTotal: () => number;
+    getCartCount: () => number;
 }
 
 export const useCartStore = create<CartStore>()(
@@ -38,70 +21,74 @@ export const useCartStore = create<CartStore>()(
         (set, get) => ({
             items: [],
 
-            addItem: (item) => {
-                const id = `${item.productId}-${Date.now()}-${Math.random()}`;
-                const modifiersTotal = item.modifiers.reduce(
-                    (sum, group) =>
-                        sum +
-                        group.options.reduce(
-                            (optSum, opt) => optSum + opt.priceAdjustment,
-                            0
-                        ),
-                    0
-                );
-                const totalPrice = (item.productPrice + modifiersTotal) * item.quantity;
+            addToCart: (product: Product, modifiers: SelectedModifier[], quantity: number, removedIngredients?: { id: string; name: string }[]) => {
+                const uniqueId = crypto.randomUUID();
+
+                // Calculate base price + modifiers
+                const basePrice = Number(product.price);
+                const modifiersTotal = modifiers.reduce((total, group) => {
+                    return total + group.options.reduce((groupTotal, option) => {
+                        return groupTotal + Number(option.price);
+                    }, 0);
+                }, 0);
+
+                const unitPrice = basePrice + modifiersTotal;
+                const totalPrice = unitPrice * quantity;
+
+                const newItem: CartItem = {
+                    uniqueId,
+                    product,
+                    selectedModifiers: modifiers,
+                    quantity,
+                    unitPrice,
+                    totalPrice,
+                    removedIngredients: removedIngredients || []
+                };
 
                 set((state) => ({
-                    items: [...state.items, { ...item, id, totalPrice }],
+                    items: [...state.items, newItem]
                 }));
             },
 
-            removeItem: (id) => {
+            removeFromCart: (uniqueId) => {
                 set((state) => ({
-                    items: state.items.filter((item) => item.id !== id),
+                    items: state.items.filter((item) => item.uniqueId !== uniqueId)
                 }));
             },
 
-            updateQuantity: (id, quantity) => {
-                if (quantity <= 0) {
-                    get().removeItem(id);
-                    return;
-                }
-
-                set((state) => ({
-                    items: state.items.map((item) => {
-                        if (item.id === id) {
-                            const modifiersTotal = item.modifiers.reduce(
-                                (sum, group) =>
-                                    sum +
-                                    group.options.reduce(
-                                        (optSum, opt) => optSum + opt.priceAdjustment,
-                                        0
-                                    ),
-                                0
-                            );
-                            const totalPrice = (item.productPrice + modifiersTotal) * quantity;
-                            return { ...item, quantity, totalPrice };
+            updateQuantity: (uniqueId, delta) => {
+                set((state) => {
+                    const newItems = state.items.map((item) => {
+                        if (item.uniqueId === uniqueId) {
+                            const newQuantity = Math.max(0, item.quantity + delta);
+                            return {
+                                ...item,
+                                quantity: newQuantity,
+                                totalPrice: item.unitPrice * newQuantity
+                            };
                         }
                         return item;
-                    }),
-                }));
+                    }).filter(item => item.quantity > 0); // Remove if quantity becomes 0
+
+                    return { items: newItems };
+                });
             },
 
             clearCart: () => {
                 set({ items: [] });
             },
 
-            getTotal: () => {
-                return get().items.reduce((sum, item) => sum + item.totalPrice, 0);
+            getCartTotal: () => {
+                return get().items.reduce((total, item) => total + item.totalPrice, 0);
             },
 
-            getItemCount: () => {
-                return get().items.reduce((sum, item) => sum + item.quantity, 0);
-            },
+            getCartCount: () => {
+                return get().items.reduce((count, item) => count + item.quantity, 0);
+            }
         }),
         {
-            name: 'orderpoint-cart',
+            name: 'orderpoint-cart-storage', // unique name
+            storage: createJSONStorage(() => localStorage),
         }
     )
 );

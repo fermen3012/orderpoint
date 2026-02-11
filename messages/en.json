@@ -30,7 +30,8 @@
         "price": "Price",
         "add": "Add",
         "productCount": "{count, plural, =1 {# product} other {# products}}",
-        "taxesIncluded": "Taxes included"
+        "taxesIncluded": "Taxes included",
+        "viewOrder": "View Order"
     },
     "kitchen": {
         "title": "Kitchen",

@@ -16,37 +16,16 @@ interface CartProps {
 
 export function Cart({ locale, onCheckout }: CartProps) {
     const t = useTranslations('kiosk');
-    const { items, removeItem, updateQuantity, getTotal, getItemCount } = useCartStore();
+    const { items, removeFromCart, updateQuantity, getCartTotal, getCartCount } = useCartStore();
     const { restaurantId } = useRestaurantStore();
-    const [ingredientsMap, setIngredientsMap] = useState<Record<string, string>>({});
-
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
         setMounted(true);
     }, []);
 
-    useEffect(() => {
-        if (!restaurantId) return;
-
-        async function loadIngredients() {
-            const { data } = await (supabase
-                .from('ingredients')
-                .select('id, name') as any)
-                .eq('restaurant_id', restaurantId);
-
-            if (data) {
-                const map: Record<string, string> = {};
-                (data as any[]).forEach(i => map[i.id] = i.name);
-                setIngredientsMap(map);
-            }
-        }
-
-        loadIngredients();
-    }, [restaurantId]);
-
-    const itemCount = mounted ? getItemCount() : 0;
-    const total = mounted ? getTotal() : 0;
+    const itemCount = mounted ? getCartCount() : 0;
+    const total = mounted ? getCartTotal() : 0;
     const cartItems = mounted ? items : [];
 
     if (itemCount === 0) {
@@ -66,7 +45,7 @@ export function Cart({ locale, onCheckout }: CartProps) {
     }
 
     return (
-        <div className="bg-white rounded-3xl shadow-xl p-6 sticky top-4 border border-secondary-100/50 animate-slide-up">
+        <div className="bg-white rounded-3xl shadow-xl p-6 sticky top-4 border border-secondary-100/50 animate-in slide-in-from-bottom duration-500">
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
                     <div className="bg-primary-100 p-2 rounded-2xl">
@@ -82,14 +61,14 @@ export function Cart({ locale, onCheckout }: CartProps) {
             {/* Cart Items */}
             <div className="space-y-6 mb-8 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
                 {cartItems.map((item) => (
-                    <div key={item.id} className="group animate-scale-in">
+                    <div key={item.uniqueId} className="group animate-in scale-in duration-300">
                         <div className="flex gap-4">
                             {/* Item Image */}
-                            {item.productImage && (
+                            {item.product.image_url && (
                                 <div className="relative w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 bg-secondary-50 border border-secondary-100">
                                     <Image
-                                        src={item.productImage}
-                                        alt={item.productName}
+                                        src={item.product.image_url}
+                                        alt={item.product.name}
                                         fill
                                         className="object-cover group-hover:scale-110 transition-transform duration-300"
                                         sizes="80px"
@@ -101,13 +80,13 @@ export function Cart({ locale, onCheckout }: CartProps) {
                                 <div>
                                     {/* Item Name */}
                                     <h3 className="font-bold text-secondary-900 truncate leading-tight">
-                                        {item.productName}
+                                        {item.product.name}
                                     </h3>
 
                                     {/* Modifiers */}
-                                    {item.modifiers.length > 0 && (
+                                    {item.selectedModifiers.length > 0 && (
                                         <div className="text-[10px] text-secondary-400 mt-1 space-y-0.5 font-bold uppercase tracking-wider">
-                                            {item.modifiers.map((group) => (
+                                            {item.selectedModifiers.map((group) => (
                                                 <div key={group.groupId}>
                                                     {group.options.map((opt) => opt.name).join(', ')}
                                                 </div>
@@ -118,7 +97,7 @@ export function Cart({ locale, onCheckout }: CartProps) {
                                     {/* Removed Ingredients */}
                                     {item.removedIngredients && item.removedIngredients.length > 0 && (
                                         <div className="text-[10px] text-red-400 mt-1 space-y-0.5 font-bold uppercase tracking-wider">
-                                            {t('removed')}: {item.removedIngredients.map(id => ingredientsMap[id] || id).join(', ')}
+                                            {t('removed')}: {item.removedIngredients.map(ri => ri.name).join(', ')}
                                         </div>
                                     )}
                                 </div>
@@ -131,7 +110,7 @@ export function Cart({ locale, onCheckout }: CartProps) {
 
                                     <div className="flex items-center gap-3 bg-secondary-50 p-1 rounded-xl border border-secondary-100">
                                         <button
-                                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                            onClick={() => updateQuantity(item.uniqueId, -1)}
                                             className="p-1 rounded-lg hover:bg-white hover:shadow-sm transition-all touch-target"
                                         >
                                             {item.quantity === 1 ? (
@@ -146,7 +125,7 @@ export function Cart({ locale, onCheckout }: CartProps) {
                                         </span>
 
                                         <button
-                                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                            onClick={() => updateQuantity(item.uniqueId, 1)}
                                             className="p-1 rounded-lg hover:bg-white hover:shadow-sm transition-all touch-target"
                                         >
                                             <Plus className="w-4 h-4 text-secondary-600" />
@@ -155,6 +134,7 @@ export function Cart({ locale, onCheckout }: CartProps) {
                                 </div>
                             </div>
                         </div>
+                        <div className="h-px bg-secondary-50 mt-4 mx-2" />
                     </div>
                 ))}
             </div>

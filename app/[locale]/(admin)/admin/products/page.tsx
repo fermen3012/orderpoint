@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { createClient } from '@/lib/supabase/browser';
 import { adminSupabase } from '@/lib/supabase/admin-client';
 import { useRouter } from '@/i18n/routing';
 import {
@@ -24,6 +25,7 @@ import { formatPrice } from '@/lib/utils';
 import { SidebarLink } from '@/components/admin/SidebarLink';
 
 import { useAuth } from '@/components/auth/AuthContext';
+import { saveProduct } from '@/actions/products';
 
 import imageCompression from 'browser-image-compression';
 
@@ -118,20 +120,22 @@ export default function ProductsPage() {
             const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
             const filePath = `products/${fileName}`;
 
-            const { error: uploadError } = await adminSupabase.storage
+            const supabase = createClient();
+            const { error: uploadError } = await supabase.storage
                 .from('products')
                 .upload(filePath, compressedFile);
 
             if (uploadError) throw uploadError;
 
-            const { data: { publicUrl } } = adminSupabase.storage
+            const { data: { publicUrl } } = supabase.storage
                 .from('products')
                 .getPublicUrl(filePath);
 
             setNewProduct(prev => ({ ...prev, image_url: publicUrl }));
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error uploading image:', error);
-            alert('Error al subir la imagen. Asegúrate de que el bucket "products" exista y sea público.');
+            // Revert to simple alert for user
+            alert(`Error al subir la imagen: ${error.message}`);
         } finally {
             setUploadingImage(false);
         }
@@ -143,68 +147,35 @@ export default function ProductsPage() {
         setSaving(true);
 
         try {
-            if (editingProduct) {
-                const { error } = await (adminSupabase.from('products') as any)
-                    .update({
-                        name: newProduct.name,
-                        description: newProduct.description || null,
-                        price: parseFloat(newProduct.price),
-                        category_id: newProduct.category_id || null,
-                        image_url: newProduct.image_url || null,
-                        is_available: newProduct.is_available
-                    })
-                    .eq('id', editingProduct.id);
+            const productData = {
+                id: editingProduct?.id,
+                restaurant_id: restaurantId,
+                name: newProduct.name,
+                description: newProduct.description || null,
+                price: parseFloat(newProduct.price),
+                category_id: newProduct.category_id || null, // Ensure empty string becomes null if needed, though state is string
+                image_url: newProduct.image_url || null,
+                is_available: newProduct.is_available
+            };
 
-                if (!error) {
-                    // Update ingredients
-                    await adminSupabase.from('product_ingredients').delete().eq('product_id', editingProduct.id);
-                    if (selectedIngredients.length > 0) {
-                        await (adminSupabase.from('product_ingredients') as any).insert(
-                            selectedIngredients.map(si => ({
-                                product_id: editingProduct.id,
-                                ingredient_id: si.ingredient_id,
-                                is_removable: si.is_removable
-                            }))
-                        );
-                    }
+            // Clean category_id empty string to null
+            if (productData.category_id === '') productData.category_id = null;
 
-                    setIsModalOpen(false);
-                    setEditingProduct(null);
-                    resetForm();
-                    loadData();
-                }
+            const result = await saveProduct(productData, selectedIngredients);
+
+            if (result.success) {
+                console.log('Product saved successfully:', result.productId);
+                setIsModalOpen(false);
+                setEditingProduct(null);
+                resetForm();
+                loadData();
             } else {
-                const { data: product, error } = await (adminSupabase.from('products') as any).insert({
-                    name: newProduct.name,
-                    description: newProduct.description || null,
-                    price: parseFloat(newProduct.price),
-                    category_id: newProduct.category_id || null,
-                    image_url: newProduct.image_url || null,
-                    restaurant_id: restaurantId,
-                    is_available: newProduct.is_available
-                }).select().single();
-
-                if (!error && product) {
-                    // Save ingredients
-                    if (selectedIngredients.length > 0) {
-                        await (adminSupabase.from('product_ingredients') as any).insert(
-                            selectedIngredients.map(si => ({
-                                product_id: product.id,
-                                ingredient_id: si.ingredient_id,
-                                is_removable: si.is_removable
-                            }))
-                        );
-                    }
-
-                    setIsModalOpen(false);
-                    resetForm();
-                    loadData();
-                } else {
-                    console.error('Error adding product:', error);
-                }
+                console.error('Error saving product (server action):', result.error);
+                alert(`Error al guardar: ${result.error}`);
             }
-        } catch (err) {
-            console.error('Error saving product:', err);
+        } catch (err: any) {
+            console.error('Unexpected error saving product:', err);
+            alert(`Error inesperado: ${err.message}`);
         } finally {
             setSaving(false);
         }
@@ -502,11 +473,14 @@ export default function ProductsPage() {
                                                                 type="checkbox"
                                                                 checked={isSelected}
                                                                 onChange={(e) => {
-                                                                    if (e.target.checked) {
-                                                                        setSelectedIngredients([...selectedIngredients, { ingredient_id: ing.id, is_removable: true }]);
-                                                                    } else {
-                                                                        setSelectedIngredients(selectedIngredients.filter(si => si.ingredient_id !== ing.id));
-                                                                    }
+                                                                    const isChecked = e.target.checked;
+                                                                    setSelectedIngredients(prev => {
+                                                                        if (isChecked) {
+                                                                            return [...prev, { ingredient_id: ing.id, is_removable: true }];
+                                                                        } else {
+                                                                            return prev.filter(si => si.ingredient_id !== ing.id);
+                                                                        }
+                                                                    });
                                                                 }}
                                                                 className="w-5 h-5 rounded border-secondary-200 text-primary-500 focus:ring-primary-500"
                                                             />
@@ -522,9 +496,10 @@ export default function ProductsPage() {
                                                                     id={`removable-${ing.id}`}
                                                                     checked={selectedIng?.is_removable}
                                                                     onChange={(e) => {
-                                                                        setSelectedIngredients(selectedIngredients.map(si =>
+                                                                        const isChecked = e.target.checked;
+                                                                        setSelectedIngredients(prev => prev.map(si =>
                                                                             si.ingredient_id === ing.id
-                                                                                ? { ...si, is_removable: e.target.checked }
+                                                                                ? { ...si, is_removable: isChecked }
                                                                                 : si
                                                                         ));
                                                                     }}
