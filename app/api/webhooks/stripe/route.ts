@@ -15,7 +15,7 @@ export async function GET() {
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
         typescript: true,
     });
     const body = await request.text();
