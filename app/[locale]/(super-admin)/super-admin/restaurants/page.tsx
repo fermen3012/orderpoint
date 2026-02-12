@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { adminSupabase } from '@/lib/supabase/admin-client';
 import {
     Search,
     Plus,
@@ -14,11 +13,13 @@ import {
     CheckCircle2,
     XCircle,
     UserPlus,
-    Calendar
+    Calendar,
+    Upload
 } from 'lucide-react';
 import InviteOwnerModal from '@/components/super-admin/InviteOwnerModal';
+import RestaurantLogoModal from '@/components/super-admin/RestaurantLogoModal';
 import { useRouter } from '@/i18n/routing';
-import { createRestaurant, toggleRestaurantStatus } from './actions';
+import { createRestaurant, toggleRestaurantStatus, getRestaurants } from './actions';
 
 export default function SuperAdminRestaurants() {
     const router = useRouter();
@@ -34,6 +35,7 @@ export default function SuperAdminRestaurants() {
         logo_url: '',
         is_active: true
     });
+    const [logoModalData, setLogoModalData] = useState<{ id: string, name: string, logo: string } | null>(null);
 
     const [inviteModalData, setInviteModalData] = useState<{ id: string, name: string } | null>(null);
 
@@ -43,12 +45,13 @@ export default function SuperAdminRestaurants() {
 
     const loadRestaurants = async () => {
         setLoading(true);
-        const { data } = await adminSupabase
-            .from('restaurants')
-            .select('*')
-            .order('created_at', { ascending: false });
+        const { data, error } = await getRestaurants();
 
-        if (data) setRestaurants(data);
+        if (error) {
+            console.error(error);
+        } else if (data) {
+            setRestaurants(data);
+        }
         setLoading(false);
     };
 
@@ -59,6 +62,13 @@ export default function SuperAdminRestaurants() {
             setRestaurants(prev => prev.map(r => r.id === id ? { ...r, is_active: !currentStatus } : r));
         } else {
             alert('Error: ' + result.error);
+        }
+    };
+
+    const handleLogoSuccess = (newUrl: string) => {
+        if (logoModalData) {
+            setRestaurants(prev => prev.map(r => r.id === logoModalData.id ? { ...r, logo_url: newUrl } : r));
+            setLogoModalData(null);
         }
     };
 
@@ -173,8 +183,8 @@ export default function SuperAdminRestaurants() {
                                 <button
                                     onClick={() => handleToggleActive(res.id, res.is_active)}
                                     className={`flex-1 py-3 rounded-xl flex items-center justify-center gap-2 font-bold text-xs transition-colors ${res.is_active
-                                            ? 'bg-rose-50 text-rose-600 hover:bg-rose-100'
-                                            : 'bg-green-50 text-green-600 hover:bg-green-100'
+                                        ? 'bg-rose-50 text-rose-600 hover:bg-rose-100'
+                                        : 'bg-green-50 text-green-600 hover:bg-green-100'
                                         }`}
                                 >
                                     <Power className="w-4 h-4" />
@@ -187,8 +197,12 @@ export default function SuperAdminRestaurants() {
                                     <UserPlus className="w-4 h-4" />
                                     Invitar
                                 </button>
-                                <button className="p-3 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl transition-colors">
-                                    <ExternalLink className="w-4 h-4" />
+                                <button
+                                    onClick={() => setLogoModalData({ id: res.id, name: res.name, logo: res.logo_url })}
+                                    className="p-3 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl transition-colors"
+                                    title="Subir Logo (PNG)"
+                                >
+                                    <Upload className="w-4 h-4" />
                                 </button>
                             </div>
                         </div>
@@ -268,8 +282,12 @@ export default function SuperAdminRestaurants() {
                                             >
                                                 <Power className="w-5 h-5" />
                                             </button>
-                                            <button className="p-3 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-xl transition-all">
-                                                <ExternalLink className="w-5 h-5" />
+                                            <button
+                                                onClick={() => setLogoModalData({ id: res.id, name: res.name, logo: res.logo_url })}
+                                                className="p-3 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-xl transition-all"
+                                                title="Subir Logo (PNG)"
+                                            >
+                                                <Upload className="w-5 h-5" />
                                             </button>
                                             <button className="p-3 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all">
                                                 <MoreVertical className="w-5 h-5" />
@@ -373,6 +391,17 @@ export default function SuperAdminRestaurants() {
                     restaurantId={inviteModalData.id}
                     restaurantName={inviteModalData.name}
                     onClose={() => setInviteModalData(null)}
+                />
+            )}
+
+            {/* Logo Upload Modal */}
+            {logoModalData && (
+                <RestaurantLogoModal
+                    restaurantId={logoModalData.id}
+                    restaurantName={logoModalData.name}
+                    currentLogoUrl={logoModalData.logo}
+                    onClose={() => setLogoModalData(null)}
+                    onSuccess={handleLogoSuccess}
                 />
             )}
         </main>

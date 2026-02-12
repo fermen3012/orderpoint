@@ -9,11 +9,11 @@ import { Cart } from '@/components/kiosk/Cart';
 import CartFloatingBar from '@/components/kiosk/CartFloatingBar';
 import { ProductCustomizationModal } from '@/components/kiosk/ProductCustomizationModal';
 import { OrderTicket } from '@/components/kiosk/OrderTicket';
-import { CategorySidebar } from '@/components/kiosk/CategorySidebar';
 import { useReactToPrint } from 'react-to-print';
 import { getModifiersByProduct } from '@/actions/modifiers';
-import { Globe, ShoppingBag, ArrowLeft } from 'lucide-react';
+import { Globe, ShoppingBag, ArrowLeft, Utensils, Search } from 'lucide-react';
 import { useRouter, usePathname } from '@/i18n/routing';
+import { useSearchParams } from 'next/navigation';
 import type { Database } from '@/lib/supabase/types';
 import { useAuth } from '@/components/auth/AuthContext';
 import { cn } from '@/lib/utils';
@@ -22,12 +22,13 @@ import { Product as UIProduct, ModifierGroup as UIModifierGroup, Modifier as UIM
 type DBProduct = Database['public']['Tables']['products']['Row'];
 type Category = Database['public']['Tables']['categories']['Row'];
 
-export default function KioskPage({ params }: { params: Promise<{ locale: string }> }) {
+export default function MenuPage({ params }: { params: Promise<{ locale: string }> }) {
     const resolvedParams = use(params);
     const locale = resolvedParams.locale;
     const t = useTranslations('kiosk');
     const router = useRouter();
     const pathname = usePathname();
+    const searchParams = useSearchParams();
 
     const { restaurantId } = useAuth();
     const { addToCart } = useCartStore();
@@ -53,6 +54,14 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
         if (orderToPrint) handlePrint();
     }, [orderToPrint, handlePrint]);
 
+    // Handle category selection from URL
+    useEffect(() => {
+        const categoryId = searchParams.get('category_id');
+        if (categoryId) {
+            setActiveCategory(categoryId);
+        }
+    }, [searchParams]);
+
     useEffect(() => {
         async function loadData() {
             if (!restaurantId) return;
@@ -67,7 +76,6 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
 
                 if (productsRes.data) {
                     setProducts(productsRes.data);
-                    console.log(`Loaded ${productsRes.data.length} products`);
 
                     const productIds = productsRes.data.map(p => p.id);
                     if (productIds.length > 0) {
@@ -81,7 +89,6 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
                         }
 
                         if (ingredientsData) {
-                            console.log(`Loaded ${ingredientsData.length} total ingredients associations`);
                             const map: Record<string, any[]> = {};
                             ingredientsData.forEach((pi: any) => {
                                 if (!map[pi.product_id]) map[pi.product_id] = [];
@@ -118,7 +125,6 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
             if (error) {
                 console.error('Error fetching modifiers:', error);
 
-                // Even if modifier fetch fails, check for removable ingredients
                 const hasRemovableIngredients = productIngredientsMap[product.id]?.some((pi: any) => !!pi.is_removable) || false;
 
                 const uiProduct: UIProduct = {
@@ -139,7 +145,6 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
                 return;
             }
 
-            // Map DB structure to UI Interface
             const modifierGroups: UIModifierGroup[] = productWithModifiers?.product_modifier_groups?.map((pmg: any) => {
                 const group = pmg.modifier_groups;
                 return {
@@ -157,14 +162,9 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
                 };
             }) || [];
 
-            // Check if product has removable ingredients
-            // We can look this up in the map we already loaded
             const hasRemovableIngredients = productIngredientsMap[product.id]?.some((pi: any) => !!pi.is_removable) || false;
 
-            console.log('Product:', product.name, 'Modifiers:', modifierGroups.length, 'Removable:', hasRemovableIngredients, 'Ingredients:', productIngredientsMap[product.id]);
-
             if (modifierGroups.length > 0 || hasRemovableIngredients) {
-                // Convert DBProduct to UIProduct
                 const uiProduct: UIProduct = {
                     id: product.id,
                     name: product.name,
@@ -176,7 +176,6 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
                 };
                 setCustomizingProduct(uiProduct);
             } else {
-                // No modifiers, just add directly
                 const uiProduct: UIProduct = {
                     id: product.id,
                     name: product.name,
@@ -196,14 +195,12 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
     };
 
     const handleConfirmAdd = (product: any, selectedModifiers: SelectedModifier[], totalPrice: number, removedIngredients: { id: string; name: string }[]) => {
-        // Price is recalculated in store for safety/consistency, but we trust logic here.
-        // We just pass product + modifiers.
         addToCart(product, selectedModifiers, 1, removedIngredients);
         setCustomizingProduct(null);
     };
 
     const handleCheckout = async () => {
-        const { items, getCartTotal, clearCart } = useCartStore.getState();
+        const { items, getCartTotal, clearCart, orderType } = useCartStore.getState();
         if (items.length === 0 || !restaurantId) return;
 
         try {
@@ -212,7 +209,8 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
                 restaurant_id: restaurantId,
                 total_amount: getCartTotal(),
                 status: 'pending',
-                order_number: nextNumber
+                order_number: nextNumber,
+                order_type: orderType
             }).select().single();
 
             if (orderError) throw orderError;
@@ -221,7 +219,7 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
                 order_id: order.id,
                 product_id: item.product.id,
                 quantity: item.quantity,
-                unit_price: item.product.price, // Base price, modifiers stored in JSON
+                unit_price: item.product.price,
                 modifiers_json: item.selectedModifiers || [],
                 removed_ingredients: item.removedIngredients?.length ? item.removedIngredients.map(ri => ri.id) : null,
             }));
@@ -262,44 +260,51 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
 
     if (loading) {
         return (
-            <div className="h-screen w-screen flex items-center justify-center bg-white">
+            <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
                 <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-500"></div>
             </div>
         );
     }
 
     return (
-        <div className="h-screen w-screen overflow-hidden flex flex-col md:flex-row bg-gradient-to-b from-green-50 to-white">
-            {/* LEFT PANEL: CATEGORIES */}
-            <CategorySidebar
-                categories={categories}
-                activeCategory={activeCategory}
-                onSelect={setActiveCategory}
-            />
+        <div className="h-screen w-screen overflow-hidden flex flex-col bg-slate-50 text-slate-900 selection:bg-primary-500 selection:text-white relative">
+            {/* Dynamic Background - Restaurant Interior */}
+            <div className="absolute inset-0 z-0 pointer-events-none">
+                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80')] bg-cover bg-center opacity-40 fixed" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-50 via-slate-50/60 to-slate-50/40" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.6)_0%,rgba(248,250,252,0.5)_100%)]" />
+            </div>
 
-            {/* RIGHT PANEL: PRODUCTS */}
-            <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-                {/* Sticky Header */}
-                <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-green-100 flex items-center justify-between px-8 py-6">
-                    <div className="flex flex-col">
-                        <h2 className="text-3xl font-black text-slate-800 tracking-tighter uppercase italic">
-                            {activeCategory ? categories.find(c => c.id === activeCategory)?.name : 'Menú Completo'}
-                        </h2>
-                        <span className="text-xs font-bold text-green-600 uppercase tracking-widest">
-                            {restaurantName || 'OrderPoint'}
-                        </span>
+            <main className="flex-1 flex flex-col h-full overflow-hidden relative z-10">
+                <header className="sticky top-0 z-20 bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-lg shadow-slate-200/20 flex items-center justify-between px-8 py-6">
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => router.push('/categories')}
+                            className="p-3 bg-white hover:bg-slate-100 rounded-2xl text-slate-600 transition-colors shadow-sm border border-slate-200/60"
+                        >
+                            <ArrowLeft className="w-6 h-6" />
+                        </button>
+                        <div className="flex flex-col">
+                            <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic drop-shadow-sm">
+                                {activeCategory ? categories.find(c => c.id === activeCategory)?.name : 'Menú Completo'}
+                            </h2>
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                                <Utensils className="w-3 h-3 text-primary-500" />
+                                {restaurantName || 'OrderPoint'}
+                            </span>
+                        </div>
                     </div>
 
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => router.replace(pathname, { locale: locale === 'es' ? 'en' : 'es' })}
-                            className="p-3 bg-green-50 rounded-2xl hover:bg-green-100 transition-colors"
+                            className="p-3 bg-white rounded-2xl hover:bg-slate-50 transition-colors border border-slate-200/60 shadow-sm"
                         >
-                            <Globe className="w-6 h-6 text-green-600" />
+                            <Globe className="w-6 h-6 text-slate-400 hover:text-primary-500 transition-colors" />
                         </button>
                         <button
                             onClick={() => setIsCartOpen(!isCartOpen)}
-                            className="relative p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl text-white shadow-lg shadow-green-500/20 active:scale-95 transition-all"
+                            className="relative p-3 bg-white rounded-2xl text-slate-600 shadow-sm border border-slate-200/60 active:scale-95 transition-all hover:text-primary-500 group"
                         >
                             <ShoppingBag className="w-6 h-6" />
                             <CartCounter />
@@ -307,50 +312,86 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
                     </div>
                 </header>
 
-                {/* Product Grid */}
                 <div className="flex-1 overflow-y-auto px-8 py-8 scrollbar-hide">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 pb-32">
                         {filteredProducts.map((product, idx) => (
-                            <div key={product.id} className="animate-in fade-in slide-in-from-bottom-5 duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
-                                <ProductCard
-                                    id={product.id}
-                                    name={product.name}
-                                    description={product.description}
-                                    price={Number(product.price)}
-                                    imageUrl={product.image_url}
-                                    isAvailable={product.is_available}
-                                    onAddToCart={() => handleAddToCart(product)}
-                                    locale={locale}
-                                />
+                            <div key={product.id} className="animate-in fade-in slide-in-from-bottom-5 duration-700 fill-mode-backwards" style={{ animationDelay: `${idx * 50}ms` }}>
+                                <div className="group bg-white rounded-[2.5rem] p-4 shadow-xl shadow-slate-200/50 hover:shadow-2xl hover:shadow-primary-500/10 hover:-translate-y-1 transition-all duration-300 border border-slate-100 h-full flex flex-col">
+                                    <div className="relative aspect-square rounded-[2rem] overflow-hidden mb-4 bg-slate-100">
+                                        {product.image_url ? (
+                                            <img
+                                                src={product.image_url}
+                                                alt={product.name}
+                                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-slate-300">
+                                                <Utensils className="w-12 h-12" />
+                                            </div>
+                                        )}
+                                        {!product.is_available && (
+                                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
+                                                <span className="bg-red-500 text-white px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest">Agotado</span>
+                                            </div>
+                                        )}
+                                        <button
+                                            onClick={() => handleAddToCart(product)}
+                                            disabled={!product.is_available}
+                                            className="absolute bottom-4 right-4 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg text-slate-900 group-hover:bg-primary-500 group-hover:text-white transition-all disabled:opacity-0 disabled:pointer-events-none transform translate-y-20 group-hover:translate-y-0 duration-300"
+                                        >
+                                            <span className="font-bold text-xl">+</span>
+                                        </button>
+                                    </div>
+                                    <div className="flex-1 flex flex-col">
+                                        <h3 className="text-xl font-black text-slate-900 leading-tight mb-2 line-clamp-2 uppercase italic tracking-tight group-hover:text-primary-500 transition-colors">
+                                            {product.name}
+                                        </h3>
+                                        <p className="text-sm text-slate-500 font-medium leading-relaxed mb-4 line-clamp-2 flex-1">
+                                            {product.description}
+                                        </p>
+                                        <div className="flex items-end justify-between mt-auto pt-4 border-t border-slate-50">
+                                            <span className="text-2xl font-black text-slate-900 tracking-tight">
+                                                ${Number(product.price).toFixed(2)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         ))}
                     </div>
-                    {/* Spacer for bottom */}
-                    <div className="h-32" />
+                    {filteredProducts.length === 0 && (
+                        <div className="flex flex-col items-center justify-center h-64 text-slate-400 animate-in fade-in">
+                            <Search className="w-16 h-16 mb-4 opacity-50" />
+                            <p className="font-bold uppercase tracking-widest">No hay productos disponibles</p>
+                        </div>
+                    )}
                     <CartFloatingBar onOpenCart={() => setIsCartOpen(true)} />
                 </div>
             </main>
 
-            {/* CART SIDE PANEL */}
+            {/* Cart Drawer - Keeping existing logic but restyling container */}
             <div className={cn(
-                "fixed inset-y-0 right-0 w-full sm:w-96 bg-white z-50 transform transition-transform duration-500 ease-spring shadow-[-20px_0_60px_rgba(0,0,0,0.1)] flex flex-col",
+                "fixed inset-y-0 right-0 w-full sm:w-[500px] bg-white z-50 transform transition-transform duration-500 ease-spring shadow-[-50px_0_100px_rgba(0,0,0,0.2)] flex flex-col border-l border-slate-100",
                 isCartOpen ? "translate-x-0" : "translate-x-full"
             )}>
-                <div className="p-6 border-b border-secondary-100 flex items-center justify-between">
-                    <h3 className="text-2xl font-black text-secondary-900 tracking-tighter uppercase italic">Mi Carrito</h3>
+                <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-white/80 backdrop-blur-md">
+                    <div>
+                        <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase italic">Mi Orden</h3>
+                        <p className="text-slate-500 text-sm font-bold mt-1">Revisa tus productos</p>
+                    </div>
+
                     <button
                         onClick={() => setIsCartOpen(false)}
-                        className="p-2 bg-secondary-100 rounded-xl hover:bg-secondary-200"
+                        className="p-3 bg-slate-50 rounded-2xl hover:bg-slate-100 transition-colors group"
                     >
-                        <ArrowLeft className="w-6 h-6 rotate-180" />
+                        <ArrowLeft className="w-6 h-6 rotate-180 text-slate-400 group-hover:text-slate-600" />
                     </button>
                 </div>
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto bg-slate-50/50">
                     <Cart locale={locale} onCheckout={handleCheckout} />
                 </div>
             </div>
 
-            {/* Customization Modal */}
             {
                 customizingProduct && (
                     <ProductCustomizationModal
@@ -363,7 +404,6 @@ export default function KioskPage({ params }: { params: Promise<{ locale: string
                 )
             }
 
-            {/* Hidden Ticket for Printing */}
             <div className="hidden">
                 {orderToPrint && <OrderTicket ref={ticketRef} order={orderToPrint} />}
             </div>
@@ -386,7 +426,7 @@ function CartCounter() {
     if (count === 0) return null;
 
     return (
-        <span className="absolute -top-1 -right-1 w-6 h-6 bg-secondary-900 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-md animate-bounce">
+        <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary-500 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-sm animate-scale-in">
             {count}
         </span>
     );

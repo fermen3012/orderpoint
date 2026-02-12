@@ -4,13 +4,13 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { supabase } from '@/lib/supabase/client';
 import { formatPrice, formatOrderNumber } from '@/lib/utils';
-import { Clock, ChefHat, LogOut } from 'lucide-react';
+import { Clock, ChefHat, LogOut, Utensils, ShoppingBag } from 'lucide-react';
 import type { Database } from '@/lib/supabase/types';
 import { use } from 'react';
 import { useRouter } from '@/i18n/routing';
 import { useAuth } from '@/components/auth/AuthContext';
 
-type Order = Database['public']['Tables']['orders']['Row'];
+type Order = Database['public']['Tables']['orders']['Row'] & { order_type?: 'dine_in' | 'takeout' };
 type OrderItem = Database['public']['Tables']['order_items']['Row'];
 
 interface OrderWithItems extends Order {
@@ -349,6 +349,24 @@ function OrderCard({
                     <div className="flex items-center gap-2 text-secondary-400 text-sm font-bold uppercase tracking-widest">
                         <Clock className="w-4 h-4 text-primary-500" />
                         <span>{t('ago', { time: timeSinceOrder })}</span>
+                    </div>
+
+                    {/* Order Type Badge */}
+                    <div className={`mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-xl text-xs font-black uppercase tracking-widest ${order.order_type === 'takeout'
+                            ? 'bg-orange-500/10 text-orange-500 border border-orange-500/20'
+                            : 'bg-primary-500/10 text-primary-500 border border-primary-500/20'
+                        }`}>
+                        {order.order_type === 'takeout' ? (
+                            <>
+                                <ShoppingBag className="w-3 h-3" />
+                                <span>Para Llevar</span>
+                            </>
+                        ) : (
+                            <>
+                                <Utensils className="w-3 h-3" />
+                                <span>Mesa</span>
+                            </>
+                        )}
                     </div>
                 </div>
                 <div className={`

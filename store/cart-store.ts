@@ -14,12 +14,17 @@ interface CartStore {
     // Zustand doesn't have "computed" properties like Vue, but we can have selectors.
     getCartTotal: () => number;
     getCartCount: () => number;
+    orderType: 'dine_in' | 'takeout';
+    setOrderType: (type: 'dine_in' | 'takeout') => void;
 }
 
 export const useCartStore = create<CartStore>()(
     persist(
         (set, get) => ({
             items: [],
+            orderType: 'dine_in',
+
+            setOrderType: (type) => set({ orderType: type }),
 
             addToCart: (product: Product, modifiers: SelectedModifier[], quantity: number, removedIngredients?: { id: string; name: string }[]) => {
                 const uniqueId = crypto.randomUUID();
@@ -75,7 +80,7 @@ export const useCartStore = create<CartStore>()(
             },
 
             clearCart: () => {
-                set({ items: [] });
+                set({ items: [], orderType: 'dine_in' });
             },
 
             getCartTotal: () => {

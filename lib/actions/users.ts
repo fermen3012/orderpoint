@@ -100,6 +100,22 @@ export async function createStaffUser(formData: FormData) {
         return { error: authError.message };
     }
 
+    if (authUser.user) {
+        const { error: profileError } = await (supabase.from('profiles') as any).insert({
+            id: authUser.user.id,
+            full_name: fullName,
+            role: role,
+            restaurant_id: restaurantId || null
+        });
+
+        if (profileError) {
+            console.error('Error creating profile:', profileError);
+            // Rollback auth user
+            await supabase.auth.admin.deleteUser(authUser.user.id);
+            return { error: 'Error creating user profile: ' + profileError.message };
+        }
+    }
+
     revalidatePath('/admin/users');
     return { success: true };
 }

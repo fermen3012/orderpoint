@@ -56,7 +56,7 @@ export default function LoginPage() {
                     router.push('/kitchen');
                 } else if (profile?.role === 'kiosk') {
                     console.log('Login: Redirecting to Kiosk');
-                    router.push('/kiosk');
+                    router.push('/');
                 } else if (profile?.role === 'owner' || profile?.role === 'admin') {
                     console.log('Login: Redirecting to Admin Dashboard');
                     router.push('/admin/dashboard');
