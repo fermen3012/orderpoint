@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { createClient } from '@/lib/supabase/browser';
 import { adminSupabase } from '@/lib/supabase/admin-client';
 import { useRouter } from '@/i18n/routing';
+import imageCompression from 'browser-image-compression';
 import {
     LayoutDashboard,
     ShoppingBag,
@@ -32,6 +34,7 @@ export default function CategoriesPage() {
     const [editingCategory, setEditingCategory] = useState<any | null>(null);
     const [newCategory, setNewCategory] = useState({ name: '', image_url: '' });
     const [saving, setSaving] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState(false);
 
     useEffect(() => {
         if (restaurantId) {
@@ -50,6 +53,42 @@ export default function CategoriesPage() {
 
         if (data) setCategories(data);
         setLoading(false);
+    };
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploadingImage(true);
+        try {
+            const options = {
+                maxSizeMB: 0.2, // 200KB
+                maxWidthOrHeight: 1024,
+                useWebWorker: true,
+            };
+
+            const compressedFile = await imageCompression(file, options);
+            const fileExt = file.name.split('.').pop();
+            const fileName = `categories/${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+
+            const supabase = createClient();
+            const { error: uploadError } = await supabase.storage
+                .from('products') // Using 'products' bucket for categories too, or 'categories' if exists? ProductsPage used 'products'.
+                .upload(fileName, compressedFile);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('products')
+                .getPublicUrl(fileName);
+
+            setNewCategory(prev => ({ ...prev, image_url: publicUrl }));
+        } catch (error: any) {
+            console.error('Error uploading image:', error);
+            alert(`Error al subir la imagen: ${error.message}`);
+        } finally {
+            setUploadingImage(false);
+        }
     };
 
     const handleSaveCategory = async (e: React.FormEvent) => {
@@ -199,14 +238,28 @@ export default function CategoriesPage() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-2 px-2">URL de Imagen (Opcional)</label>
-                                <input
-                                    type="url"
-                                    value={newCategory.image_url}
-                                    onChange={(e) => setNewCategory({ ...newCategory, image_url: e.target.value })}
-                                    className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900"
-                                    placeholder="https://ejemplo.com/imagen.jpg"
-                                />
+                                <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-2 px-2">Imagen de Categoría</label>
+                                <div className="relative aspect-video rounded-[2rem] overflow-hidden bg-secondary-50 border-2 border-dashed border-secondary-200 group transition-all hover:border-primary-500">
+                                    {newCategory.image_url ? (
+                                        <>
+                                            <img src={newCategory.image_url} alt="Preview" className="w-full h-full object-cover" />
+                                            <div className="absolute inset-0 bg-secondary-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                                                <label className="cursor-pointer bg-white text-secondary-900 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-primary-500 hover:text-white transition-all shadow-xl">
+                                                    Cambiar Imagen
+                                                    <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
+                                                </label>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-white transition-colors">
+                                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm mb-3">
+                                                {uploadingImage ? <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" /> : <ImageIcon className="w-6 h-6 text-secondary-200" />}
+                                            </div>
+                                            <span className="text-xs font-black text-secondary-400 uppercase tracking-widest">{uploadingImage ? 'Subiendo...' : 'Subir Imagen'}</span>
+                                            <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
+                                        </label>
+                                    )}
+                                </div>
                             </div>
 
                             <button

@@ -14,6 +14,7 @@ interface ProductInput {
     restaurant_id: string;
     name: string;
     description?: string | null;
+    description_es?: string | null;
     price: number;
     category_id?: string | null;
     image_url?: string | null;
@@ -39,6 +40,7 @@ export async function saveProduct(product: ProductInput, ingredients: Ingredient
                 .update({
                     name: product.name,
                     description: product.description,
+                    description_es: product.description_es,
                     price: product.price,
                     category_id: product.category_id,
                     image_url: product.image_url,
@@ -57,6 +59,7 @@ export async function saveProduct(product: ProductInput, ingredients: Ingredient
                     restaurant_id: product.restaurant_id,
                     name: product.name,
                     description: product.description,
+                    description_es: product.description_es,
                     price: product.price,
                     category_id: product.category_id,
                     image_url: product.image_url,
@@ -103,4 +106,55 @@ export async function saveProduct(product: ProductInput, ingredients: Ingredient
         console.error('Error saving product:', error);
         return { error: error.message || 'Error saving product', success: false };
     }
+}
+
+
+export async function getMenuWithSchedule(restaurantId: string, dayOfWeek: number) {
+    const supabase = await createClient();
+    console.log(`[getMenuWithSchedule] Fetching for Restaurant: ${restaurantId}, Day: ${dayOfWeek}`);
+
+    // 1. Get ALL active products for the restaurant
+    const { data: products, error: prodError } = await supabase
+        .from('products')
+        .select('*')
+        .eq('restaurant_id', restaurantId)
+        .eq('is_available', true);
+
+    if (prodError) throw prodError;
+
+    // 2. Get scheduling rules for these products
+    const productIds = products.map(p => p.id);
+    if (productIds.length === 0) return [];
+
+    const { data: schedules, error: schedError } = await supabase
+        .from('product_availability')
+        .select('product_id, day_of_week, is_active')
+        .in('product_id', productIds);
+
+    if (schedError) throw schedError;
+
+    // 3. Filter in memory
+    // Rule:
+    // - If a product has NO records in 'product_availability', it is AVAILABLE.
+    // - If it HAS records, check if there is a record for THIS day with is_active=true.
+    console.log(`[getMenuWithSchedule] Validating ${products.length} products against ${schedules?.length || 0} rules.`);
+
+    const validProducts = products.filter(product => {
+        const productSchedules = schedules.filter(s => s.product_id === product.id);
+
+        // Case A: No schedule at all -> Available
+        if (productSchedules.length === 0) return true;
+
+        // Case B: Has schedule -> Check for today's record
+        const todayRule = productSchedules.find(s => s.day_of_week === dayOfWeek);
+
+        const isKept = todayRule ? todayRule.is_active : true;
+        if (!isKept) {
+            console.log(`[getMenuWithSchedule] Hiding product ${product.name} (ID: ${product.id}) because is_active=${todayRule?.is_active} for day ${dayOfWeek}`);
+        }
+        return isKept;
+    });
+
+    console.log(`[getMenuWithSchedule] Returning ${validProducts.length} products.`);
+    return validProducts;
 }

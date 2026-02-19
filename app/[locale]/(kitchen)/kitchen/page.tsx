@@ -353,18 +353,18 @@ function OrderCard({
 
                     {/* Order Type Badge */}
                     <div className={`mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-xl text-xs font-black uppercase tracking-widest ${order.order_type === 'takeout'
-                            ? 'bg-orange-500/10 text-orange-500 border border-orange-500/20'
-                            : 'bg-primary-500/10 text-primary-500 border border-primary-500/20'
+                        ? 'bg-orange-500/10 text-orange-500 border border-orange-500/20'
+                        : 'bg-primary-500/10 text-primary-500 border border-primary-500/20'
                         }`}>
                         {order.order_type === 'takeout' ? (
                             <>
                                 <ShoppingBag className="w-3 h-3" />
-                                <span>Para Llevar</span>
+                                <span>{t('takeout')}</span>
                             </>
                         ) : (
                             <>
                                 <Utensils className="w-3 h-3" />
-                                <span>Mesa</span>
+                                <span>{t('dineIn')}</span>
                             </>
                         )}
                     </div>

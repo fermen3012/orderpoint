@@ -31,7 +31,27 @@
         "add": "Add",
         "productCount": "{count, plural, =1 {# product} other {# products}}",
         "taxesIncluded": "Taxes included",
-        "viewOrder": "View Order"
+        "viewOrder": "View Order",
+        "fullMenu": "Full Menu",
+        "freshAndDelicious": "Fresh & Delicious",
+        "ourMenu": "Our Menu",
+        "exploreFlavors": "Explore a selection of <primary>fresh</primary> and authentic flavors.",
+        "viewAll": "View All",
+        "explore": "Explore",
+        "viewProducts": "View Products",
+        "myOrder": "My Order",
+        "reviewItems": "Review your items",
+        "soldOut": "Sold Out",
+        "noProducts": "No products available",
+        "dineIn": "Dine In",
+        "takeout": "Takeout",
+        "welcomeTo": "Welcome to {name}",
+        "selfServiceKiosk": "Self-Service Kiosk",
+        "areYouStillThere": "Are you still there?",
+        "sessionExpiring": "Your session will close in <highlight>{time}</highlight> seconds.",
+        "continueOrdering": "Keep Ordering",
+        "addToOrder": "Add to Order",
+        "completeSelection": "Complete Selection"
     },
     "kitchen": {
         "title": "Kitchen",
@@ -47,7 +67,9 @@
         "loading": "Loading...",
         "product": "Product",
         "removed": "NO",
-        "logout": "Logout"
+        "logout": "Logout",
+        "dineIn": "DINE IN",
+        "takeout": "TAKEOUT"
     },
     "admin": {
         "dashboard": "Dashboard",

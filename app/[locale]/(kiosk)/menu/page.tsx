@@ -7,17 +7,21 @@ import { useCartStore } from '@/store/cart-store';
 import { ProductCard } from '@/components/kiosk/ProductCard';
 import { Cart } from '@/components/kiosk/Cart';
 import CartFloatingBar from '@/components/kiosk/CartFloatingBar';
-import { ProductCustomizationModal } from '@/components/kiosk/ProductCustomizationModal';
+import { ProductModal } from '@/components/kiosk/ProductModal';
 import { OrderTicket } from '@/components/kiosk/OrderTicket';
 import { useReactToPrint } from 'react-to-print';
 import { getModifiersByProduct } from '@/actions/modifiers';
+import { getMenuWithSchedule } from '@/actions/products';
+import LanguageSwitcher from '@/components/kiosk/LanguageSwitcher';
 import { Globe, ShoppingBag, ArrowLeft, Utensils, Search } from 'lucide-react';
 import { useRouter, usePathname } from '@/i18n/routing';
 import { useSearchParams } from 'next/navigation';
 import type { Database } from '@/lib/supabase/types';
 import { useAuth } from '@/components/auth/AuthContext';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { Product as UIProduct, ModifierGroup as UIModifierGroup, Modifier as UIModifier, SelectedModifier } from '@/types';
+import { createSecureOrder } from '@/actions/secure-orders';
 
 type DBProduct = Database['public']['Tables']['products']['Row'];
 type Category = Database['public']['Tables']['categories']['Row'];
@@ -67,17 +71,29 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
             if (!restaurantId) return;
             setLoading(true);
             try {
-                const [categoriesRes, productsRes] = await Promise.all([
+                const [categoriesRes, productsData] = await Promise.all([
                     supabase.from('categories').select('*').eq('restaurant_id', restaurantId).order('sort_order'),
-                    supabase.from('products').select('*').eq('restaurant_id', restaurantId).eq('is_available', true)
+                    getMenuWithSchedule(restaurantId, new Date().getDay())
                 ]);
 
-                if (categoriesRes.data) setCategories(categoriesRes.data);
+                if (productsData) {
+                    setProducts(productsData);
 
-                if (productsRes.data) {
-                    setProducts(productsRes.data);
+                    // Filter categories that have at least one product
+                    if (categoriesRes.data) {
+                        const activeCategoryIds = new Set(productsData.map(p => p.category_id));
+                        const nonEmptyCategories = categoriesRes.data.filter(c => activeCategoryIds.has(c.id));
 
-                    const productIds = productsRes.data.map(p => p.id);
+                        console.log(`[MENU] Filtering Categories:`);
+                        console.log(`- Products: ${productsData.length}`);
+                        console.log(`- Active Category IDs:`, Array.from(activeCategoryIds));
+                        console.log(`- Total Categories: ${categoriesRes.data.length}`);
+                        console.log(`- Valid Categories: ${nonEmptyCategories.length}`);
+
+                        setCategories(nonEmptyCategories);
+                    }
+
+                    const productIds = productsData.map(p => p.id);
                     if (productIds.length > 0) {
                         const { data: ingredientsData, error: ingError } = await supabase
                             .from('product_ingredients')
@@ -194,43 +210,47 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
         }
     };
 
-    const handleConfirmAdd = (product: any, selectedModifiers: SelectedModifier[], totalPrice: number, removedIngredients: { id: string; name: string }[]) => {
-        addToCart(product, selectedModifiers, 1, removedIngredients);
+    const handleConfirmAdd = (product: any, selectedModifiers: SelectedModifier[], quantity: number, removedIngredients: { id: string; name: string }[]) => {
+        addToCart(product, selectedModifiers, quantity, removedIngredients);
         setCustomizingProduct(null);
     };
 
     const handleCheckout = async () => {
-        const { items, getCartTotal, clearCart, orderType } = useCartStore.getState();
+        const { items, clearCart, orderType } = useCartStore.getState();
         if (items.length === 0 || !restaurantId) return;
 
         try {
-            const { data: nextNumber } = await (supabase as any).rpc('get_next_order_number', { p_restaurant_id: restaurantId });
-            const { data: order, error: orderError } = await (supabase.from('orders') as any).insert({
+            setLoading(true);
+
+            // EXTRAER DATOS SEGUROS (Solo IDs y Cantidades)
+            // No enviamos precios ni totales desde el cliente
+            const orderInput = {
                 restaurant_id: restaurantId,
-                total_amount: getCartTotal(),
-                status: 'pending',
-                order_number: nextNumber,
-                order_type: orderType
-            }).select().single();
+                order_type: orderType,
+                items: items.map(item => ({
+                    product_id: item.product.id,
+                    quantity: item.quantity,
+                    // Aplanamos los modificadores a una lista de IDs
+                    modifier_option_ids: item.selectedModifiers.flatMap(g => g.options.map(opt => opt.id)),
+                    removed_ingredients: item.removedIngredients?.map(ri => ri.id) || []
+                }))
+            };
 
-            if (orderError) throw orderError;
+            // LLAMADA AL SERVIDOR (Aquí ocurre la validación de precio real)
+            // Importación dinámica para evitar errores si no está importado arriba, 
+            // pero mejor lo agregamos arriba. Asumiré que debo agregarlo.
+            const result = await createSecureOrder(orderInput);
 
-            const orderItems = items.map((item) => ({
-                order_id: order.id,
-                product_id: item.product.id,
-                quantity: item.quantity,
-                unit_price: item.product.price,
-                modifiers_json: item.selectedModifiers || [],
-                removed_ingredients: item.removedIngredients?.length ? item.removedIngredients.map(ri => ri.id) : null,
-            }));
+            if (!result.success || !result.order) {
+                throw new Error(result.error || 'Error creando la orden');
+            }
 
-            const { error: itemsError } = await (supabase.from('order_items') as any).insert(orderItems);
-            if (itemsError) throw itemsError;
+            const order = result.order;
 
             const ticketData = {
                 order_number: order.order_number,
                 created_at: order.created_at,
-                total_amount: order.total_amount,
+                total_amount: order.total_amount, // Precio real calculado por el servidor
                 type: 'DINE_IN' as const,
                 items: items.map(item => ({
                     name: item.product.name,
@@ -251,6 +271,8 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
             setIsCartOpen(false);
         } catch (error: any) {
             alert(`${t('orderError')}: ${error.message}`);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -270,7 +292,13 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
         <div className="h-screen w-screen overflow-hidden flex flex-col bg-slate-50 text-slate-900 selection:bg-primary-500 selection:text-white relative">
             {/* Dynamic Background - Restaurant Interior */}
             <div className="absolute inset-0 z-0 pointer-events-none">
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80')] bg-cover bg-center opacity-40 fixed" />
+                <Image
+                    src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
+                    alt="Background"
+                    fill
+                    priority
+                    className="object-cover opacity-40 fixed"
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-50 via-slate-50/60 to-slate-50/40" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.6)_0%,rgba(248,250,252,0.5)_100%)]" />
             </div>
@@ -286,7 +314,7 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                         </button>
                         <div className="flex flex-col">
                             <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic drop-shadow-sm">
-                                {activeCategory ? categories.find(c => c.id === activeCategory)?.name : 'Menú Completo'}
+                                {activeCategory ? categories.find(c => c.id === activeCategory)?.name : t('fullMenu')}
                             </h2>
                             <span className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
                                 <Utensils className="w-3 h-3 text-primary-500" />
@@ -296,12 +324,7 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => router.replace(pathname, { locale: locale === 'es' ? 'en' : 'es' })}
-                            className="p-3 bg-white rounded-2xl hover:bg-slate-50 transition-colors border border-slate-200/60 shadow-sm"
-                        >
-                            <Globe className="w-6 h-6 text-slate-400 hover:text-primary-500 transition-colors" />
-                        </button>
+                        <LanguageSwitcher />
                         <button
                             onClick={() => setIsCartOpen(!isCartOpen)}
                             className="relative p-3 bg-white rounded-2xl text-slate-600 shadow-sm border border-slate-200/60 active:scale-95 transition-all hover:text-primary-500 group"
@@ -316,13 +339,18 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 pb-32">
                         {filteredProducts.map((product, idx) => (
                             <div key={product.id} className="animate-in fade-in slide-in-from-bottom-5 duration-700 fill-mode-backwards" style={{ animationDelay: `${idx * 50}ms` }}>
-                                <div className="group bg-white rounded-[2.5rem] p-4 shadow-xl shadow-slate-200/50 hover:shadow-2xl hover:shadow-primary-500/10 hover:-translate-y-1 transition-all duration-300 border border-slate-100 h-full flex flex-col">
+                                <div
+                                    onClick={() => product.is_available && handleAddToCart(product)}
+                                    className="group bg-white rounded-[2.5rem] p-4 shadow-xl shadow-slate-200/50 hover:shadow-2xl hover:shadow-primary-500/10 hover:-translate-y-1 transition-all duration-300 border border-slate-100 h-full flex flex-col cursor-pointer"
+                                >
                                     <div className="relative aspect-square rounded-[2rem] overflow-hidden mb-4 bg-slate-100">
                                         {product.image_url ? (
-                                            <img
+                                            <Image
                                                 src={product.image_url}
                                                 alt={product.name}
-                                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                                fill
+                                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                                                className="object-cover transition-transform duration-700 group-hover:scale-110"
                                             />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-slate-300">
@@ -331,11 +359,14 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                                         )}
                                         {!product.is_available && (
                                             <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
-                                                <span className="bg-red-500 text-white px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest">Agotado</span>
+                                                <span className="bg-red-500 text-white px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest">{t('soldOut')}</span>
                                             </div>
                                         )}
                                         <button
-                                            onClick={() => handleAddToCart(product)}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (product.is_available) handleAddToCart(product);
+                                            }}
                                             disabled={!product.is_available}
                                             className="absolute bottom-4 right-4 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg text-slate-900 group-hover:bg-primary-500 group-hover:text-white transition-all disabled:opacity-0 disabled:pointer-events-none transform translate-y-20 group-hover:translate-y-0 duration-300"
                                         >
@@ -362,7 +393,7 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                     {filteredProducts.length === 0 && (
                         <div className="flex flex-col items-center justify-center h-64 text-slate-400 animate-in fade-in">
                             <Search className="w-16 h-16 mb-4 opacity-50" />
-                            <p className="font-bold uppercase tracking-widest">No hay productos disponibles</p>
+                            <p className="font-bold uppercase tracking-widest">{t('noProducts')}</p>
                         </div>
                     )}
                     <CartFloatingBar onOpenCart={() => setIsCartOpen(true)} />
@@ -376,8 +407,8 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
             )}>
                 <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-white/80 backdrop-blur-md">
                     <div>
-                        <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase italic">Mi Orden</h3>
-                        <p className="text-slate-500 text-sm font-bold mt-1">Revisa tus productos</p>
+                        <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase italic">{t('myOrder')}</h3>
+                        <p className="text-slate-500 text-sm font-bold mt-1">{t('reviewItems')}</p>
                     </div>
 
                     <button
@@ -394,7 +425,7 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
 
             {
                 customizingProduct && (
-                    <ProductCustomizationModal
+                    <ProductModal
                         open={!!customizingProduct}
                         product={customizingProduct}
                         onClose={() => setCustomizingProduct(null)}

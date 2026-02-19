@@ -1,247 +1,329 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { adminSupabase } from '@/lib/supabase/admin-client';
-import { createClient } from '@/lib/supabase/browser';
-import { useAuth } from '@/components/auth/AuthContext';
-import { createCheckoutSession, createCustomerPortalSession } from '@/app/actions/stripe';
 import {
-    CreditCard,
-    CheckCircle2,
-    XCircle,
-    Loader2,
-    Calendar,
-    ShieldCheck
+    Search, Users, MoreHorizontal, Download, ExternalLink,
+    CreditCard, Calendar, CheckCircle, XCircle
 } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
+import {
+    getAllCustomersBilling,
+    updateSubscriptionQuantity,
+    getCustomerInvoices,
+    generatePortalLink,
+    BillingCustomer
+} from '@/actions/stripe-admin';
+import { formatPrice } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
+} from '@/components/ui/dialog';
+import {
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+// import { toast } from 'sonner'; // Removed
 
-export default function BillingPage() {
+export default function BillingPage({
+    searchParams
+}: {
+    searchParams?: { q?: string }
+}) {
     const t = useTranslations('admin');
-    const { restaurantId } = useAuth();
-    const searchParams = useSearchParams();
-    const supabase = createClient();
 
+    // In a real app, this should be fetched inside a Server Component and passed as props
+    // For simplicity in this demo, we'll fetch on client mount or use SWR/TanStack Query.
+    // However, since we are inside a 'use client' file because of interactivity,
+    // we would typically use a parent layout or a wrapper.
+    // Let's assume data is passed or fetched.
+    // To make it functional immediately, I'll fetch on mount.
+
+    const [customers, setCustomers] = useState<BillingCustomer[]>([]);
     const [loading, setLoading] = useState(true);
-    const [restaurant, setRestaurant] = useState<any>(null);
-    const [userEmail, setUserEmail] = useState<string>('');
-    const [processing, setProcessing] = useState(false);
+    const [selectedCustomer, setSelectedCustomer] = useState<BillingCustomer | null>(null);
+    const [invoices, setInvoices] = useState<any[]>([]);
+    const [loadingInvoices, setLoadingInvoices] = useState(false);
+    const [isPending, startTransition] = useTransition();
 
+    // Fetch Initial Data
     useEffect(() => {
-        if (restaurantId) {
-            loadData();
-        }
-    }, [restaurantId]);
-
-    const loadData = async () => {
-        setLoading(true);
-        try {
-            // Fetch restaurant details
-            const { data: restaurantData } = await adminSupabase
-                .from('restaurants')
-                .select('*')
-                .eq('id', restaurantId)
-                .single();
-
-            if (restaurantData) {
-                setRestaurant(restaurantData);
+        const load = async () => {
+            try {
+                const data = await getAllCustomersBilling();
+                setCustomers(data);
+            } catch (err) {
+                console.error('Error loading billing data', err);
+            } finally {
+                setLoading(false);
             }
+        };
+        load();
+    }, []);
 
-            // Fetch current user email
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user?.email) {
-                setUserEmail(user.email);
+    // Handle Quantity Update
+    const onUpdateQuantity = async (customer: BillingCustomer, newQty: number) => {
+        if (newQty < 1) return;
+
+        // Optimistic Update
+        setCustomers(prev => prev.map(c =>
+            c.id === customer.id ? { ...c, plan_quantity: newQty } : c
+        ));
+
+        try {
+            const res = await updateSubscriptionQuantity(customer.id, newQty);
+            if (!res.success) {
+                throw new Error(res.error);
             }
-
-        } catch (error) {
-            console.error('Error loading billing data:', error);
-        } finally {
-            setLoading(false);
+        } catch (err) {
+            // Revert on error
+            setCustomers(prev => prev.map(c =>
+                c.id === customer.id ? { ...c, plan_quantity: customer.plan_quantity } : c
+            ));
+            alert('Failed to update subscription');
         }
     };
 
-    const handleSubscribe = async () => {
-        if (!restaurantId) return;
-        setProcessing(true);
-        try {
-            await createCheckoutSession(restaurantId, userEmail);
-        } catch (error) {
-            console.error('Error starting subscription:', error);
-            alert('Error al iniciar la suscripción. Asegúrate de que el ID de precio de Stripe esté configurado en el servidor.');
-            setProcessing(false);
+    // Load Invoices when opening drawer
+    const openDetails = async (customer: BillingCustomer) => {
+        setSelectedCustomer(customer);
+        setLoadingInvoices(true);
+        if (customer.stripe_customer_id) {
+            const data = await getCustomerInvoices(customer.stripe_customer_id);
+            setInvoices(data);
+        } else {
+            setInvoices([]);
         }
+        setLoadingInvoices(false);
     };
 
-    const handleManageSubscription = async () => {
-        if (!restaurant?.stripe_customer_id) return;
-        setProcessing(true);
-        try {
-            await createCustomerPortalSession(restaurant.stripe_customer_id);
-        } catch (error) {
-            console.error('Error opening portal:', error);
-            alert('Error al abrir el panel de facturación.');
-            setProcessing(false);
-        }
+    const handleOpenPortal = async () => {
+        if (!selectedCustomer?.stripe_customer_id) return;
+        const url = await generatePortalLink(selectedCustomer.stripe_customer_id);
+        if (url) window.open(url, '_blank');
+        else alert('Could not generate portal link');
     };
 
-    const isSuccess = searchParams.get('success') === 'true';
-    const isCanceled = searchParams.get('canceled') === 'true';
-
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-50">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-            </div>
-        );
-    }
-
-    const isActive = restaurant?.subscription_status === 'active';
-    const periodEnd = restaurant?.current_period_end ? new Date(restaurant.current_period_end) : null;
+    const filteredCustomers = customers.filter(c =>
+        c.name.toLowerCase().includes((searchParams?.q || '').toLowerCase())
+    );
 
     return (
-        <div className="p-4 md:p-8 lg:p-10">
-            <header className="mb-10">
-                <h1 className="text-3xl md:text-4xl font-black text-secondary-900 tracking-tight">Facturación & Plan</h1>
-                <p className="text-secondary-500 font-bold mt-1 text-sm md:text-base">Gestiona tu suscripción y métodos de pago.</p>
-            </header>
-
-            {/* Notifications */}
-            {isSuccess && (
-                <div className="mb-8 p-4 bg-green-50 border border-green-100 rounded-2xl flex items-center gap-3 text-green-700 animate-in slide-in-from-top-4">
-                    <CheckCircle2 className="w-6 h-6 flex-shrink-0" />
-                    <div>
-                        <p className="font-black text-sm">¡Suscripción exitosa!</p>
-                        <p className="text-xs font-medium opacity-90">Gracias por suscribirte a OrderPoint Pro.</p>
-                    </div>
+        <div className="p-8 max-w-[1600px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                        <CreditCard className="w-8 h-8 text-primary-500" />
+                        Billing & Subscriptions
+                    </h1>
+                    <p className="text-slate-500 font-medium mt-1">
+                        Manage all restaurant subscriptions and invoices in one place.
+                    </p>
                 </div>
-            )}
-            {isCanceled && (
-                <div className="mb-8 p-4 bg-orange-50 border border-orange-100 rounded-2xl flex items-center gap-3 text-orange-700 animate-in slide-in-from-top-4">
-                    <XCircle className="w-6 h-6 flex-shrink-0" />
-                    <div>
-                        <p className="font-black text-sm">Proceso cancelado</p>
-                        <p className="text-xs font-medium opacity-90">No se ha realizado ningún cobro.</p>
-                    </div>
+
+                <div className="relative w-full md:w-96">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                    <Input
+                        placeholder="Search restaurants..."
+                        className="pl-10 h-12 rounded-xl bg-white border-slate-200 shadow-sm"
+                    // In a real implementation, use router.push/replace for searchParams
+                    />
                 </div>
-            )}
+            </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Main Plan Card */}
-                <div className="lg:col-span-2">
-                    <div className="bg-white rounded-[2.5rem] shadow-xl shadow-secondary-900/5 border border-secondary-100 overflow-hidden relative">
-                        {/* Decorative Background */}
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-primary-100/50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+            {/* Metrics Cards (Optional Placeholder) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <MetricCard
+                    title="Total MRR"
+                    value={formatPrice(customers.reduce((acc, c) => acc + (c.mrr || 0), 0), 'en-US')}
+                    icon={<CreditCard className="w-5 h-5 text-green-500" />}
+                    trend="+12% from last month"
+                />
+                <MetricCard
+                    title="Active Subscriptions"
+                    value={customers.filter(c => c.subscription_status === 'active').length.toString()}
+                    icon={<CheckCircle className="w-5 h-5 text-blue-500" />}
+                    trend="All systems operational"
+                />
+                <MetricCard
+                    title="Past Due"
+                    value={customers.filter(c => c.subscription_status === 'past_due').length.toString()}
+                    icon={<AlertTriangle className="w-5 h-5 text-red-500" />}
+                    trend="Requires attention"
+                />
+            </div>
 
-                        <div className="p-8 md:p-10 relative z-10">
-                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
-                                <div>
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <h2 className="text-2xl font-black text-secondary-900 tracking-tight">Plan Actual</h2>
-                                        {isActive ? (
-                                            <span className="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-black uppercase tracking-widest border border-green-200">
-                                                Activo
-                                            </span>
-                                        ) : (
-                                            <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-500 text-xs font-black uppercase tracking-widest border border-slate-200">
-                                                Inactivo
-                                            </span>
-                                        )}
-                                    </div>
-                                    <p className="text-secondary-500 font-bold">
-                                        {isActive ? 'Tienes acceso completo a todas las funciones.' : 'Actualmente estás en el plan gratuito limitado.'}
-                                    </p>
-                                </div>
-                                <div className="text-right hidden md:block">
-                                    <p className="text-sm font-black text-secondary-400 uppercase tracking-widest">Precio</p>
-                                    <p className="text-3xl font-black text-primary-600">$29.99<span className="text-sm text-secondary-400 font-bold">/mes</span></p>
-                                </div>
-                            </div>
+            {/* Main Table */}
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+                <Table>
+                    <TableHeader className="bg-slate-50/50">
+                        <TableRow className="hover:bg-transparent border-slate-100">
+                            <TableHead className="w-[300px] font-bold text-slate-900">Restaurant</TableHead>
+                            <TableHead className="font-bold text-slate-900">Status</TableHead>
+                            <TableHead className="font-bold text-slate-900">Monthly Revenue</TableHead>
+                            <TableHead className="font-bold text-slate-900 text-center">Kiosks (Qty)</TableHead>
+                            <TableHead className="font-bold text-slate-900 text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {loading ? (
+                            Array.from({ length: 5 }).map((_, i) => (
+                                <TableRow key={i} className="animate-pulse">
+                                    <TableCell><div className="h-6 w-48 bg-slate-100 rounded"></div></TableCell>
+                                    <TableCell><div className="h-6 w-24 bg-slate-100 rounded"></div></TableCell>
+                                    <TableCell><div className="h-6 w-20 bg-slate-100 rounded"></div></TableCell>
+                                    <TableCell><div className="h-8 w-24 bg-slate-100 rounded mx-auto"></div></TableCell>
+                                    <TableCell><div className="h-8 w-8 bg-slate-100 rounded ml-auto"></div></TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            filteredCustomers.map((customer) => (
+                                <TableRow key={customer.id} className="group hover:bg-slate-50/50 transition-colors border-slate-50">
+                                    <TableCell className="font-bold text-slate-700">
+                                        <div className="flex flex-col">
+                                            <span className="text-base">{customer.name}</span>
+                                            <span className="text-xs text-slate-400 font-medium">{customer.email || 'No email'}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge
+                                            variant={customer.subscription_status === 'active' ? 'default' : 'destructive'}
+                                            className="uppercase tracking-wider font-bold text-[10px]"
+                                        >
+                                            {customer.subscription_status}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="font-mono font-bold text-slate-600">
+                                        {formatPrice(customer.mrr || 0, 'en-US')}
+                                        <span className="text-xs text-slate-400 font-medium ml-1">/mo</span>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center justify-center gap-2">
+                                            <button
+                                                onClick={() => onUpdateQuantity(customer, (customer.plan_quantity || 0) - 1)}
+                                                className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center active:scale-95 transition-all disabled:opacity-50"
+                                                disabled={customer.plan_quantity <= 1}
+                                            >
+                                                -
+                                            </button>
+                                            <span className="w-8 text-center font-bold text-lg tabular-nums">{customer.plan_quantity}</span>
+                                            <button
+                                                onClick={() => onUpdateQuantity(customer, (customer.plan_quantity || 0) + 1)}
+                                                className="w-8 h-8 rounded-lg bg-primary-100 hover:bg-primary-200 text-primary-700 flex items-center justify-center active:scale-95 transition-all"
+                                            >
+                                                +
+                                            </button>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => openDetails(customer)}
+                                            className="hover:bg-slate-200 rounded-full"
+                                        >
+                                            <MoreHorizontal className="w-5 h-5 text-slate-500" />
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                                <div className="p-6 bg-secondary-50 rounded-2xl border border-secondary-100 flex items-start gap-4">
-                                    <div className="p-3 bg-white rounded-xl shadow-sm text-primary-500">
-                                        <CreditCard className="w-6 h-6" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-black text-secondary-400 uppercase tracking-widest mb-1">Próximo Pago</p>
-                                        <p className="text-secondary-900 font-bold">
-                                            {periodEnd ? periodEnd.toLocaleDateString('es-ES', { dateStyle: 'long' }) : 'No programado'}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="p-6 bg-secondary-50 rounded-2xl border border-secondary-100 flex items-start gap-4">
-                                    <div className="p-3 bg-white rounded-xl shadow-sm text-primary-500">
-                                        <Calendar className="w-6 h-6" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-black text-secondary-400 uppercase tracking-widest mb-1">Estado</p>
-                                        <p className="text-secondary-900 font-bold">
-                                            {isActive ? 'Renovación Automática' : 'Necesita Acción'}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
+            {/* Invoices Dialog */}
+            <Dialog open={!!selectedCustomer} onOpenChange={(val) => !val && setSelectedCustomer(null)}>
+                <DialogContent className="max-w-xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-black">{selectedCustomer?.name}</DialogTitle>
+                        <div className="flex gap-2 mt-2">
+                            <Button onClick={handleOpenPortal} className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200">
+                                <ExternalLink className="w-4 h-4" />
+                                Open Stripe Portal
+                            </Button>
+                        </div>
+                    </DialogHeader>
 
-                            <div className="flex flex-col sm:flex-row gap-4">
-                                {isActive ? (
-                                    <button
-                                        onClick={handleManageSubscription}
-                                        disabled={processing}
-                                        className="flex-1 px-8 py-4 bg-secondary-900 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-70 disabled:translate-y-0"
-                                    >
-                                        {processing ? 'Procesando...' : 'Gestionar Suscripción'}
-                                    </button>
+                    <div className="space-y-8 mt-4">
+                        <div>
+                            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                                <Calendar className="w-5 h-5 text-slate-400" />
+                                Invoice History
+                            </h3>
+                            <div className="space-y-3">
+                                {loadingInvoices ? (
+                                    <div className="p-4 text-center text-slate-400">Loading invoices...</div>
+                                ) : invoices.length === 0 ? (
+                                    <div className="p-4 text-center text-slate-400 bg-slate-50 rounded-xl border border-slate-100 border-dashed">
+                                        No invoices found
+                                    </div>
                                 ) : (
-                                    <button
-                                        onClick={handleSubscribe}
-                                        disabled={processing}
-                                        className="flex-1 px-8 py-4 bg-primary-500 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-70 disabled:translate-y-0"
-                                    >
-                                        {processing ? 'Redirigiendo a Stripe...' : 'Suscribirse Ahora'}
-                                    </button>
+                                    invoices.map((inv) => (
+                                        <div key={inv.id} className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100 hover:border-slate-300 transition-colors group">
+                                            <div>
+                                                <p className="font-bold text-slate-700">{inv.amount} {inv.currency}</p>
+                                                <p className="text-xs text-slate-400 font-medium">{inv.date} • {inv.number}</p>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <Badge variant={inv.status === 'paid' ? 'outline' : 'destructive'} className="uppercase text-[10px]">
+                                                    {inv.status}
+                                                </Badge>
+                                                {inv.pdf_url && (
+                                                    <a
+                                                        href={inv.pdf_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="p-2 bg-white rounded-lg shadow-sm text-slate-400 hover:text-primary-600 transition-colors"
+                                                    >
+                                                        <Download className="w-4 h-4" />
+                                                    </a>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))
                                 )}
                             </div>
                         </div>
                     </div>
-                </div>
-
-                {/* Features Card */}
-                <div>
-                    <div className="bg-secondary-900 text-white rounded-[2.5rem] shadow-xl p-8 md:p-10 h-full flex flex-col relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-primary-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-
-                        <div className="relative z-10">
-                            <h3 className="text-xl font-black tracking-tight mb-2">OrderPoint Pro</h3>
-                            <p className="text-secondary-400 font-medium text-sm mb-8">Desbloquea todo el potencial de tu restaurante.</p>
-
-                            <ul className="space-y-6 flex-1">
-                                {[
-                                    'Menú Digital Ilimitado',
-                                    'Gestión de Inventario',
-                                    'Panel de Administración Avanzado',
-                                    'Soporte Prioritario 24/7',
-                                    'Estadísticas y Reportes',
-                                    'Múltiples Usuarios y Roles'
-                                ].map((feature, i) => (
-                                    <li key={i} className="flex items-center gap-3">
-                                        <div className="p-1 rounded-full bg-primary-500/20 text-primary-400">
-                                            <CheckCircle2 className="w-4 h-4" />
-                                        </div>
-                                        <span className="font-bold text-sm tracking-wide">{feature}</span>
-                                    </li>
-                                ))}
-                            </ul>
-
-                            <div className="mt-10 pt-8 border-t border-secondary-800">
-                                <div className="flex items-center gap-3 text-secondary-400 text-xs">
-                                    <ShieldCheck className="w-5 h-5" />
-                                    <span>Pagos seguros procesados por Stripe</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
+}
+
+function MetricCard({ title, value, icon, trend }: any) {
+    return (
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/30 flex flex-col gap-2">
+            <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">{title}</span>
+                <div className="p-2 bg-slate-50 rounded-xl">{icon}</div>
+            </div>
+            <span className="text-3xl font-black text-slate-900 tracking-tight">{value}</span>
+            <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
+                {trend}
+            </span>
+        </div>
+    );
+}
+
+// Helper icon
+function AlertTriangle({ className }: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={className}
+        >
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+            <path d="M12 9v4" />
+            <path d="M12 17h.01" />
+        </svg>
+    )
 }

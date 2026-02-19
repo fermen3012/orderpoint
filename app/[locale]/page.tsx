@@ -2,13 +2,16 @@
 
 import { use, useEffect, useState } from 'react';
 import { useRouter } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 import { ChefHat, ArrowRight, Loader2, Utensils, ShoppingBag } from 'lucide-react';
 import { createClient } from '@/lib/supabase/browser';
 import { useCartStore } from '@/store/cart-store';
+import LanguageSwitcher from '@/components/kiosk/LanguageSwitcher';
 
 export default function WelcomePage({ params }: { params: Promise<{ locale: string }> }) {
     const resolvedParams = use(params);
     const locale = resolvedParams.locale;
+    const t = useTranslations('kiosk');
     const router = useRouter();
     const supabase = createClient();
 
@@ -81,6 +84,9 @@ export default function WelcomePage({ params }: { params: Promise<{ locale: stri
             {/* Dark Overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/60" />
 
+            {/* Language Switcher */}
+            <LanguageSwitcher className="absolute top-8 right-8" />
+
             {/* Content Centered */}
             <div className="relative z-10 flex flex-col items-center justify-center h-full px-4 text-center space-y-8 animate-in fade-in zoom-in duration-1000">
 
@@ -100,11 +106,11 @@ export default function WelcomePage({ params }: { params: Promise<{ locale: stri
                 {/* Main Heading */}
                 <div className="space-y-2">
                     <h1 className="text-5xl md:text-7xl font-black text-white tracking-tighter uppercase italic drop-shadow-2xl max-w-4xl leading-tight">
-                        {restaurant ? `Bienvenido a ${restaurant.name}` : 'Bienvenido a OrderPoint'}
+                        {t('welcomeTo', { name: restaurant ? restaurant.name : 'OrderPoint' })}
                     </h1>
                     {!restaurant && (
                         <p className="text-2xl md:text-3xl text-slate-300 font-light tracking-widest uppercase">
-                            Kiosco de Autoservicio
+                            {t('selfServiceKiosk')}
                         </p>
                     )}
                 </div>
@@ -122,7 +128,7 @@ export default function WelcomePage({ params }: { params: Promise<{ locale: stri
                             <Utensils className="w-10 h-10 text-white" />
                         </div>
                         <span className="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter italic">
-                            Comer Aquí
+                            {t('dineIn')}
                         </span>
                     </button>
 
@@ -136,7 +142,7 @@ export default function WelcomePage({ params }: { params: Promise<{ locale: stri
                             <ShoppingBag className="w-10 h-10 text-white" />
                         </div>
                         <span className="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter italic">
-                            Para Llevar
+                            {t('takeout')}
                         </span>
                     </button>
 
@@ -144,7 +150,7 @@ export default function WelcomePage({ params }: { params: Promise<{ locale: stri
 
                 {/* Footer Hint */}
                 <div className="absolute bottom-12 text-slate-400 text-sm font-bold uppercase tracking-[0.2em] opacity-60">
-                    Kiosco de Autoservicio
+                    {t('selfServiceKiosk')}
                 </div>
             </div>
         </div>

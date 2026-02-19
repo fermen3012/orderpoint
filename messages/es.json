@@ -31,7 +31,27 @@
         "add": "Agregar",
         "productCount": "{count, plural, =1 {# producto} other {# productos}}",
         "taxesIncluded": "Impuestos incluidos",
-        "viewOrder": "Ver mi Orden"
+        "viewOrder": "Ver mi Orden",
+        "fullMenu": "Menú Completo",
+        "freshAndDelicious": "Fresco & Delicioso",
+        "ourMenu": "Nuestra Carta",
+        "exploreFlavors": "Explora una selección de sabores <primary>frescos</primary> y auténticos.",
+        "viewAll": "Ver Todo",
+        "explore": "Explorar",
+        "viewProducts": "Ver Productos",
+        "myOrder": "Mi Orden",
+        "reviewItems": "Revisa tus productos",
+        "soldOut": "Agotado",
+        "noProducts": "No hay productos disponibles",
+        "dineIn": "Comer Aquí",
+        "takeout": "Para Llevar",
+        "welcomeTo": "Bienvenido a {name}",
+        "selfServiceKiosk": "Kiosco de Autoservicio",
+        "areYouStillThere": "¿Sigues ahí?",
+        "sessionExpiring": "Tu sesión se cerrará en <highlight>{time}</highlight> segundos.",
+        "continueOrdering": "Seguir Ordenando",
+        "addToOrder": "Agregar a la Orden",
+        "completeSelection": "Completa tu selección"
     },
     "kitchen": {
         "title": "Cocina",
@@ -47,7 +67,9 @@
         "loading": "Cargando...",
         "product": "Producto",
         "removed": "SIN",
-        "logout": "Cerrar Sesión"
+        "logout": "Cerrar Sesión",
+        "dineIn": "MESA",
+        "takeout": "LLEVAR"
     },
     "admin": {
         "dashboard": "Panel de Control",

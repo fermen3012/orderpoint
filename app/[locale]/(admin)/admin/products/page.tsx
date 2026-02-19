@@ -19,8 +19,11 @@ import {
     Image as ImageIcon,
     Search,
     ChefHat,
-    Loader2
+    Loader2,
+    Sparkles,
+    RefreshCw
 } from 'lucide-react';
+import { generateDualTranslation } from '@/actions/translate-gemini';
 import { formatPrice } from '@/lib/utils';
 import { SidebarLink } from '@/components/admin/SidebarLink';
 
@@ -39,6 +42,7 @@ export default function ProductsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<any | null>(null);
     const [saving, setSaving] = useState(false);
+    const [isTranslating, setIsTranslating] = useState(false);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [allIngredients, setAllIngredients] = useState<any[]>([]);
@@ -47,6 +51,7 @@ export default function ProductsPage() {
     const [newProduct, setNewProduct] = useState({
         name: '',
         description: '',
+        description_es: '',
         price: '',
         category_id: '',
         image_url: '',
@@ -93,6 +98,7 @@ export default function ProductsPage() {
         setNewProduct({
             name: '',
             description: '',
+            description_es: '',
             price: '',
             category_id: categories[0]?.id || '',
             image_url: '',
@@ -141,6 +147,26 @@ export default function ProductsPage() {
         }
     };
 
+    const handleTranslate = async () => {
+        if (!newProduct.description) return;
+        setIsTranslating(true);
+        try {
+            const result = await generateDualTranslation(newProduct.description);
+            if (result && result.es && result.en) {
+                setNewProduct(prev => ({
+                    ...prev,
+                    description: result.en, // Refinado en Inglés
+                    description_es: result.es // Traducido en Español
+                }));
+            }
+        } catch (error: any) {
+            console.error('Translation failed', error);
+            alert('Error al traducir: ' + error.message + '\n\nRevisa si reiniciaste el servidor.');
+        } finally {
+            setIsTranslating(false);
+        }
+    };
+
     const handleSaveProduct = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!restaurantId) return;
@@ -152,6 +178,7 @@ export default function ProductsPage() {
                 restaurant_id: restaurantId,
                 name: newProduct.name,
                 description: newProduct.description || null,
+                description_es: newProduct.description_es || null,
                 price: parseFloat(newProduct.price),
                 category_id: newProduct.category_id || null, // Ensure empty string becomes null if needed, though state is string
                 image_url: newProduct.image_url || null,
@@ -186,6 +213,7 @@ export default function ProductsPage() {
         setNewProduct({
             name: product.name,
             description: product.description || '',
+            description_es: (product as any).description_es || '',
             price: product.price.toString(),
             category_id: product.category_id,
             image_url: product.image_url || '',
@@ -356,25 +384,26 @@ export default function ProductsPage() {
 
             {/* Product Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-in fade-in duration-300 overflow-y-auto">
-                    <div className="bg-white w-full max-w-4xl rounded-[2rem] md:rounded-[3rem] shadow-2xl overflow-hidden animate-scale-in my-8">
-                        <div className="p-6 md:p-10 border-b border-secondary-50 flex justify-between items-center bg-secondary-50/30">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-secondary-900/60 backdrop-blur-sm animate-in fade-in duration-300 overflow-y-auto">
+                    <div className="bg-white w-full max-w-4xl rounded-[1.5rem] sm:rounded-[2rem] md:rounded-[3rem] shadow-2xl overflow-hidden animate-scale-in my-2 sm:my-8">
+                        <div className="p-5 md:p-10 border-b border-secondary-50 flex justify-between items-start gap-4 bg-secondary-50/30 sticky top-0 z-10 backdrop-blur-md">
                             <div>
-                                <h2 className="text-2xl md:text-3xl font-black text-secondary-900 tracking-tight">
+                                <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-secondary-900 tracking-tight leading-tight">
                                     {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
                                 </h2>
                                 <p className="text-secondary-500 font-bold mt-1 text-sm">Completa la información del producto.</p>
                             </div>
                             <button
+                                type="button"
                                 onClick={() => setIsModalOpen(false)}
-                                className="p-2 md:p-3 hover:bg-white rounded-xl md:rounded-2xl transition-all shadow-sm border border-secondary-100"
+                                className="p-2 md:p-3 hover:bg-white rounded-xl md:rounded-2xl transition-all shadow-sm border border-secondary-100 flex-shrink-0"
                             >
                                 <CloseIcon className="w-5 h-5 md:w-6 md:h-6 text-secondary-400" />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSaveProduct} className="p-6 md:p-10">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
+                        <form onSubmit={handleSaveProduct} className="p-5 md:p-10">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-10">
                                 {/* Image Upload */}
                                 <div className="space-y-4">
                                     <label className="block text-xs font-black text-secondary-400 uppercase tracking-widest px-2">Imagen del Producto</label>
@@ -445,13 +474,34 @@ export default function ProductsPage() {
                                         </div>
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest px-2">Descripción (Opcional)</label>
+                                    <div className="space-y-2 relative">
+                                        <div className="flex justify-between items-end px-2">
+                                            <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest">Descripción (Inglés)</label>
+                                            <button
+                                                type="button"
+                                                onClick={handleTranslate}
+                                                disabled={isTranslating || !newProduct.description}
+                                                className="flex items-center gap-1 text-[10px] font-black text-primary-500 hover:text-primary-600 transition-colors disabled:opacity-50"
+                                            >
+                                                {isTranslating ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                                                {isTranslating ? 'Mejorando...' : 'Mejorar Inglés & Traducir'}
+                                            </button>
+                                        </div>
                                         <textarea
                                             value={newProduct.description}
                                             onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                                            className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900 resize-none h-32"
-                                            placeholder="Breve descripción del producto..."
+                                            className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900 resize-none h-24"
+                                            placeholder="Description in English..."
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2 relative">
+                                        <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest px-2">Descripción (Español)</label>
+                                        <textarea
+                                            value={newProduct.description_es}
+                                            onChange={(e) => setNewProduct({ ...newProduct, description_es: e.target.value })}
+                                            className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900 resize-none h-24"
+                                            placeholder="Descripción en Español..."
                                         />
                                     </div>
 
@@ -519,13 +569,20 @@ export default function ProductsPage() {
                                         )}
                                     </div>
 
-                                    <div className="md:col-span-2 pt-4">
+                                    <div className="md:col-span-2 pt-2 md:pt-4 flex gap-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsModalOpen(false)}
+                                            className="flex-1 py-4 sm:py-5 bg-white text-secondary-500 border-2 border-secondary-100 rounded-xl sm:rounded-[2rem] font-black uppercase tracking-widest hover:bg-secondary-50 transition-all active:scale-95"
+                                        >
+                                            Cancelar
+                                        </button>
                                         <button
                                             type="submit"
                                             disabled={saving}
-                                            className="w-full py-4 sm:py-5 bg-primary-500 text-white rounded-xl sm:rounded-[2rem] font-black uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0"
+                                            className="flex-[2] py-4 sm:py-5 bg-primary-500 text-white rounded-xl sm:rounded-[2rem] font-black uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0"
                                         >
-                                            {saving ? 'Guardando...' : (editingProduct ? 'Guardar Cambios' : 'Crear Producto')}
+                                            {saving ? 'Guardando...' : (editingProduct ? 'Guardar' : 'Crear')}
                                         </button>
                                     </div>
                                 </div>

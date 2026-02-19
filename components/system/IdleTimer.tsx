@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useCartStore } from '@/store/cart-store';
 
 const IDLE_TIMEOUT = 30000; // 30 seconds total
@@ -9,6 +10,7 @@ const WARNING_TIMEOUT = 20000; // Warning appears at 20 seconds (10s remaining)
 
 export default function IdleTimer() {
     const router = useRouter();
+    const t = useTranslations('kiosk');
     const pathname = usePathname();
     const { clearCart, items } = useCartStore();
 
@@ -107,9 +109,12 @@ export default function IdleTimer() {
                     <span className="text-4xl font-black">!</span>
                 </div>
                 <div>
-                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">¿Sigues ahí?</h2>
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">{t('areYouStillThere')}</h2>
                     <p className="text-slate-500 font-bold mt-2">
-                        Tu sesión se cerrará en <span className="text-rose-500 text-xl font-black">{timeLeft}</span> segundos.
+                        {t.rich('sessionExpiring', {
+                            time: timeLeft,
+                            highlight: (chunks) => <span className="text-rose-500 text-xl font-black">{chunks}</span>
+                        })}
                     </p>
                 </div>
                 <button
@@ -119,7 +124,7 @@ export default function IdleTimer() {
                     }}
                     className="w-full py-5 bg-primary-500 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-600 transition-all shadow-xl shadow-primary-500/30 active:scale-95"
                 >
-                    Seguir Ordenando
+                    {t('continueOrdering')}
                 </button>
             </div>
         </div>

@@ -2,10 +2,15 @@
 
 import { use, useEffect, useState } from 'react';
 import { useRouter } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 import { ChefHat, ArrowRight, Loader2, Star, Sparkles, Utensils } from 'lucide-react';
 import { createClient } from '@/lib/supabase/browser';
 import { useAuth } from '@/components/auth/AuthContext';
+import LanguageSwitcher from '@/components/kiosk/LanguageSwitcher';
 import type { Database } from '@/lib/supabase/types';
+import Image from 'next/image';
+
+import { getMenuWithSchedule } from '@/actions/products';
 
 type Category = Database['public']['Tables']['categories']['Row'];
 
@@ -13,6 +18,7 @@ export default function CategoriesPage({ params }: { params: Promise<{ locale: s
     const resolvedParams = use(params);
     const locale = resolvedParams.locale;
     const router = useRouter();
+    const t = useTranslations('kiosk');
     const { restaurantId } = useAuth();
     const supabase = createClient();
 
@@ -23,13 +29,23 @@ export default function CategoriesPage({ params }: { params: Promise<{ locale: s
         async function loadCategories() {
             if (!restaurantId) return;
             try {
-                const { data } = await supabase
-                    .from('categories')
-                    .select('*')
-                    .eq('restaurant_id', restaurantId)
-                    .order('sort_order');
+                // Fetch categories and available products (today)
+                const [categoriesRes, productsRes] = await Promise.all([
+                    supabase
+                        .from('categories')
+                        .select('*')
+                        .eq('restaurant_id', restaurantId)
+                        .order('sort_order'),
+                    getMenuWithSchedule(restaurantId, new Date().getDay())
+                ]);
 
-                if (data) setCategories(data);
+                if (categoriesRes.data && productsRes) {
+                    const availableProducts = productsRes;
+                    const activeCategoryIds = new Set(availableProducts.map(p => p.category_id));
+
+                    const visibleCategories = categoriesRes.data.filter(cat => activeCategoryIds.has(cat.id));
+                    setCategories(visibleCategories);
+                }
             } catch (error) {
                 console.error(error);
             } finally {
@@ -45,19 +61,31 @@ export default function CategoriesPage({ params }: { params: Promise<{ locale: s
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-white">
-                <Loader2 className="w-16 h-16 animate-spin text-primary-500" />
+            <div className="min-h-screen bg-slate-50 p-6 md:p-12 pb-32 relative">
+                <LanguageSwitcher className="absolute top-8 right-8 z-50" />
+                <div className="max-w-7xl mx-auto">
+                    <div className="min-h-screen flex items-center justify-center">
+                        <Loader2 className="w-16 h-16 animate-spin text-primary-500" />
+                    </div>
+                </div>
             </div>
         );
     }
 
     return (
         <div className="min-h-screen w-full relative overflow-x-hidden bg-slate-50 text-slate-900 selection:bg-primary-500 selection:text-white">
+            <LanguageSwitcher className="absolute top-8 right-8 z-50" />
 
             {/* Dynamic Background - Fresh Food Theme */}
             <div className="absolute inset-0 z-0">
                 {/* Image: Light, fresh ingredients */}
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1493770348161-369560ae357d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80')] bg-cover bg-center opacity-40 fixed" />
+                <Image
+                    src="https://images.unsplash.com/photo-1493770348161-369560ae357d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
+                    alt="Background"
+                    fill
+                    priority
+                    className="object-cover opacity-40 fixed"
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-50 via-slate-50/60 to-transparent" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0)_0%,rgba(248,250,252,0.5)_100%)]" />
             </div>
@@ -68,13 +96,15 @@ export default function CategoriesPage({ params }: { params: Promise<{ locale: s
                 <header className="mb-16 text-center animate-in fade-in slide-in-from-top-10 duration-1000">
                     <div className="inline-flex items-center gap-3 px-6 py-2 rounded-full bg-white backdrop-blur-md border border-slate-200 mb-6 shadow-xl shadow-primary-500/5 hover:bg-slate-50 transition-colors cursor-default">
                         <Sparkles className="w-4 h-4 text-primary-500 animate-pulse" />
-                        <span className="text-slate-500 text-xs font-black uppercase tracking-[0.3em]">Fresco & Delicioso</span>
+                        <span className="text-slate-500 text-xs font-black uppercase tracking-[0.3em]">{t('freshAndDelicious')}</span>
                     </div>
                     <h1 className="text-5xl md:text-7xl font-black text-slate-900 tracking-tighter uppercase italic drop-shadow-sm leading-tight mb-4 text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-700">
-                        Nuestra Carta
+                        {t('ourMenu')}
                     </h1>
                     <p className="text-xl md:text-2xl text-slate-500 font-medium max-w-2xl mx-auto leading-relaxed">
-                        Explora una selección de sabores <span className="text-primary-500 font-bold italic">frescos</span> y auténticos.
+                        {t.rich('exploreFlavors', {
+                            primary: (chunks) => <span className="text-primary-500 font-bold italic">{chunks}</span>
+                        })}
                     </p>
                 </header>
 
@@ -96,11 +126,11 @@ export default function CategoriesPage({ params }: { params: Promise<{ locale: s
                                 <Utensils className="w-10 h-10 text-primary-500 drop-shadow-sm" />
                             </div>
                             <h3 className="text-4xl font-black text-slate-900 italic tracking-tighter uppercase mb-2 group-hover:text-primary-500 transition-colors">
-                                Menú Completo
+                                {t('fullMenu')}
                             </h3>
                             <div className="h-1.5 w-20 bg-primary-500 rounded-full mt-4 group-hover:w-32 transition-all duration-500" />
                             <div className="absolute bottom-10 flex items-center gap-2 text-slate-400 font-bold uppercase tracking-widest text-xs opacity-60 group-hover:opacity-100 transition-opacity">
-                                Ver Todo <ArrowRight className="w-4 h-4 text-primary-500" />
+                                {t('viewAll')} <ArrowRight className="w-4 h-4 text-primary-500" />
                             </div>
                         </div>
                     </button>
@@ -118,10 +148,12 @@ export default function CategoriesPage({ params }: { params: Promise<{ locale: s
                                 {category.image_url ? (
                                     <div className="w-full h-full relative">
                                         <div className="absolute inset-0 bg-white/0 z-10 transition-colors duration-500" />
-                                        <img
+                                        <Image
                                             src={category.image_url}
                                             alt={category.name}
-                                            className="w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-110"
+                                            fill
+                                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                            className="object-cover transition-transform duration-1000 ease-out group-hover:scale-110"
                                         />
                                     </div>
                                 ) : (
@@ -138,7 +170,7 @@ export default function CategoriesPage({ params }: { params: Promise<{ locale: s
                             <div className="absolute inset-x-0 bottom-0 p-8 z-30 flex flex-col items-start text-left">
                                 <div className="inline-block px-3 py-1 rounded-lg bg-white/20 backdrop-blur-md border border-white/20 text-white text-[10px] font-black uppercase tracking-widest mb-3 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-500">
                                     <div className="flex items-center gap-1">
-                                        <Star className="w-3 h-3 fill-white" /> Explorar
+                                        <Star className="w-3 h-3 fill-white" /> {t('explore')}
                                     </div>
                                 </div>
                                 <h3 className="text-4xl lg:text-5xl font-black text-white italic tracking-tighter uppercase leading-[0.9] drop-shadow-md mb-2 origin-left transform group-hover:scale-105 transition-transform duration-500">
@@ -146,7 +178,7 @@ export default function CategoriesPage({ params }: { params: Promise<{ locale: s
                                 </h3>
 
                                 <div className="w-full flex items-center justify-between mt-4 border-t border-white/20 pt-4 opacity-80 group-hover:opacity-100 transition-opacity duration-500">
-                                    <span className="text-slate-200 text-xs font-bold uppercase tracking-wider group-hover:text-white">Ver Productos</span>
+                                    <span className="text-slate-200 text-xs font-bold uppercase tracking-wider group-hover:text-white">{t('viewProducts')}</span>
                                     <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center group-hover:bg-primary-500 group-hover:text-white transition-all duration-300 transform group-hover:rotate-[-45deg] border border-white/10">
                                         <ArrowRight className="w-5 h-5 text-white" />
                                     </div>
