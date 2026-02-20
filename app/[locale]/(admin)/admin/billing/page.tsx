@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
     Search, Users, MoreHorizontal, Download, ExternalLink,
@@ -25,11 +26,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 // import { toast } from 'sonner'; // Removed
 
-export default function BillingPage({
-    searchParams
-}: {
-    searchParams?: { q?: string }
-}) {
+export default function BillingPage() {
     const t = useTranslations('admin');
 
     // In a real app, this should be fetched inside a Server Component and passed as props
@@ -104,8 +101,11 @@ export default function BillingPage({
         else alert('Could not generate portal link');
     };
 
+    // Use the hook instead of the prop
+    const searchParamsHook = useSearchParams();
+
     const filteredCustomers = customers.filter(c =>
-        c.name.toLowerCase().includes((searchParams?.q || '').toLowerCase())
+        c.name.toLowerCase().includes((searchParamsHook.get('q') || '').toLowerCase())
     );
 
     return (
