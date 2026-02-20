@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2025-01-27.acacia', // Use latest stable version or current
+    apiVersion: '2025-12-15.clover', // Use latest stable version supported by the SDK
 });
 
 export interface BillingCustomer {
