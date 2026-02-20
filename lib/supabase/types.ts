@@ -17,6 +17,11 @@ export interface Database {
                     is_active: boolean
                     logo_url: string | null
                     created_at: string
+                    stripe_customer_id: string | null
+                    stripe_subscription_id: string | null
+                    plan_quantity: number | null
+                    subscription_status: string | null
+                    current_period_end: string | null
                 }
                 Insert: {
                     id?: string
@@ -25,6 +30,11 @@ export interface Database {
                     is_active?: boolean
                     logo_url?: string | null
                     created_at?: string
+                    stripe_customer_id?: string | null
+                    stripe_subscription_id?: string | null
+                    plan_quantity?: number | null
+                    subscription_status?: string | null
+                    current_period_end?: string | null
                 }
                 Update: {
                     id?: string
@@ -33,6 +43,11 @@ export interface Database {
                     is_active?: boolean
                     logo_url?: string | null
                     created_at?: string
+                    stripe_customer_id?: string | null
+                    stripe_subscription_id?: string | null
+                    plan_quantity?: number | null
+                    subscription_status?: string | null
+                    current_period_end?: string | null
                 }
             }
             categories: {
@@ -68,6 +83,7 @@ export interface Database {
                     category_id: string | null
                     name: string
                     description: string | null
+                    description_es: string | null
                     price: number
                     image_url: string | null
                     is_available: boolean
@@ -79,6 +95,7 @@ export interface Database {
                     category_id?: string | null
                     name: string
                     description?: string | null
+                    description_es?: string | null
                     price: number
                     image_url?: string | null
                     is_available?: boolean
@@ -90,6 +107,7 @@ export interface Database {
                     category_id?: string | null
                     name?: string
                     description?: string | null
+                    description_es?: string | null
                     price?: number
                     image_url?: string | null
                     is_available?: boolean
@@ -179,6 +197,7 @@ export interface Database {
                     preparing_at: string | null
                     ready_at: string | null
                     completed_at: string | null
+                    order_type: 'dine_in' | 'takeout' | null
                 }
                 Insert: {
                     id?: string
@@ -190,6 +209,7 @@ export interface Database {
                     preparing_at?: string | null
                     ready_at?: string | null
                     completed_at?: string | null
+                    order_type?: 'dine_in' | 'takeout' | null
                 }
                 Update: {
                     id?: string
@@ -201,6 +221,7 @@ export interface Database {
                     preparing_at?: string | null
                     ready_at?: string | null
                     completed_at?: string | null
+                    order_type?: 'dine_in' | 'takeout' | null
                 }
             }
             order_items: {
@@ -299,6 +320,35 @@ export interface Database {
                     full_name?: string | null
                     is_super_admin?: boolean
                     created_at?: string
+                }
+            }
+            product_availability: {
+                Row: {
+                    id: string
+                    product_id: string
+                    restaurant_id: string
+                    day_of_week: number
+                    is_active: boolean
+                    created_at: string
+                    updated_at: string
+                }
+                Insert: {
+                    id?: string
+                    product_id: string
+                    restaurant_id: string
+                    day_of_week: number
+                    is_active?: boolean
+                    created_at?: string
+                    updated_at?: string
+                }
+                Update: {
+                    id?: string
+                    product_id?: string
+                    restaurant_id?: string
+                    day_of_week?: number
+                    is_active?: boolean
+                    created_at?: string
+                    updated_at?: string
                 }
             }
         }
