@@ -41,8 +41,8 @@ export default function SchedulePage() {
     const loadData = async () => {
         setLoading(true);
         // 1. Fetch products
-        const { data: productsData } = await adminSupabase
-            .from('products')
+        const { data: productsData } = await (adminSupabase
+            .from('products' as any) as any)
             .select('id, name, category_id, is_available, image_url, categories(name)')
             .eq('restaurant_id', restaurantId)
             .eq('is_available', true) // Only active products matter
@@ -52,16 +52,16 @@ export default function SchedulePage() {
             setProducts(productsData);
 
             // 2. Fetch ALL availability records
-            const { data: availabilityData } = await adminSupabase
-                .from('product_availability')
+            const { data: availabilityData } = await (adminSupabase
+                .from('product_availability' as any) as any)
                 .select('product_id, day_of_week, is_active')
-                .in('product_id', productsData.map(p => p.id));
+                .in('product_id', productsData.map((p: any) => p.id));
 
             // Process into map
             const newSchedules: Record<string, Record<number, boolean>> = {};
 
             // Initialize with DEFAULT TRUE (if no record exists, it's available)
-            productsData.forEach(p => {
+            productsData.forEach((p: any) => {
                 newSchedules[p.id] = {};
                 DAYS.forEach(d => {
                     // Default logic: Available
@@ -78,9 +78,9 @@ export default function SchedulePage() {
                 // So implies: If has records, missing days are HIDDEN.
 
                 // Let's flag products that have at least one record
-                const productsWithRecords = new Set(availabilityData.map(a => a.product_id));
+                const productsWithRecords = new Set(availabilityData.map((a: any) => a.product_id));
 
-                productsData.forEach(p => {
+                productsData.forEach((p: any) => {
                     if (productsWithRecords.has(p.id)) {
                         // Product has some restrictions. Initialize all to FALSE first for this product?
                         // Or just follow: if record exists -> use value. If not -> False.
