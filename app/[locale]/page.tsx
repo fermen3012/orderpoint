@@ -33,18 +33,18 @@ export default function WelcomePage({ params }: { params: Promise<{ locale: stri
                 }
 
                 // 2. Get Profile to find Restaurant ID
-                const { data: profile } = await supabase
-                    .from('profiles')
+                const { data: profile } = await (supabase
+                    .from('profiles' as any) as any)
                     .select('restaurant_id')
                     .eq('id', session.user.id)
                     .single();
 
-                if (profile?.restaurant_id) {
+                if ((profile as any)?.restaurant_id) {
                     // 3. Get Restaurant Details
-                    const { data: restData } = await supabase
-                        .from('restaurants')
+                    const { data: restData } = await (supabase
+                        .from('restaurants' as any) as any)
                         .select('name, logo_url')
-                        .eq('id', profile.restaurant_id)
+                        .eq('id', (profile as any).restaurant_id)
                         .single();
 
                     if (restData) {
