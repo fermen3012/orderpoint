@@ -6,8 +6,8 @@ import { revalidatePath } from 'next/cache';
 export async function getProductSchedule(productId: string) {
     const supabase = await createClient();
 
-    const { data, error } = await supabase
-        .from('product_availability')
+    const { data, error } = await (supabase
+        .from('product_availability' as any) as any)
         .select('day_of_week, is_active')
         .eq('product_id', productId);
 
@@ -28,8 +28,8 @@ export async function toggleProductAvailability(
     const supabase = await createClient();
 
     // Check if record exists
-    const { data: existing } = await supabase
-        .from('product_availability')
+    const { data: existing } = await (supabase
+        .from('product_availability' as any) as any)
         .select('id')
         .eq('product_id', productId)
         .eq('day_of_week', dayOfWeek)
@@ -39,18 +39,18 @@ export async function toggleProductAvailability(
 
     if (existing) {
         // Update
-        const { error: updateError } = await supabase
-            .from('product_availability')
+        const { error: updateError } = await (supabase
+            .from('product_availability' as any) as any)
             .update({ is_active: isActive, updated_at: new Date().toISOString() })
-            .eq('id', existing.id);
+            .eq('id', (existing as any).id);
         error = updateError;
     } else {
         // Insert (Only if we are setting it to FALSE, or if we want to be explicit)
         // Logic: If no record exists, it's available. So if we toggle to TRUE, we might need a record if previously obscured?
         // Actually, to support "Apply to all", we should probably be explicit.
 
-        const { error: insertError } = await supabase
-            .from('product_availability')
+        const { error: insertError } = await (supabase
+            .from('product_availability' as any) as any)
             .insert({
                 product_id: productId,
                 restaurant_id: restaurantId,
@@ -87,8 +87,8 @@ export async function applyScheduleToAllDays(
         updated_at: new Date().toISOString()
     }));
 
-    const { error } = await supabase
-        .from('product_availability')
+    const { error } = await (supabase
+        .from('product_availability' as any) as any)
         .upsert(updates, { onConflict: 'product_id, day_of_week' });
 
     if (error) {
