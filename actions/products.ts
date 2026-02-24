@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/server-admin';
+import { Database } from '@/lib/supabase/types';
 import { revalidatePath } from 'next/cache';
 
 interface IngredientSelection {
@@ -35,17 +36,19 @@ export async function saveProduct(product: ProductInput, ingredients: Ingredient
 
         if (product.id) {
             // Update existing product
-            const { error: updateError } = await supabaseAdmin
-                .from('products')
-                .update({
-                    name: product.name,
-                    description: product.description,
-                    description_es: product.description_es,
-                    price: product.price,
-                    category_id: product.category_id,
-                    image_url: product.image_url,
-                    is_available: product.is_available
-                })
+            const updateData: Database['public']['Tables']['products']['Update'] = {
+                name: product.name,
+                description: product.description,
+                description_es: product.description_es,
+                price: product.price,
+                category_id: product.category_id,
+                image_url: product.image_url,
+                is_available: product.is_available
+            };
+
+            const { error: updateError } = await (supabaseAdmin
+                .from('products' as any) as any)
+                .update(updateData)
                 .eq('id', product.id);
 
             if (updateError) throw updateError;
@@ -53,18 +56,20 @@ export async function saveProduct(product: ProductInput, ingredients: Ingredient
 
         } else {
             // Create new product
-            const { data: newProduct, error: insertError } = await supabaseAdmin
-                .from('products')
-                .insert({
-                    restaurant_id: product.restaurant_id,
-                    name: product.name,
-                    description: product.description,
-                    description_es: product.description_es,
-                    price: product.price,
-                    category_id: product.category_id,
-                    image_url: product.image_url,
-                    is_available: product.is_available
-                })
+            const insertData: Database['public']['Tables']['products']['Insert'] = {
+                restaurant_id: product.restaurant_id,
+                name: product.name,
+                description: product.description,
+                description_es: product.description_es,
+                price: product.price,
+                category_id: product.category_id,
+                image_url: product.image_url,
+                is_available: product.is_available
+            };
+
+            const { data: newProduct, error: insertError } = await (supabaseAdmin
+                .from('products' as any) as any)
+                .insert(insertData)
                 .select()
                 .single();
 
@@ -74,8 +79,8 @@ export async function saveProduct(product: ProductInput, ingredients: Ingredient
 
         // Manage Ingredients
         // 1. Delete existing (for updates)
-        const { error: deleteError } = await supabaseAdmin
-            .from('product_ingredients')
+        const { error: deleteError } = await (supabaseAdmin
+            .from('product_ingredients' as any) as any)
             .delete()
             .eq('product_id', productId);
 
@@ -83,8 +88,8 @@ export async function saveProduct(product: ProductInput, ingredients: Ingredient
 
         // 2. Insert new ones
         if (ingredients.length > 0) {
-            const { error: ingredientsError } = await supabaseAdmin
-                .from('product_ingredients')
+            const { error: ingredientsError } = await (supabaseAdmin
+                .from('product_ingredients' as any) as any)
                 .insert(
                     ingredients.map(ing => ({
                         product_id: productId,
@@ -126,8 +131,8 @@ export async function getMenuWithSchedule(restaurantId: string, dayOfWeek: numbe
     const productIds = products.map(p => p.id);
     if (productIds.length === 0) return [];
 
-    const { data: schedules, error: schedError } = await supabase
-        .from('product_availability')
+    const { data: schedules, error: schedError } = await (supabase
+        .from('product_availability' as any) as any)
         .select('product_id, day_of_week, is_active')
         .in('product_id', productIds);
 
@@ -139,14 +144,14 @@ export async function getMenuWithSchedule(restaurantId: string, dayOfWeek: numbe
     // - If it HAS records, check if there is a record for THIS day with is_active=true.
     console.log(`[getMenuWithSchedule] Validating ${products.length} products against ${schedules?.length || 0} rules.`);
 
-    const validProducts = products.filter(product => {
-        const productSchedules = schedules.filter(s => s.product_id === product.id);
+    const validProducts = products.filter((product: any) => {
+        const productSchedules = (schedules || []).filter((s: any) => s.product_id === product.id);
 
         // Case A: No schedule at all -> Available
         if (productSchedules.length === 0) return true;
 
         // Case B: Has schedule -> Check for today's record
-        const todayRule = productSchedules.find(s => s.day_of_week === dayOfWeek);
+        const todayRule = productSchedules.find((s: any) => s.day_of_week === dayOfWeek);
 
         const isKept = todayRule ? todayRule.is_active : true;
         if (!isKept) {

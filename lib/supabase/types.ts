@@ -113,7 +113,7 @@ export interface Database {
                     is_available?: boolean
                     created_at?: string
                 }
-            }
+            },
             modifier_groups: {
                 Row: {
                     id: string
