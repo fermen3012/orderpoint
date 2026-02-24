@@ -41,9 +41,9 @@ export default function CategoriesPage({ params }: { params: Promise<{ locale: s
 
                 if (categoriesRes.data && productsRes) {
                     const availableProducts = productsRes;
-                    const activeCategoryIds = new Set(availableProducts.map(p => p.category_id));
+                    const activeCategoryIds = new Set((availableProducts as any[]).map(p => p.category_id));
 
-                    const visibleCategories = categoriesRes.data.filter(cat => activeCategoryIds.has(cat.id));
+                    const visibleCategories = (categoriesRes.data as any[]).filter(cat => activeCategoryIds.has(cat.id));
                     setCategories(visibleCategories);
                 }
             } catch (error) {
