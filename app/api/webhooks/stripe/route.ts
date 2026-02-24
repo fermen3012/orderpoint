@@ -68,8 +68,8 @@ export async function POST(request: Request) {
                 }
 
                 // Update Supabase
-                const { error } = await supabaseAdmin
-                    .from('restaurants')
+                const { error } = await (supabaseAdmin
+                    .from('restaurants' as any) as any)
                     .update({
                         subscription_status: 'active',
                         stripe_customer_id: customerId,
@@ -92,8 +92,8 @@ export async function POST(request: Request) {
                 const customerId = subscription.customer as string;
 
                 // Find restaurant by stripe_customer_id
-                const { error } = await supabaseAdmin
-                    .from('restaurants')
+                const { error } = await (supabaseAdmin
+                    .from('restaurants' as any) as any)
                     .update({ subscription_status: 'inactive' })
                     .eq('stripe_customer_id', customerId);
 
@@ -113,8 +113,8 @@ export async function POST(request: Request) {
                     const subscription: any = await stripe.subscriptions.retrieve(subscriptionId);
                     const customerId = subscription.customer as string;
 
-                    await supabaseAdmin
-                        .from('restaurants')
+                    await (supabaseAdmin
+                        .from('restaurants' as any) as any)
                         .update({
                             subscription_status: 'active', // Ensure it stays active
                             current_period_end: new Date(subscription.current_period_end * 1000).toISOString()
@@ -130,8 +130,8 @@ export async function POST(request: Request) {
             case 'invoice.payment_failed': {
                 const invoice = event.data.object as Stripe.Invoice;
                 const customerId = invoice.customer as string;
-                await supabaseAdmin
-                    .from('restaurants')
+                await (supabaseAdmin
+                    .from('restaurants' as any) as any)
                     .update({ subscription_status: 'past_due' })
                     .eq('stripe_customer_id', customerId);
                 console.log(`⚠️ Payment failed for customer ${customerId}. Status set to past_due.`);
