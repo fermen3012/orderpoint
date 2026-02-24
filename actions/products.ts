@@ -128,7 +128,7 @@ export async function getMenuWithSchedule(restaurantId: string, dayOfWeek: numbe
     if (prodError) throw prodError;
 
     // 2. Get scheduling rules for these products
-    const productIds = products.map(p => p.id);
+    const productIds = (products as any[]).map(p => p.id);
     if (productIds.length === 0) return [];
 
     const { data: schedules, error: schedError } = await (supabase
