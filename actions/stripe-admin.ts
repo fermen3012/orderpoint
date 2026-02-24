@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2025-12-15.clover', // Use latest stable version supported by the SDK
+    apiVersion: '2026-01-28.clover', // Use latest stable version supported by the SDK
 });
 
 export interface BillingCustomer {
@@ -26,8 +26,8 @@ export async function getAllCustomersBilling(): Promise<BillingCustomer[]> {
 
     try {
         // 1. Get all restaurants from Supabase
-        const { data: restaurants, error } = await supabase
-            .from('restaurants')
+        const { data: restaurants, error } = await (supabase
+            .from('restaurants' as any) as any)
             .select('id, name, stripe_customer_id, stripe_subscription_id, plan_quantity, subscription_status')
             .order('created_at', { ascending: false });
 
@@ -36,16 +36,16 @@ export async function getAllCustomersBilling(): Promise<BillingCustomer[]> {
 
         // 2. Enrich with Stripe Data (in parallel for performance)
         const enrichedCustomers = await Promise.all(
-            restaurants.map(async (rest) => {
+            restaurants.map(async (rest: any) => {
                 let mrr = 0;
                 let next_billing_date = '';
                 let currency = 'usd';
-                let status = rest.subscription_status || 'inactive';
-                let quantity = rest.plan_quantity || 1;
+                let status = (rest as any).subscription_status || 'inactive';
+                let quantity = (rest as any).plan_quantity || 1;
 
-                if (rest.stripe_subscription_id) {
+                if ((rest as any).stripe_subscription_id) {
                     try {
-                        const sub = await stripe.subscriptions.retrieve(rest.stripe_subscription_id);
+                        const sub = await stripe.subscriptions.retrieve((rest as any).stripe_subscription_id);
                         status = sub.status;
 
                         // Calculate MRR from active items
@@ -57,20 +57,20 @@ export async function getAllCustomersBilling(): Promise<BillingCustomer[]> {
                             currency = mainItem.price.currency;
                         }
 
-                        next_billing_date = new Date(sub.current_period_end * 1000).toISOString();
+                        next_billing_date = new Date((sub as any).current_period_end * 1000).toISOString();
 
                         // Sync DB if needed (optional optimization)
                     } catch (stripeError) {
-                        console.error(`Stripe Error for ${rest.id}:`, stripeError);
+                        console.error(`Stripe Error for ${(rest as any).id}:`, stripeError);
                         status = 'error_sync';
                     }
                 }
 
                 return {
-                    id: rest.id,
-                    name: rest.name,
-                    stripe_customer_id: rest.stripe_customer_id,
-                    stripe_subscription_id: rest.stripe_subscription_id,
+                    id: (rest as any).id,
+                    name: (rest as any).name,
+                    stripe_customer_id: (rest as any).stripe_customer_id,
+                    stripe_subscription_id: (rest as any).stripe_subscription_id,
                     plan_quantity: quantity,
                     subscription_status: status,
                     mrr,
@@ -93,8 +93,8 @@ export async function updateSubscriptionQuantity(restaurantId: string, newQuanti
 
     try {
         // 1. Get current subscription ID
-        const { data: restaurant } = await supabase
-            .from('restaurants')
+        const { data: restaurant } = await (supabase
+            .from('restaurants' as any) as any)
             .select('stripe_subscription_id, stripe_customer_id')
             .eq('id', restaurantId)
             .single();
@@ -104,18 +104,18 @@ export async function updateSubscriptionQuantity(restaurantId: string, newQuanti
         }
 
         // 2. Get Subscription from Stripe to find the ITEM ID
-        const sub = await stripe.subscriptions.retrieve(restaurant.stripe_subscription_id);
+        const sub = await stripe.subscriptions.retrieve((restaurant as any).stripe_subscription_id);
         const itemId = sub.items.data[0].id; // Assuming single plan item
 
         // 3. Update Stripe
-        await stripe.subscriptions.update(restaurant.stripe_subscription_id, {
+        await stripe.subscriptions.update((restaurant as any).stripe_subscription_id, {
             items: [{ id: itemId, quantity: newQuantity }],
             proration_behavior: 'always_invoice', // Invoice immediately for prorations
         });
 
         // 4. Update Database
-        await supabase
-            .from('restaurants')
+        await (supabase
+            .from('restaurants' as any) as any)
             .update({ plan_quantity: newQuantity })
             .eq('id', restaurantId);
 
