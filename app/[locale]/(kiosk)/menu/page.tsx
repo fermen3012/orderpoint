@@ -81,8 +81,8 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
 
                     // Filter categories that have at least one product
                     if (categoriesRes.data) {
-                        const activeCategoryIds = new Set(productsData.map(p => p.category_id));
-                        const nonEmptyCategories = categoriesRes.data.filter(c => activeCategoryIds.has(c.id));
+                        const activeCategoryIds = new Set((productsData as any[]).map(p => p.category_id));
+                        const nonEmptyCategories = (categoriesRes.data as any[]).filter((c: any) => activeCategoryIds.has(c.id));
 
                         console.log(`[MENU] Filtering Categories:`);
                         console.log(`- Products: ${productsData.length}`);
@@ -93,7 +93,7 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                         setCategories(nonEmptyCategories);
                     }
 
-                    const productIds = productsData.map(p => p.id);
+                    const productIds = (productsData as any[]).map((p: any) => p.id);
                     if (productIds.length > 0) {
                         const { data: ingredientsData, error: ingError } = await supabase
                             .from('product_ingredients')
