@@ -352,5 +352,13 @@ export interface Database {
                 }
             }
         }
+        Functions: {
+            get_next_order_number: {
+                Args: {
+                    p_restaurant_id: string
+                }
+                Returns: number
+            }
+        }
     }
 }

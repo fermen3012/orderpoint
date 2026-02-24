@@ -41,8 +41,8 @@ export async function createSecureOrder(input: CreateOrderInput) {
         const allModifierIds = input.items.flatMap(i => i.modifier_option_ids);
 
         // 2. Consultar Productos (Fuente de Verdad de Precios)
-        const { data: products, error: prodError } = await supabase
-            .from('products')
+        const { data: products, error: prodError } = await (supabase
+            .from('products' as any) as any)
             .select('id, name, price, is_available')
             .in('id', productIds)
             .eq('restaurant_id', input.restaurant_id);
@@ -52,8 +52,8 @@ export async function createSecureOrder(input: CreateOrderInput) {
         // 3. Consultar Modificadores y sus Grupos (Fuente de Verdad)
         let modifiersDB: ModifierOptionDB[] = [];
         if (allModifierIds.length > 0) {
-            const { data: mods, error: modError } = await supabase
-                .from('modifier_options')
+            const { data: mods, error: modError } = await (supabase
+                .from('modifier_options' as any) as any)
                 .select('id, name, price_adjustment, modifier_group_id, modifier_groups (id, name)')
                 .in('id', allModifierIds);
 
@@ -66,7 +66,7 @@ export async function createSecureOrder(input: CreateOrderInput) {
         const validOrderItems = [];
 
         for (const item of input.items) {
-            const product = products.find(p => p.id === item.product_id);
+            const product = (products as any[]).find((p: any) => p.id === item.product_id);
             if (!product) throw new Error(`Producto ${item.product_id} no encontrado`);
             // if (!product.is_available) throw new Error(`Producto ${product.name} no está disponible`); // Opcional: strict check
 
@@ -118,14 +118,14 @@ export async function createSecureOrder(input: CreateOrderInput) {
         // 5. Transacción de Base de Datos
 
         // A. Obtener número de orden
-        const { data: nextNumber, error: numError } = await supabase.rpc('get_next_order_number', {
+        const { data: nextNumber, error: numError } = await (supabase.rpc as any)('get_next_order_number', {
             p_restaurant_id: input.restaurant_id
         });
         if (numError) throw numError;
 
         // B. Insertar Orden (Con Server-Side Total)
-        const { data: order, error: orderError } = await supabase
-            .from('orders')
+        const { data: order, error: orderError } = await (supabase
+            .from('orders' as any) as any)
             .insert({
                 restaurant_id: input.restaurant_id,
                 total_amount: calculatedTotal,
@@ -139,12 +139,12 @@ export async function createSecureOrder(input: CreateOrderInput) {
         if (orderError) throw orderError;
 
         // C. Insertar Items
-        const { error: itemsError } = await supabase
-            .from('order_items')
+        const { error: itemsError } = await (supabase
+            .from('order_items' as any) as any)
             .insert(
                 validOrderItems.map(item => ({
                     ...item,
-                    order_id: order.id
+                    order_id: (order as any).id
                 }))
             );
 
