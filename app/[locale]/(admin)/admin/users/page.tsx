@@ -51,7 +51,7 @@ export default function UsersPage() {
             const [usersData, restData] = await Promise.all([
                 getStaffUsers(),
                 userProfile?.is_super_admin
-                    ? supabase.from('restaurants').select('*')
+                    ? (supabase.from('restaurants' as any) as any).select('*')
                     : Promise.resolve({ data: [] })
             ]);
             setUsers(usersData);

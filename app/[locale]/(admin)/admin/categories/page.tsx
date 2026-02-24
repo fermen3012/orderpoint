@@ -45,8 +45,8 @@ export default function CategoriesPage() {
     const loadCategories = async () => {
         if (!restaurantId) return;
         setLoading(true);
-        const { data } = await adminSupabase
-            .from('categories')
+        const { data } = await (adminSupabase
+            .from('categories' as any) as any)
             .select('*')
             .eq('restaurant_id', restaurantId)
             .order('sort_order', { ascending: true });
@@ -97,7 +97,7 @@ export default function CategoriesPage() {
         setSaving(true);
 
         if (editingCategory) {
-            const { error } = await (adminSupabase.from('categories') as any)
+            const { error } = await (adminSupabase.from('categories' as any) as any)
                 .update({
                     name: newCategory.name,
                     image_url: newCategory.image_url || null
@@ -111,7 +111,7 @@ export default function CategoriesPage() {
                 loadCategories();
             }
         } else {
-            const { error } = await adminSupabase.from('categories').insert({
+            const { error } = await (adminSupabase.from('categories' as any) as any).insert({
                 name: newCategory.name,
                 image_url: newCategory.image_url || null,
                 restaurant_id: restaurantId,
@@ -138,7 +138,7 @@ export default function CategoriesPage() {
 
     const handleDeleteCategory = async (id: string) => {
         if (confirm('¿Estás seguro de eliminar esta categoría?')) {
-            const { error } = await adminSupabase.from('categories').delete().eq('id', id);
+            const { error } = await (adminSupabase.from('categories' as any) as any).delete().eq('id', id);
             if (!error) loadCategories();
         }
     };

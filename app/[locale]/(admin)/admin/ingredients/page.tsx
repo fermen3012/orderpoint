@@ -44,8 +44,8 @@ export default function IngredientsPage() {
         if (!restaurantId) return;
         setLoading(true);
         const supabase = createClient();
-        const { data } = await supabase
-            .from('ingredients')
+        const { data } = await (supabase
+            .from('ingredients' as any) as any)
             .select('*')
             .eq('restaurant_id', restaurantId)
             .order('name', { ascending: true });
@@ -62,8 +62,8 @@ export default function IngredientsPage() {
         const supabase = createClient();
 
         if (editingIngredient) {
-            const { error } = await supabase
-                .from('ingredients')
+            const { error } = await (supabase
+                .from('ingredients' as any) as any)
                 .update({ name: newName })
                 .eq('id', editingIngredient.id);
 
@@ -74,8 +74,8 @@ export default function IngredientsPage() {
                 loadIngredients();
             }
         } else {
-            const { error } = await supabase
-                .from('ingredients')
+            const { error } = await (supabase
+                .from('ingredients' as any) as any)
                 .insert({
                     name: newName,
                     restaurant_id: restaurantId
@@ -99,7 +99,7 @@ export default function IngredientsPage() {
     const handleDeleteIngredient = async (id: string) => {
         if (confirm('¿Estás seguro de eliminar este ingrediente?')) {
             const supabase = createClient();
-            const { error } = await supabase.from('ingredients').delete().eq('id', id);
+            const { error } = await (supabase.from('ingredients' as any) as any).delete().eq('id', id);
             if (!error) loadIngredients();
         }
     };

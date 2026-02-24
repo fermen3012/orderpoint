@@ -9,8 +9,8 @@ async function checkAdminAuth() {
 
     if (!user) throw new Error('Not authenticated');
 
-    const { data: profile } = await supabase
-        .from('profiles')
+    const { data: profile } = await (supabase
+        .from('profiles' as any) as any)
         .select('*')
         .eq('id', user.id)
         .single();
@@ -29,8 +29,8 @@ export async function getStaffUsers() {
     const supabase = getAdminClient();
 
     // 1. Get profiles from public table
-    let query = supabase
-        .from('profiles')
+    let query = (supabase
+        .from('profiles' as any) as any)
         .select(`
             *,
             restaurant:restaurants(name)
@@ -101,7 +101,7 @@ export async function createStaffUser(formData: FormData) {
     }
 
     if (authUser.user) {
-        const { error: profileError } = await (supabase.from('profiles') as any).insert({
+        const { error: profileError } = await (supabase.from('profiles' as any) as any).insert({
             id: authUser.user.id,
             full_name: fullName,
             role: role,
@@ -171,7 +171,7 @@ export async function updateStaffUser(userId: string, formData: FormData) {
 
     // 2. Update profiles table
     const { error: profileError } = await (supabase
-        .from('profiles') as any)
+        .from('profiles' as any) as any)
         .update({
             full_name: fullName,
             role: role as any,
