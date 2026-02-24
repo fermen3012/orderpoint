@@ -5,8 +5,8 @@ import { revalidatePath } from 'next/cache';
 
 export async function getRestaurants() {
     const supabase = getAdminClient();
-    const { data, error } = await supabase
-        .from('restaurants')
+    const { data, error } = await (supabase
+        .from('restaurants' as any) as any)
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -21,7 +21,7 @@ export async function createRestaurant(formData: { name: string; slug: string; l
     const supabase = getAdminClient();
 
     const { data, error } = await (supabase
-        .from('restaurants') as any)
+        .from('restaurants' as any) as any)
         .insert([
             {
                 name: formData.name,
@@ -45,7 +45,7 @@ export async function toggleRestaurantStatus(id: string, is_active: boolean) {
     const supabase = getAdminClient();
 
     const { error } = await (supabase
-        .from('restaurants') as any)
+        .from('restaurants' as any) as any)
         .update({ is_active })
         .eq('id', id);
 
@@ -87,8 +87,8 @@ export async function uploadRestaurantLogo(formData: FormData) {
             .from('restaurants')
             .getPublicUrl(fileName);
 
-        const { error: dbError } = await supabase
-            .from('restaurants')
+        const { error: dbError } = await (supabase
+            .from('restaurants' as any) as any)
             .update({ logo_url: publicUrl })
             .eq('id', restaurantId);
 
