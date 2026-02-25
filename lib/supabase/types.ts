@@ -300,7 +300,7 @@ export interface Database {
                 Row: {
                     id: string
                     restaurant_id: string | null
-                    role: 'admin' | 'kitchen' | 'kiosk' | 'owner'
+                    role: 'admin' | 'kitchen' | 'kiosk' | 'owner' | 'mesera'
                     full_name: string | null
                     is_super_admin: boolean
                     created_at: string
@@ -308,7 +308,7 @@ export interface Database {
                 Insert: {
                     id: string
                     restaurant_id?: string | null
-                    role?: 'admin' | 'kitchen' | 'kiosk' | 'owner'
+                    role?: 'admin' | 'kitchen' | 'kiosk' | 'owner' | 'mesera'
                     full_name?: string | null
                     is_super_admin?: boolean
                     created_at?: string
@@ -316,9 +316,35 @@ export interface Database {
                 Update: {
                     id?: string
                     restaurant_id?: string | null
-                    role?: 'admin' | 'kitchen' | 'kiosk' | 'owner'
+                    role?: 'admin' | 'kitchen' | 'kiosk' | 'owner' | 'mesera'
                     full_name?: string | null
                     is_super_admin?: boolean
+                    created_at?: string
+                }
+            }
+            tables: {
+                Row: {
+                    id: string
+                    restaurant_id: string
+                    number: string
+                    capacity: number
+                    waitress_id: string | null
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    restaurant_id: string
+                    number: string
+                    capacity?: number
+                    waitress_id?: string | null
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    restaurant_id?: string
+                    number?: string
+                    capacity?: number
+                    waitress_id?: string | null
                     created_at?: string
                 }
             }
