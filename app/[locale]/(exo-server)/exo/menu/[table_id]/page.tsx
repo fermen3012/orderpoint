@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/browser';
 import QuickOrderMenu from '@/components/exo/QuickOrderMenu';
 import { useExoCartStore } from '@/store/exo-cart-store';
 import { useRestaurantStore } from '@/store/restaurant-store';
-import { Loader2, ArrowLeft, Send } from 'lucide-react';
+import { Loader2, ArrowLeft, Send, LogOut } from 'lucide-react';
 import { useRouter } from '@/i18n/routing';
 import { formatPrice } from '@/lib/utils';
 
@@ -42,23 +42,33 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                     if (session) setWaitressId(session.user.id);
                 }
 
-                if (!restaurantId) {
-                    // Fallback to profile if store is empty
+                let activeRestaurantId = restaurantId;
+
+                if (!activeRestaurantId) {
                     const { data: { session } } = await supabase.auth.getSession();
                     if (session) {
-                        const { data: profile } = await (supabase.from('profiles') as any).select('restaurant_id').eq('id', session.user.id).single();
+                        const { data: profile } = await (supabase.from('profiles') as any)
+                            .select('restaurant_id')
+                            .eq('id', session.user.id)
+                            .single();
                         if (profile?.restaurant_id) {
-                            // This is just for local ref, store should ideally have it
+                            activeRestaurantId = profile.restaurant_id;
                         }
                     }
                 }
 
+                if (!activeRestaurantId) {
+                    console.warn('No restaurant ID found, skipping data load');
+                    setLoading(false);
+                    return;
+                }
+
                 // Parallel fetch filtered by restaurant
                 const [catRes, prodRes] = await Promise.all([
-                    (supabase.from('categories') as any).select('*').eq('restaurant_id', restaurantId).order('name'),
+                    (supabase.from('categories') as any).select('*').eq('restaurant_id', activeRestaurantId).order('name'),
                     (supabase.from('products') as any)
-                        .select('*, modifier_groups:product_modifier_groups(modifier_group:modifier_groups(*, options:modifiers(*))))')
-                        .eq('restaurant_id', restaurantId)
+                        .select('*, modifier_groups:product_modifier_groups(modifier_group:modifier_groups(*, options:modifiers(*)))')
+                        .eq('restaurant_id', activeRestaurantId)
                         .eq('is_available', true)
                 ]);
 
@@ -77,8 +87,8 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                 })) || [];
 
                 setProducts(formattedProducts);
-            } catch (error) {
-                console.error('Error loading menu data:', error);
+            } catch (error: any) {
+                console.error('Error loading menu data:', error.message || error);
             } finally {
                 setLoading(false);
             }
@@ -154,7 +164,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                 >
                     <ArrowLeft className="w-6 h-6" />
                 </button>
-                <div>
+                <div className="flex-1">
                     <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">
                         Mesa <span className="text-emerald-500">#{tableId.substring(0, 3)}</span>
                     </h2>
@@ -162,6 +172,16 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                         Nuevo Pedido
                     </p>
                 </div>
+                <button
+                    onClick={async () => {
+                        await supabase.auth.signOut();
+                        router.push('/login');
+                    }}
+                    className="p-3 bg-red-500/10 text-red-500 rounded-2xl border border-red-500/20 active:scale-90 transition-transform group"
+                    title="Cerrar Sesión"
+                >
+                    <LogOut className="w-6 h-6 group-hover:rotate-12 transition-transform" />
+                </button>
             </div>
 
             <QuickOrderMenu

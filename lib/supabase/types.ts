@@ -190,7 +190,11 @@ export interface Database {
                 Row: {
                     id: string
                     restaurant_id: string
+                    table_id: string | null
+                    waitress_id: string | null
+                    items: Json
                     status: 'pending' | 'preparing' | 'ready' | 'completed'
+                    source: string | null
                     total_amount: number
                     order_number: number
                     created_at: string
@@ -202,7 +206,11 @@ export interface Database {
                 Insert: {
                     id?: string
                     restaurant_id: string
+                    table_id?: string | null
+                    waitress_id?: string | null
+                    items?: Json
                     status?: 'pending' | 'preparing' | 'ready' | 'completed'
+                    source?: string | null
                     total_amount: number
                     order_number?: number
                     created_at?: string
@@ -214,7 +222,11 @@ export interface Database {
                 Update: {
                     id?: string
                     restaurant_id?: string
+                    table_id?: string | null
+                    waitress_id?: string | null
+                    items?: Json
                     status?: 'pending' | 'preparing' | 'ready' | 'completed'
+                    source?: string | null
                     total_amount?: number
                     order_number?: number
                     created_at?: string
