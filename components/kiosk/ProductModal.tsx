@@ -278,7 +278,7 @@ export function ProductModal({
 
                     {/* Modifiers Groups */}
                     {product.modifier_groups?.map((group, idx) => {
-                        const isRequired = group.required;
+                        const isRequired = group.is_required;
                         const groupValid = isGroupValid(group);
                         const selections = selectedModifiers[group.id] || [];
                         const hasError = errorGroup === group.id;

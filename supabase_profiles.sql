@@ -2,7 +2,7 @@
 create table public.profiles (
   id uuid references auth.users on delete cascade primary key,
   restaurant_id uuid references public.restaurants(id) on delete cascade,
-  role text check (role in ('admin', 'kitchen', 'kiosk', 'owner')) not null default 'admin',
+  role text check (role in ('admin', 'kitchen', 'kiosk', 'owner', 'mesera')) not null default 'admin',
   full_name text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );

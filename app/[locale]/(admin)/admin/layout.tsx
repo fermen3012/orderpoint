@@ -14,10 +14,12 @@ import {
     Users,
     LogOut,
     Menu,
-    X,
+    Plus,
     ChefHat,
     CreditCard,
-    Calendar
+    Calendar,
+    Utensils,
+    X
 } from 'lucide-react';
 import { SidebarLink } from '@/components/admin/SidebarLink';
 
@@ -120,6 +122,7 @@ export default function ProtectedAdminLayout({
         { icon: <List className="w-5 h-5" />, label: t('categories'), href: '/admin/categories' },
         { icon: <Calendar className="w-5 h-5" />, label: 'Programación', href: '/admin/schedule' },
         { icon: <ChefHat className="w-5 h-5" />, label: 'Ingredientes', href: '/admin/ingredients' },
+        { icon: <Utensils className="w-5 h-5" />, label: 'Mesas', href: '/admin/tables' },
         { icon: <CreditCard className="w-5 h-5" />, label: 'Facturación', href: '/admin/billing' },
         { icon: <Users className="w-5 h-5" />, label: t('users'), href: '/admin/users' },
     ];

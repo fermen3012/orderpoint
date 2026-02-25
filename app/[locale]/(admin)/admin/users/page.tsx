@@ -153,9 +153,10 @@ export default function UsersPage() {
                             </div>
                             <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm ${profile.role === 'admin' ? 'bg-primary-100 text-primary-700' :
                                 profile.role === 'kitchen' ? 'bg-blue-100 text-blue-700' :
-                                    'bg-accent-100 text-accent-700'
+                                    profile.role === 'mesera' ? 'bg-emerald-100 text-emerald-700' :
+                                        'bg-accent-100 text-accent-700'
                                 }`}>
-                                {profile.role}
+                                {profile.role === 'mesera' ? 'Mesera' : profile.role}
                             </span>
                         </div>
 
@@ -216,9 +217,10 @@ export default function UsersPage() {
                                     <td className="px-6 md:px-8 py-4 md:py-6">
                                         <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm ${profile.role === 'admin' ? 'bg-primary-100 text-primary-700' :
                                             profile.role === 'kitchen' ? 'bg-blue-100 text-blue-700' :
-                                                'bg-accent-100 text-accent-700'
+                                                profile.role === 'mesera' ? 'bg-emerald-100 text-emerald-700' :
+                                                    'bg-accent-100 text-accent-700'
                                             }`}>
-                                            {profile.role}
+                                            {profile.role === 'mesera' ? 'Mesera' : profile.role}
                                         </span>
                                     </td>
                                     <td className="px-6 md:px-8 py-4 md:py-6 text-secondary-500 font-bold text-sm">
@@ -314,6 +316,7 @@ export default function UsersPage() {
                                         defaultValue={editingUser?.role || 'kitchen'}
                                         className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900 appearance-none"
                                     >
+                                        <option value="mesera">Mesera (Exo)</option>
                                         <option value="kitchen">Cocina</option>
                                         <option value="kiosk">Quiosco</option>
                                         <option value="admin">Administrador</option>

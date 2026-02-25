@@ -55,7 +55,15 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
     });
 
     useEffect(() => {
-        if (orderToPrint) handlePrint();
+        if (orderToPrint) {
+            // Give it a tiny bit of time to ensure the ref is populated and DOM is stable
+            const timer = setTimeout(() => {
+                if (ticketRef.current) {
+                    handlePrint();
+                }
+            }, 100);
+            return () => clearTimeout(timer);
+        }
     }, [orderToPrint, handlePrint]);
 
     // Handle category selection from URL
@@ -145,6 +153,8 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
 
                 const uiProduct: UIProduct = {
                     id: product.id,
+                    restaurant_id: product.restaurant_id,
+                    category_id: product.category_id,
                     name: product.name,
                     description: product.description,
                     price: Number(product.price),
@@ -168,7 +178,7 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                     name: group.name,
                     min_selections: group.min_selections,
                     max_selections: group.max_selections,
-                    required: group.is_required,
+                    is_required: group.is_required,
                     options: (group.modifiers || []).map((m: any) => ({
                         id: m.id,
                         name: m.name,
@@ -183,6 +193,8 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
             if (modifierGroups.length > 0 || hasRemovableIngredients) {
                 const uiProduct: UIProduct = {
                     id: product.id,
+                    restaurant_id: product.restaurant_id,
+                    category_id: product.category_id,
                     name: product.name,
                     description: product.description,
                     price: Number(product.price),
@@ -194,6 +206,8 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
             } else {
                 const uiProduct: UIProduct = {
                     id: product.id,
+                    restaurant_id: product.restaurant_id,
+                    category_id: product.category_id,
                     name: product.name,
                     description: product.description,
                     price: Number(product.price),

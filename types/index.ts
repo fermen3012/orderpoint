@@ -11,12 +11,15 @@ export interface ModifierGroup {
     name: string;
     min_selections: number;
     max_selections: number | null;
-    required: boolean; // mapped from is_required in DB usually
+    is_required: boolean;
+    required?: boolean; // deprecated but kept for compatibility
     options: Modifier[];
 }
 
 export interface Product {
     id: string;
+    restaurant_id: string;
+    category_id: string | null;
     name: string;
     description: string | null;
     price: number;

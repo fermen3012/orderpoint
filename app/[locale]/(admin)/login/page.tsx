@@ -55,6 +55,9 @@ export default function LoginPage() {
                 } else if (profile?.role === 'kitchen') {
                     console.log('Login: Redirecting to Kitchen');
                     router.push('/kitchen');
+                } else if (profile?.role === 'mesera') {
+                    console.log('Login: Redirecting to Exo Server (Waitress)');
+                    router.push('/exo/tables');
                 } else if (profile?.role === 'kiosk') {
                     console.log('Login: Redirecting to Kiosk');
                     router.push('/');

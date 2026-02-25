@@ -100,21 +100,8 @@ export async function createStaffUser(formData: FormData) {
         return { error: authError.message };
     }
 
-    if (authUser.user) {
-        const { error: profileError } = await (supabase.from('profiles' as any) as any).insert({
-            id: authUser.user.id,
-            full_name: fullName,
-            role: role,
-            restaurant_id: restaurantId || null
-        });
-
-        if (profileError) {
-            console.error('Error creating profile:', profileError);
-            // Rollback auth user
-            await supabase.auth.admin.deleteUser(authUser.user.id);
-            return { error: 'Error creating user profile: ' + profileError.message };
-        }
-    }
+    // Note: The profiles table is automatically populated by a database trigger (on_auth_user_created)
+    // using the metadata provided above.
 
     revalidatePath('/admin/users');
     return { success: true };
