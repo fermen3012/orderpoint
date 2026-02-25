@@ -243,6 +243,7 @@ export interface Database {
                     product_id: string | null
                     quantity: number
                     unit_price: number
+                    total_price: number
                     modifiers_json: Json
                     removed_ingredients: string[] | null
                     created_at: string
@@ -253,6 +254,7 @@ export interface Database {
                     product_id?: string | null
                     quantity?: number
                     unit_price: number
+                    total_price?: number
                     modifiers_json?: Json
                     removed_ingredients?: string[] | null
                     created_at?: string
@@ -263,6 +265,7 @@ export interface Database {
                     product_id?: string | null
                     quantity?: number
                     unit_price?: number
+                    total_price?: number
                     modifiers_json?: Json
                     removed_ingredients?: string[] | null
                     created_at?: string

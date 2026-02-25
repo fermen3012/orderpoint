@@ -3,10 +3,14 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/browser';
 import TableGrid from '@/components/exo/TableGrid';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2, Search, LogOut } from 'lucide-react';
+import { useRestaurantStore } from '@/store/restaurant-store';
+import { useRouter } from '@/i18n/routing';
 
 export default function TablesPage() {
     const supabase = createClient();
+    const router = useRouter();
+    const { restaurantName, setRestaurant } = useRestaurantStore();
     const [tables, setTables] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -20,11 +24,16 @@ export default function TablesPage() {
 
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('restaurant_id')
+                    .select('restaurant_id, restaurants(name)')
                     .eq('id', session.user.id)
                     .single() as { data: any; error: any };
 
                 if (!profile?.restaurant_id) return;
+
+                // Set restaurant name in store if missing
+                if (profile.restaurants?.name) {
+                    setRestaurant(profile.restaurant_id, profile.restaurants.name);
+                }
 
                 // Fetch tables from database
                 const { data, error } = await supabase
@@ -43,13 +52,13 @@ export default function TablesPage() {
                     return;
                 }
 
-                // For demo/consistency with request, we'll map them
-                const mockStatusData = (data as any[]).map(t => ({
+                // Map real status from database
+                const tablesWithStatus = (data as any[]).map(t => ({
                     ...t,
-                    status: Math.random() > 0.7 ? 'occupied' : 'free'
+                    status: t.waitress_id ? 'occupied' : 'free'
                 }));
 
-                setTables(mockStatusData);
+                setTables(tablesWithStatus);
             } catch (error: any) {
                 console.error('Error fetching tables:', error.message || error);
             } finally {
@@ -85,10 +94,27 @@ export default function TablesPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col gap-4">
-                <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">
-                    Selecciona <span className="text-emerald-500">Mesa</span>
-                </h2>
+            <div className="flex flex-col gap-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">{restaurantName || 'OrderPoint'}</span>
+                        </div>
+                        <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">
+                            Selecciona <span className="text-emerald-500">Mesa</span>
+                        </h2>
+                    </div>
+                    <button
+                        onClick={async () => {
+                            await supabase.auth.signOut();
+                            router.push('/login');
+                        }}
+                        className="p-3 bg-red-500/10 text-red-500 rounded-2xl border border-red-500/20 active:scale-90 transition-transform group"
+                        title="Cerrar Sesión"
+                    >
+                        <LogOut className="w-6 h-6 group-hover:rotate-12 transition-transform" />
+                    </button>
+                </div>
 
                 <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />

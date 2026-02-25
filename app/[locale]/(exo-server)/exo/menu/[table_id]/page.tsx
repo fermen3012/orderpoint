@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/browser';
 import QuickOrderMenu from '@/components/exo/QuickOrderMenu';
 import { useExoCartStore } from '@/store/exo-cart-store';
 import { useRestaurantStore } from '@/store/restaurant-store';
-import { Loader2, ArrowLeft, Send, LogOut } from 'lucide-react';
+import { Loader2, ArrowLeft, Send, LogOut, Trash2, AlertTriangle, X as CloseIcon } from 'lucide-react';
 import { useRouter } from '@/i18n/routing';
 import { formatPrice } from '@/lib/utils';
 
@@ -19,6 +19,9 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
     const [products, setProducts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
+    const [table, setTable] = useState<any>(null);
+    const [isVaciarModalOpen, setIsVaciarModalOpen] = useState(false);
+    const [isVaciarLoading, setIsVaciarLoading] = useState(false);
 
     const {
         items,
@@ -31,7 +34,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
         decrementPendingOrders
     } = useExoCartStore();
 
-    const { restaurantId } = useRestaurantStore();
+    const { restaurantId, restaurantName, setRestaurant } = useRestaurantStore();
 
     useEffect(() => {
         async function loadData() {
@@ -48,11 +51,14 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                     const { data: { session } } = await supabase.auth.getSession();
                     if (session) {
                         const { data: profile } = await (supabase.from('profiles') as any)
-                            .select('restaurant_id')
+                            .select('restaurant_id, restaurants(name)')
                             .eq('id', session.user.id)
                             .single();
                         if (profile?.restaurant_id) {
                             activeRestaurantId = profile.restaurant_id;
+                            if (profile.restaurants?.name) {
+                                setRestaurant(profile.restaurant_id, profile.restaurants.name);
+                            }
                         }
                     }
                 }
@@ -87,6 +93,15 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                 })) || [];
 
                 setProducts(formattedProducts);
+
+                // Fetch table status
+                const { data: tableData } = await (supabase.from('tables') as any)
+                    .select('*')
+                    .eq('id', tableId)
+                    .single();
+
+                if (tableData) setTable(tableData);
+
             } catch (error: any) {
                 console.error('Error loading menu data:', error.message || error);
             } finally {
@@ -95,7 +110,38 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
         }
 
         loadData();
-    }, [supabase, waitressId, setWaitressId, restaurantId]);
+
+        // Subscribe to table changes
+        const channel = supabase
+            .channel(`table-${tableId}`)
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tables', filter: `id=eq.${tableId}` }, (payload) => {
+                setTable(payload.new);
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [supabase, waitressId, setWaitressId, restaurantId, tableId]);
+
+    const isOccupiedByOther = table?.waitress_id && table.waitress_id !== waitressId;
+
+    const handleVaciarMesa = async () => {
+        if (!tableId) return;
+        setIsVaciarLoading(true);
+        try {
+            const { error } = await (supabase.from('tables') as any)
+                .update({ waitress_id: null })
+                .eq('id', tableId);
+
+            if (error) throw error;
+            setIsVaciarModalOpen(false);
+        } catch (error: any) {
+            alert('Error al desocupar mesa: ' + error.message);
+        } finally {
+            setIsVaciarLoading(false);
+        }
+    };
 
     const handleSendOrder = async () => {
         if (getCartCount() === 0 || !restaurantId) return;
@@ -113,7 +159,33 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
         console.log('¡Pedido enviado a cocina!');
 
         try {
-            // Prepare data for Supabase as requested (items as JSONB)
+            // Ensure we have a restaurantId
+            let finalRestaurantId = restaurantId;
+            if (!finalRestaurantId) {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    const { data: profile } = await (supabase.from('profiles') as any).select('restaurant_id').eq('id', session.user.id).single();
+                    finalRestaurantId = profile?.restaurant_id;
+                }
+            }
+
+            if (!finalRestaurantId) throw new Error('No se pudo determinar el ID del restaurante');
+
+            // 0. Get next atomic order number for this restaurant
+            const { data: nextNumber, error: rpcError } = await (supabase as any).rpc('get_next_order_number', {
+                p_restaurant_id: finalRestaurantId
+            });
+
+            if (rpcError) throw rpcError;
+
+            // 1. Ensure table is "occupied" by current waitress if it's free
+            if (!table?.waitress_id) {
+                await (supabase.from('tables') as any)
+                    .update({ waitress_id: waitressId })
+                    .eq('id', tableId);
+            }
+
+            // 2. Prepare data for Supabase as requested (items as JSONB)
             const orderItems = currentCart.map(item => ({
                 product_id: item.product.id,
                 name: item.product.name,
@@ -123,26 +195,52 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                 modifiers: item.selectedModifiers
             }));
 
-            const { error } = await (supabase.from('orders') as any).insert({
-                restaurant_id: restaurantId,
+            const { data: orderData, error: orderError } = await (supabase.from('orders') as any).insert({
+                restaurant_id: finalRestaurantId,
                 table_id: tableId,
                 waitress_id: waitressId,
-                items: orderItems,
+                items: orderItems, // Keeping JSONB for backward compatibility
                 status: 'pending',
                 source: 'exo_server',
-                total_amount: total
-            });
+                total_amount: total,
+                order_type: 'dine_in',
+                order_number: nextNumber
+            }).select('id').single();
 
-            if (error) throw error;
+            if (orderError) throw orderError;
 
-        } catch (error) {
-            console.error('Error sending order:', error);
-            // Re-throw or notify user if critical
-        } finally {
-            decrementPendingOrders();
+            // 3. NEW: Insert into order_items table for kitchen visibility
+            const kitchenItems = currentCart.map(item => ({
+                order_id: orderData.id,
+                product_id: item.product.id,
+                quantity: item.quantity,
+                unit_price: item.unitPrice,
+                total_price: item.totalPrice,
+                modifiers_json: item.selectedModifiers // Storing modifiers in the expected JSONB column
+            }));
+
+            const { error: itemsError } = await (supabase.from('order_items') as any).insert(kitchenItems);
+
+            if (itemsError) throw itemsError;
+
+        } catch (error: any) {
+            console.error('Error sending order:', error.message || error);
+            alert('Error al enviar pedido: ' + (error.message || 'Error desconocido'));
+            // If error, we might want to let the user try again
             setIsSending(false);
-            router.push('/exo/tables');
+            decrementPendingOrders();
+            return;
         }
+
+        // Success flow
+        decrementPendingOrders();
+        setIsSending(false);
+        alert('¡Pedido enviado con éxito a la cocina!');
+
+        // Short delay before redirecting to let the user see the success
+        setTimeout(() => {
+            router.push('/exo/tables');
+        }, 500);
     };
 
     if (loading) {
@@ -165,24 +263,50 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                     <ArrowLeft className="w-6 h-6" />
                 </button>
                 <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">{restaurantName || 'OrderPoint'}</span>
+                    </div>
                     <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">
-                        Mesa <span className="text-emerald-500">#{tableId.substring(0, 3)}</span>
+                        Mesa <span className="text-emerald-500">#{table?.number || tableId.substring(0, 3)}</span>
                     </h2>
                     <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">
-                        Nuevo Pedido
+                        {isOccupiedByOther ? 'Ocupada por otro personal' : 'Nuevo Pedido'}
                     </p>
                 </div>
-                <button
-                    onClick={async () => {
-                        await supabase.auth.signOut();
-                        router.push('/login');
-                    }}
-                    className="p-3 bg-red-500/10 text-red-500 rounded-2xl border border-red-500/20 active:scale-90 transition-transform group"
-                    title="Cerrar Sesión"
-                >
-                    <LogOut className="w-6 h-6 group-hover:rotate-12 transition-transform" />
-                </button>
+                <div className="flex items-center gap-2">
+                    {table?.waitress_id && (
+                        <button
+                            onClick={() => setIsVaciarModalOpen(true)}
+                            className="p-3 bg-amber-500/10 text-amber-500 rounded-2xl border border-amber-500/20 active:scale-90 transition-transform group"
+                            title="Desocupar Mesa"
+                        >
+                            <Trash2 className="w-6 h-6 group-hover:rotate-12 transition-transform" />
+                        </button>
+                    )}
+                    <button
+                        onClick={async () => {
+                            await supabase.auth.signOut();
+                            router.push('/login');
+                        }}
+                        className="p-3 bg-red-500/10 text-red-500 rounded-2xl border border-red-500/20 active:scale-90 transition-transform group"
+                        title="Cerrar Sesión"
+                    >
+                        <LogOut className="w-6 h-6 group-hover:rotate-12 transition-transform" />
+                    </button>
+                </div>
             </div>
+
+            {isOccupiedByOther && (
+                <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-[2rem] flex items-center gap-4 animate-in fade-in slide-in-from-top duration-500">
+                    <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center flex-shrink-0">
+                        <AlertTriangle className="w-6 h-6 text-slate-900" />
+                    </div>
+                    <div>
+                        <p className="text-amber-500 font-black uppercase tracking-widest text-[10px]">Atención</p>
+                        <p className="text-slate-300 text-sm font-bold">Esta mesa ya está siendo atendida. No puedes agregar órdenes.</p>
+                    </div>
+                </div>
+            )}
 
             <QuickOrderMenu
                 categories={categories}
@@ -190,7 +314,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
             />
 
             {/* Bottom Bar (Cart Summary) */}
-            {getCartCount() > 0 && (
+            {getCartCount() > 0 && !isOccupiedByOther && (
                 <div className="fixed bottom-0 left-0 right-0 p-6 bg-slate-900/90 backdrop-blur-xl border-t border-slate-800 z-50 animate-in slide-in-from-bottom duration-300">
                     <button
                         onClick={handleSendOrder}
@@ -207,6 +331,38 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                             {formatPrice(getCartTotal())}
                         </span>
                     </button>
+                </div>
+            )}
+
+            {/* Vaciar Mesa Modal */}
+            {isVaciarModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-slate-900 w-full max-w-sm rounded-[3rem] border border-slate-800 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                        <div className="p-8 text-center">
+                            <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-amber-500/20">
+                                <AlertTriangle className="w-10 h-10 text-amber-500" />
+                            </div>
+                            <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-2">¿Desocupar Mesa?</h3>
+                            <p className="text-slate-500 font-bold text-sm">
+                                Se eliminará la asignación actual. La mesa quedará libre para que cualquier mesera pueda tomar órdenes.
+                            </p>
+                        </div>
+                        <div className="p-6 bg-slate-800/50 border-t border-slate-800 flex flex-col gap-3">
+                            <button
+                                onClick={handleVaciarMesa}
+                                disabled={isVaciarLoading}
+                                className="w-full py-4 bg-amber-500 hover:bg-amber-400 text-slate-900 rounded-2xl font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50"
+                            >
+                                {isVaciarLoading ? 'Limpiando...' : 'Sí, Vaciar Mesa'}
+                            </button>
+                            <button
+                                onClick={() => setIsVaciarModalOpen(false)}
+                                className="w-full py-4 bg-slate-700 hover:bg-slate-600 text-white rounded-2xl font-black uppercase tracking-widest transition-all active:scale-95"
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
