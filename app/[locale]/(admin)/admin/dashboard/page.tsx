@@ -49,13 +49,13 @@ export default function DashboardPage() {
         try {
             // Fetch stats
             const [ordersRes, productsRes, categoriesRes] = await Promise.all([
-                supabase.from('orders')
+                (supabase.from('orders') as any)
                     .select('*, order_items(*, products(name))')
                     .eq('restaurant_id', restaurantId),
-                supabase.from('products')
+                (supabase.from('products') as any)
                     .select('*', { count: 'exact', head: true })
                     .eq('restaurant_id', restaurantId),
-                supabase.from('categories')
+                (supabase.from('categories') as any)
                     .select('*', { count: 'exact', head: true })
                     .eq('restaurant_id', restaurantId)
             ]);

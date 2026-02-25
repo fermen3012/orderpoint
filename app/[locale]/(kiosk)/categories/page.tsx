@@ -31,8 +31,8 @@ export default function CategoriesPage({ params }: { params: Promise<{ locale: s
             try {
                 // Fetch categories and available products (today)
                 const [categoriesRes, productsRes] = await Promise.all([
-                    supabase
-                        .from('categories')
+                    (supabase
+                        .from('categories') as any)
                         .select('*')
                         .eq('restaurant_id', restaurantId)
                         .order('sort_order'),

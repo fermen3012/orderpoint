@@ -11,14 +11,14 @@ export default async function PerformancePage() {
 
     // 1. Latency Ping (Simple Query)
     const t0 = performance.now();
-    const { error: pingError } = await supabase.from('restaurants').select('id').limit(1);
+    const { error: pingError } = await (supabase.from('restaurants') as any).select('id').limit(1);
     const t1 = performance.now();
     const dbLatency = Math.round(t1 - t0);
 
     // 2. Heavy Query (Data Load / Count)
     const t2 = performance.now();
-    const { count, error: countError } = await supabase
-        .from('restaurants')
+    const { count, error: countError } = await (supabase
+        .from('restaurants') as any)
         .select('*', { count: 'exact', head: true });
     const t3 = performance.now();
     const dataLatency = Math.round(t3 - t2);

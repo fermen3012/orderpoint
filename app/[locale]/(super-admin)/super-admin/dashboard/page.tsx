@@ -18,7 +18,7 @@ export default async function SuperAdminDashboard() {
     today.setHours(0, 0, 0, 0);
 
     const [restaurantsRes, activeRes, ordersTodayRes] = await Promise.all([
-        supabase.from('restaurants').select('*', { count: 'exact', head: true }),
+        (supabase.from('restaurants') as any).select('*', { count: 'exact', head: true }),
         (supabase.from('restaurants').select('*', { count: 'exact', head: true }).eq('is_active', true) as any),
         (supabase.from('orders').select('total_amount').gte('created_at', today.toISOString()) as any)
     ]);

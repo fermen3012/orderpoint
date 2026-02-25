@@ -26,8 +26,8 @@ const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
  * Uses the pivot table relationship to fetch the hierarchal structure.
  */
 export async function getModifiersByProduct(productId: string) {
-    const { data, error } = await supabase
-        .from('products')
+    const { data, error } = await (supabase
+        .from('products') as any)
         .select(`
             *,
             product_modifier_groups (

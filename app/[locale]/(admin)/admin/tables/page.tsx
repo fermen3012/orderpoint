@@ -43,8 +43,7 @@ export default function TablesPage() {
         setLoading(true);
         try {
             const [tablesRes, staffRes] = await Promise.all([
-                supabase
-                    .from('tables')
+                (supabase.from('tables') as any)
                     .select('*, profiles:waitress_id(full_name)')
                     .eq('restaurant_id', restaurantId)
                     .order('number', { ascending: true }),
@@ -78,15 +77,13 @@ export default function TablesPage() {
             };
 
             if (editingTable) {
-                const { error } = await supabase
-                    .from('tables')
+                const { error } = await (supabase.from('tables') as any)
                     .update(tableData)
                     .eq('id', editingTable.id);
 
                 if (error) throw error;
             } else {
-                const { error } = await supabase
-                    .from('tables')
+                const { error } = await (supabase.from('tables') as any)
                     .insert([tableData]);
 
                 if (error) throw error;
@@ -117,8 +114,7 @@ export default function TablesPage() {
 
     const handleDeleteTable = async (id: string) => {
         if (confirm('¿Estás seguro de eliminar esta mesa?')) {
-            const { error } = await supabase
-                .from('tables')
+            const { error } = await (supabase.from('tables') as any)
                 .delete()
                 .eq('id', id);
             if (!error) loadData();

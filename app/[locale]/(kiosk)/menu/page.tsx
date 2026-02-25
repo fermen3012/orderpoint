@@ -80,7 +80,7 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
             setLoading(true);
             try {
                 const [categoriesRes, productsData] = await Promise.all([
-                    supabase.from('categories').select('*').eq('restaurant_id', restaurantId).order('sort_order'),
+                    (supabase.from('categories') as any).select('*').eq('restaurant_id', restaurantId).order('sort_order'),
                     getMenuWithSchedule(restaurantId, new Date().getDay())
                 ]);
 
@@ -103,8 +103,8 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
 
                     const productIds = (productsData as any[]).map((p: any) => p.id);
                     if (productIds.length > 0) {
-                        const { data: ingredientsData, error: ingError } = await supabase
-                            .from('product_ingredients')
+                        const { data: ingredientsData, error: ingError } = await (supabase
+                            .from('product_ingredients') as any)
                             .select('*, ingredients(name), is_removable')
                             .in('product_id', productIds);
 
@@ -136,7 +136,7 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
     useEffect(() => {
         async function loadRestaurant() {
             if (!restaurantId) return;
-            const { data } = await supabase.from('restaurants').select('name').eq('id', restaurantId).single() as any;
+            const { data } = await (supabase.from('restaurants') as any).select('name').eq('id', restaurantId).single();
             if (data) setRestaurantName(data.name);
         }
         loadRestaurant();

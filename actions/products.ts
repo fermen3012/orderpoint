@@ -119,8 +119,8 @@ export async function getMenuWithSchedule(restaurantId: string, dayOfWeek: numbe
     console.log(`[getMenuWithSchedule] Fetching for Restaurant: ${restaurantId}, Day: ${dayOfWeek}`);
 
     // 1. Get ALL active products for the restaurant
-    const { data: products, error: prodError } = await supabase
-        .from('products')
+    const { data: products, error: prodError } = await (supabase
+        .from('products') as any)
         .select('*')
         .eq('restaurant_id', restaurantId)
         .eq('is_available', true);

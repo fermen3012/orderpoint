@@ -51,8 +51,8 @@ export default function KitchenPage({ params }: { params: Promise<{ locale: stri
     useEffect(() => {
         async function loadIngredients(rid: string) {
             const { data } = await (supabase
-                .from('ingredients')
-                .select('id, name') as any)
+                .from('ingredients') as any)
+                .select('id, name')
                 .eq('restaurant_id', rid);
 
             if (data) {
@@ -72,8 +72,8 @@ export default function KitchenPage({ params }: { params: Promise<{ locale: stri
         if (!restaurantId) return;
 
         async function loadOrders() {
-            const { data } = await supabase
-                .from('orders')
+            const { data } = await (supabase
+                .from('orders') as any)
                 .select(`
           *,
           order_items (
