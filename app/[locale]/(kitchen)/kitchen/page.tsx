@@ -131,10 +131,22 @@ export default function KitchenPage({ params }: { params: Promise<{ locale: stri
                     loadOrders();
                 }
             )
-            .subscribe();
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    loadOrders();
+                }
+            });
+
+        // Resilience: Re-fetch when browser comes back online
+        const handleOnline = () => {
+            console.log('Browser online, re-fetching orders...');
+            loadOrders();
+        };
+        window.addEventListener('online', handleOnline);
 
         return () => {
             supabase.removeChannel(channel);
+            window.removeEventListener('online', handleOnline);
         };
     }, [restaurantId]);
 
