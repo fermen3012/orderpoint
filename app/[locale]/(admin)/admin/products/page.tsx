@@ -15,6 +15,7 @@ import {
     Plus,
     Trash2,
     Pencil,
+    X,
     X as CloseIcon,
     Image as ImageIcon,
     Search,
@@ -266,326 +267,337 @@ export default function ProductsPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-50">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+                <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+                <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Cargando Menú...</p>
             </div>
         );
     }
 
     return (
-        <div className="p-4 md:p-8 lg:p-10">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+        <div className="space-y-10 animate-in fade-in duration-700">
+            {/* Header Section */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
                 <div>
-                    <h1 className="text-3xl md:text-4xl font-black text-secondary-900 tracking-tight">{t('products')}</h1>
-                    <p className="text-secondary-500 font-bold mt-1 text-sm md:text-base">Gestiona el menú de tu restaurante.</p>
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="w-8 h-1 bg-emerald-500 rounded-full"></span>
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Inventario de Cocina</span>
+                    </div>
+                    <h1 className="text-4xl lg:text-5xl font-black text-white italic tracking-tighter uppercase leading-none">
+                        {t('products')}
+                    </h1>
                 </div>
-                <button
-                    onClick={() => {
-                        setEditingProduct(null); // Ensure editingProduct is reset
-                        resetForm();
-                        setIsModalOpen(true);
-                    }}
-                    className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-primary-500 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:-translate-y-1 transition-all active:scale-95"
-                >
-                    <Plus className="w-5 h-5" />
-                    <span>Añadir Producto</span>
-                </button>
-            </header>
 
-            {/* Search and Filters */}
-            <div className="mb-10 animate-slide-up">
-                <div className="relative group max-w-2xl">
-                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary-400 group-focus-within:text-primary-500 transition-colors" />
-                    <input
-                        type="text"
-                        placeholder="Buscar por nombre o categoría..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-16 pr-8 py-5 bg-white border border-secondary-100 rounded-[2rem] shadow-sm focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900"
-                    />
+                <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+                    <div className="relative group w-full sm:w-80">
+                        <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-emerald-500 transition-colors" />
+                        <input
+                            type="text"
+                            placeholder="Buscar producto..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-16 pr-8 py-4 bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-bold text-white placeholder:text-slate-600"
+                        />
+                    </div>
+
+                    <button
+                        onClick={() => {
+                            setEditingProduct(null);
+                            resetForm();
+                            setIsModalOpen(true);
+                        }}
+                        className="group relative flex items-center justify-center gap-3 px-8 py-4 bg-emerald-500 text-slate-900 rounded-2xl font-black uppercase tracking-widest shadow-[0_10px_20px_rgba(16,185,129,0.2)] hover:-translate-y-1 transition-all active:scale-95"
+                    >
+                        <Plus className="w-6 h-6" />
+                        <span>Añadir Nuevo</span>
+                    </button>
                 </div>
             </div>
 
-            {/* Products Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 md:gap-8 animate-slide-up" style={{ animationDelay: '100ms' }}>
-                {filteredProducts.map((product) => (
-                    <div key={product.id} className="bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-xl shadow-secondary-900/5 border border-secondary-100 overflow-hidden group hover:-translate-y-2 transition-all duration-500">
-                        {/* Status Badge */}
-                        <div className="absolute top-4 right-4 z-10">
-                            <button
-                                onClick={() => handleToggleAvailability(product.id, product.is_available)}
-                                className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg ${product.is_available
-                                    ? 'bg-accent-500 text-white'
-                                    : 'bg-red-500 text-white'
-                                    }`}
-                            >
-                                {product.is_available ? 'Disponible' : 'No Disp.'}
-                            </button>
-                        </div>
+            {/* Content Area */}
+            {filteredProducts.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                    {filteredProducts.map((product) => (
+                        <div key={product.id} className="group relative bg-slate-900/40 backdrop-blur-sm rounded-[3rem] border border-slate-800 hover:border-emerald-500/30 transition-all duration-500 overflow-hidden flex flex-col">
+                            {/* Stats/Badge */}
+                            <div className="absolute top-6 left-6 z-10">
+                                <span className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-slate-950/80 text-emerald-500 border border-emerald-500/20 backdrop-blur-md">
+                                    {product.categories?.name || 'Gral'}
+                                </span>
+                            </div>
 
-                        <div className="aspect-square bg-secondary-50 relative overflow-hidden">
-                            {product.image_url ? (
-                                <img
-                                    src={product.image_url}
-                                    alt={product.name}
-                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                                />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                    <Package className="w-12 h-12 text-secondary-200" />
+                            <div className="absolute top-6 right-6 z-10 flex flex-col gap-2">
+                                <button
+                                    onClick={() => handleToggleAvailability(product.id, product.is_available)}
+                                    className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all shadow-lg ${product.is_available
+                                        ? 'bg-emerald-500 text-slate-900'
+                                        : 'bg-red-500/20 text-red-500 border border-red-500/30'
+                                        }`}
+                                >
+                                    {product.is_available ? <ChefHat className="w-5 h-5" /> : <X className="w-5 h-5" />}
+                                </button>
+                            </div>
+
+                            {/* Image Section */}
+                            <div className="aspect-[4/3] relative overflow-hidden bg-slate-800">
+                                {product.image_url ? (
+                                    <img
+                                        src={product.image_url}
+                                        alt={product.name}
+                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                        <Package className="w-16 h-16 text-slate-700" />
+                                    </div>
+                                )}
+                                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent opacity-60"></div>
+                            </div>
+
+                            {/* Info Section */}
+                            <div className="p-8 flex-1 flex flex-col">
+                                <div className="flex justify-between items-start mb-4 gap-4">
+                                    <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase leading-tight line-clamp-1">{product.name}</h3>
+                                    <span className="text-xl font-black text-emerald-500 italic tracking-tighter truncate">
+                                        {formatPrice(product.price, 'es-SV')}
+                                    </span>
                                 </div>
-                            )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-secondary-900/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-8">
-                                <div className="flex gap-3 w-full">
+                                <p className="text-slate-500 font-bold text-xs line-clamp-2 mb-8 flex-1">
+                                    {product.description || 'Sin descripción disponible.'}
+                                </p>
+
+                                <div className="flex gap-3">
                                     <button
                                         onClick={() => handleEditClick(product)}
-                                        className="flex-1 bg-white text-secondary-900 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-primary-500 hover:text-white transition-all shadow-xl"
+                                        className="flex-1 py-4 bg-slate-800 hover:bg-emerald-500 text-slate-400 hover:text-slate-900 rounded-2xl transition-all font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2"
                                     >
+                                        <Pencil className="w-4 h-4" />
                                         Editar
                                     </button>
                                     <button
                                         onClick={() => handleDeleteProduct(product.id)}
-                                        className="p-3 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all shadow-xl"
+                                        className="p-4 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl transition-all border border-red-500/20"
                                     >
                                         <Trash2 className="w-5 h-5" />
                                     </button>
                                 </div>
                             </div>
                         </div>
-
-                        <div className="p-6 md:p-8">
-                            <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <h3 className="text-xl md:text-2xl font-black text-secondary-900 tracking-tight line-clamp-1">{product.name}</h3>
-                                    <span className="text-[10px] md:text-xs font-black text-primary-500 uppercase tracking-widest bg-primary-50 px-3 py-1 rounded-full border border-primary-100 mt-2 inline-block">
-                                        {product.categories?.name}
-                                    </span>
-                                </div>
-                                <span className="text-xl md:text-2xl font-black text-secondary-900">{formatPrice(product.price, 'es-SV')}</span>
-                            </div>
-                            <p className="text-secondary-500 font-bold text-sm line-clamp-2 min-h-[3rem]">
-                                {product.description || 'Sin descripción disponible.'}
-                            </p>
-                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="p-20 text-center bg-slate-900/30 rounded-[3rem] border border-dashed border-slate-800">
+                    <div className="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Package className="w-10 h-10 text-slate-600" />
                     </div>
-                ))}
-            </div>
-
-            {/* Empty State */}
-            {filteredProducts.length === 0 && (
-                <div className="text-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-secondary-100">
-                    <div className="w-20 h-20 bg-secondary-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Package className="w-10 h-10 text-secondary-200" />
-                    </div>
-                    <h3 className="text-2xl font-black text-secondary-900 tracking-tight">No se encontraron productos</h3>
-                    <p className="text-secondary-500 font-bold mt-2">Prueba con otra búsqueda o añade un nuevo producto.</p>
+                    <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-2">No hay productos</h3>
+                    <p className="text-slate-500 font-bold text-sm">Empieza por añadir tu primer plato al menú.</p>
                 </div>
             )}
 
-            {/* Product Modal */}
+            {/* Redesigned Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-secondary-900/60 backdrop-blur-sm animate-in fade-in duration-300 overflow-y-auto">
-                    <div className="bg-white w-full max-w-4xl rounded-[1.5rem] sm:rounded-[2rem] md:rounded-[3rem] shadow-2xl overflow-hidden animate-scale-in my-2 sm:my-8">
-                        <div className="p-5 md:p-10 border-b border-secondary-50 flex justify-between items-start gap-4 bg-secondary-50/30 sticky top-0 z-10 backdrop-blur-md">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl transition-all duration-500 animate-in fade-in overflow-y-auto custom-scrollbar">
+                    <div className="bg-slate-900 w-full max-w-5xl rounded-[3rem] border border-slate-800 shadow-2xl relative animate-in zoom-in-95 duration-500 my-auto">
+                        <div className="p-8 md:p-12 border-b border-slate-800/50 flex justify-between items-center sticky top-0 bg-slate-900/80 backdrop-blur-md z-10">
                             <div>
-                                <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-secondary-900 tracking-tight leading-tight">
-                                    {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
-                                </h2>
-                                <p className="text-secondary-500 font-bold mt-1 text-sm">Completa la información del producto.</p>
+                                <h1 className="text-3xl md:text-4xl font-black text-white italic tracking-tighter uppercase leading-none">
+                                    {editingProduct ? 'Editar Plato' : 'Nuevo Plato'}
+                                </h1>
+                                <p className="text-slate-500 font-black uppercase tracking-widest text-[10px] mt-2 italic">Configuración de Menú</p>
                             </div>
                             <button
-                                type="button"
                                 onClick={() => setIsModalOpen(false)}
-                                className="p-2 md:p-3 hover:bg-white rounded-xl md:rounded-2xl transition-all shadow-sm border border-secondary-100 flex-shrink-0"
+                                className="p-4 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-2xl transition-all"
                             >
-                                <CloseIcon className="w-5 h-5 md:w-6 md:h-6 text-secondary-400" />
+                                <CloseIcon className="w-6 h-6" />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSaveProduct} className="p-5 md:p-10">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-10">
-                                {/* Image Upload */}
+                        <form onSubmit={handleSaveProduct} className="p-8 md:p-12 grid grid-cols-1 lg:grid-cols-12 gap-12">
+                            {/* Image Section */}
+                            <div className="lg:col-span-5 space-y-6">
                                 <div className="space-y-4">
-                                    <label className="block text-xs font-black text-secondary-400 uppercase tracking-widest px-2">Imagen del Producto</label>
-                                    <div className="relative aspect-square rounded-[2rem] overflow-hidden bg-secondary-50 border-2 border-dashed border-secondary-200 group transition-all hover:border-primary-500">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">Fotografía del Plato</label>
+                                    <div className="aspect-square bg-slate-950 rounded-[3rem] border-2 border-dashed border-slate-800 overflow-hidden relative group transition-all hover:border-emerald-500/50">
                                         {newProduct.image_url ? (
                                             <>
                                                 <img src={newProduct.image_url} alt="Preview" className="w-full h-full object-cover" />
-                                                <div className="absolute inset-0 bg-secondary-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-                                                    <label className="cursor-pointer bg-white text-secondary-900 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-primary-500 hover:text-white transition-all shadow-xl">
-                                                        Cambiar Imagen
+                                                <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-sm">
+                                                    <label className="cursor-pointer bg-emerald-500 text-slate-900 px-8 py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all text-xs">
+                                                        Cambiar Foto
                                                         <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
                                                     </label>
                                                 </div>
                                             </>
                                         ) : (
-                                            <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-white transition-colors">
-                                                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm mb-4">
-                                                    {uploadingImage ? <Loader2 className="w-8 h-8 text-primary-500 animate-spin" /> : <ImageIcon className="w-8 h-8 text-secondary-200" />}
+                                            <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-slate-900 transition-colors">
+                                                <div className="w-20 h-20 bg-slate-800 rounded-3xl flex items-center justify-center mb-4 border border-slate-700">
+                                                    {uploadingImage ? <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" /> : <ImageIcon className="w-10 h-10 text-slate-600" />}
                                                 </div>
-                                                <span className="text-sm font-black text-secondary-400 uppercase tracking-widest">{uploadingImage ? 'Subiendo...' : 'Subir Imagen'}</span>
+                                                <span className="text-xs font-black text-slate-500 uppercase tracking-widest">{uploadingImage ? 'Procesando...' : 'Subir Imagen'}</span>
                                                 <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
                                             </label>
                                         )}
                                     </div>
-                                    <p className="text-[10px] text-secondary-400 font-bold text-center px-4">Utiliza una imagen de alta calidad (JPG, PNG, WEBP) para mejores resultados.</p>
+                                    <p className="text-[10px] text-slate-600 font-bold text-center px-6 italic">Tamaño recomendado: 1024x1024px. Máx 2MB.</p>
                                 </div>
+                            </div>
 
-                                {/* Form Fields */}
-                                <div className="space-y-6">
-                                    <div className="space-y-2">
-                                        <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest px-2">Nombre del Producto</label>
+                            {/* Details Section */}
+                            <div className="lg:col-span-7 space-y-8">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">Nombre del Plato</label>
                                         <input
                                             type="text"
                                             required
                                             value={newProduct.name}
                                             onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                                            className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900"
-                                            placeholder="Ej. Pizza Margarita"
+                                            className="w-full px-6 py-5 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-bold text-white uppercase italic tracking-tighter text-lg"
+                                            placeholder="EJ. TACOS AL PASTOR"
                                         />
                                     </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest px-2">Precio ($)</label>
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">Precio de Venta</label>
+                                        <div className="relative group">
+                                            <span className="absolute left-6 top-1/2 -translate-y-1/2 text-emerald-500 font-black text-xl">$</span>
                                             <input
                                                 type="number"
                                                 step="0.01"
                                                 required
                                                 value={newProduct.price}
                                                 onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
-                                                className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900"
+                                                className="w-full pl-12 pr-6 py-5 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-white text-xl"
                                                 placeholder="0.00"
                                             />
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest px-2">Categoría</label>
-                                            <select
-                                                required
-                                                value={newProduct.category_id}
-                                                onChange={(e) => setNewProduct({ ...newProduct, category_id: e.target.value })}
-                                                className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900 appearance-none"
-                                            >
-                                                <option value="">Seleccionar...</option>
-                                                {categories.map((cat) => (
-                                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2 relative">
-                                        <div className="flex justify-between items-end px-2">
-                                            <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest">Descripción (Inglés)</label>
-                                            <button
-                                                type="button"
-                                                onClick={handleTranslate}
-                                                disabled={isTranslating || !newProduct.description}
-                                                className="flex items-center gap-1 text-[10px] font-black text-primary-500 hover:text-primary-600 transition-colors disabled:opacity-50"
-                                            >
-                                                {isTranslating ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-                                                {isTranslating ? 'Mejorando...' : 'Mejorar Inglés & Traducir'}
-                                            </button>
-                                        </div>
-                                        <textarea
-                                            value={newProduct.description}
-                                            onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                                            className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900 resize-none h-24"
-                                            placeholder="Description in English..."
-                                        />
-                                    </div>
-
-                                    <div className="space-y-2 relative">
-                                        <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest px-2">Descripción (Español)</label>
-                                        <textarea
-                                            value={newProduct.description_es}
-                                            onChange={(e) => setNewProduct({ ...newProduct, description_es: e.target.value })}
-                                            className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900 resize-none h-24"
-                                            placeholder="Descripción en Español..."
-                                        />
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest px-2">Ingredientes del Producto</label>
-                                        <div className="max-h-48 overflow-y-auto p-2 bg-secondary-50 rounded-2xl border border-secondary-100 space-y-2">
-                                            {allIngredients.map((ing) => {
-                                                const isSelected = selectedIngredients.some(si => si.ingredient_id === ing.id);
-                                                const selectedIng = selectedIngredients.find(si => si.ingredient_id === ing.id);
-
-                                                return (
-                                                    <div
-                                                        key={ing.id}
-                                                        className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border transition-all flex flex-col gap-2 sm:gap-3 ${isSelected ? 'bg-primary-50 border-primary-200' : 'bg-secondary-50/50 border-secondary-100'
-                                                            }`}
-                                                    >
-                                                        <div className="flex items-center gap-3">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={isSelected}
-                                                                onChange={(e) => {
-                                                                    const isChecked = e.target.checked;
-                                                                    setSelectedIngredients(prev => {
-                                                                        if (isChecked) {
-                                                                            return [...prev, { ingredient_id: ing.id, is_removable: true }];
-                                                                        } else {
-                                                                            return prev.filter(si => si.ingredient_id !== ing.id);
-                                                                        }
-                                                                    });
-                                                                }}
-                                                                className="w-5 h-5 rounded border-secondary-200 text-primary-500 focus:ring-primary-500"
-                                                            />
-                                                            <span className={`font-bold text-sm ${isSelected ? 'text-primary-900' : 'text-secondary-600'}`}>
-                                                                {ing.name}
-                                                            </span>
-                                                        </div>
-
-                                                        {isSelected && (
-                                                            <div className="flex items-center gap-2 pl-8">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    id={`removable-${ing.id}`}
-                                                                    checked={selectedIng?.is_removable}
-                                                                    onChange={(e) => {
-                                                                        const isChecked = e.target.checked;
-                                                                        setSelectedIngredients(prev => prev.map(si =>
-                                                                            si.ingredient_id === ing.id
-                                                                                ? { ...si, is_removable: isChecked }
-                                                                                : si
-                                                                        ));
-                                                                    }}
-                                                                    className="w-4 h-4 rounded border-secondary-200 text-primary-500 focus:ring-primary-500"
-                                                                />
-                                                                <label htmlFor={`removable-${ing.id}`} className="text-[9px] sm:text-[10px] font-black uppercase text-primary-600 tracking-wider">
-                                                                    Cliente puede quitarlo
-                                                                </label>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                        {allIngredients.length === 0 && (
-                                            <p className="text-xs text-secondary-400 italic px-2">No hay ingredientes creados. Ve a la sección de Ingredientes para añadir algunos.</p>
-                                        )}
-                                    </div>
-
-                                    <div className="md:col-span-2 pt-2 md:pt-4 flex gap-4">
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsModalOpen(false)}
-                                            className="flex-1 py-4 sm:py-5 bg-white text-secondary-500 border-2 border-secondary-100 rounded-xl sm:rounded-[2rem] font-black uppercase tracking-widest hover:bg-secondary-50 transition-all active:scale-95"
-                                        >
-                                            Cancelar
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            disabled={saving}
-                                            className="flex-[2] py-4 sm:py-5 bg-primary-500 text-white rounded-xl sm:rounded-[2rem] font-black uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0"
-                                        >
-                                            {saving ? 'Guardando...' : (editingProduct ? 'Guardar' : 'Crear')}
-                                        </button>
                                     </div>
                                 </div>
+
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">Categoría del Menú</label>
+                                    <select
+                                        required
+                                        value={newProduct.category_id}
+                                        onChange={(e) => setNewProduct({ ...newProduct, category_id: e.target.value })}
+                                        className="w-full px-6 py-5 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-bold text-white appearance-none uppercase tracking-widest text-xs"
+                                    >
+                                        <option value="" className="bg-slate-900">Seleccionar Categoría...</option>
+                                        {categories.map((cat) => (
+                                            <option key={cat.id} value={cat.id} className="bg-slate-900">{cat.name.toUpperCase()}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="space-y-3 relative group">
+                                    <div className="flex justify-between items-center px-2">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Descripción Gastronómica</label>
+                                        <button
+                                            type="button"
+                                            onClick={handleTranslate}
+                                            disabled={isTranslating || !newProduct.description}
+                                            className="px-4 py-1 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-slate-900 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all transition-colors flex items-center gap-2"
+                                        >
+                                            {isTranslating ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                                            IA: Mejorar & Traducir
+                                        </button>
+                                    </div>
+                                    <textarea
+                                        value={newProduct.description_es}
+                                        onChange={(e) => setNewProduct({ ...newProduct, description_es: e.target.value })}
+                                        className="w-full px-6 py-5 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-bold text-white text-sm min-h-[120px] resize-none"
+                                        placeholder="Escribe una descripción tentadora en español..."
+                                    />
+                                    <input
+                                        type="text"
+                                        value={newProduct.description}
+                                        onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                                        className="w-full px-6 py-4 bg-slate-950/50 border border-slate-800/50 rounded-xl text-xs font-bold text-slate-600 outline-none focus:border-slate-700 transition-all mt-2"
+                                        placeholder="English description / AI Target..."
+                                    />
+                                </div>
+
+                                {/* Ingredients Selection */}
+                                <div className="space-y-4">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">Personalización (Ingredientes)</label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-60 overflow-y-auto pr-4 custom-scrollbar">
+                                        {allIngredients.map((ing) => {
+                                            const isSelected = selectedIngredients.some(si => si.ingredient_id === ing.id);
+                                            const selectedIng = selectedIngredients.find(si => si.ingredient_id === ing.id);
+
+                                            return (
+                                                <div
+                                                    key={ing.id}
+                                                    className={`p-5 rounded-3xl border transition-all flex flex-col gap-4 ${isSelected
+                                                        ? 'bg-emerald-500/10 border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.1)]'
+                                                        : 'bg-slate-950 border-slate-800'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center gap-4">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            onChange={(e) => {
+                                                                const isChecked = e.target.checked;
+                                                                setSelectedIngredients(prev => isChecked
+                                                                    ? [...prev, { ingredient_id: ing.id, is_removable: true }]
+                                                                    : prev.filter(si => si.ingredient_id !== ing.id)
+                                                                );
+                                                            }}
+                                                            className="w-6 h-6 rounded-lg border-slate-800 bg-slate-900 text-emerald-500 focus:ring-emerald-500/20"
+                                                        />
+                                                        <span className={`font-black uppercase tracking-widest text-[10px] ${isSelected ? 'text-emerald-500' : 'text-slate-500'}`}>
+                                                            {ing.name}
+                                                        </span>
+                                                    </div>
+                                                    {isSelected && (
+                                                        <div className="flex items-center gap-3 pl-10 border-t border-emerald-500/10 pt-4">
+                                                            <input
+                                                                type="checkbox"
+                                                                id={`rem-${ing.id}`}
+                                                                checked={selectedIng?.is_removable}
+                                                                onChange={(e) => {
+                                                                    const isChecked = e.target.checked;
+                                                                    setSelectedIngredients(prev => prev.map(si =>
+                                                                        si.ingredient_id === ing.id ? { ...si, is_removable: isChecked } : si
+                                                                    ));
+                                                                }}
+                                                                className="w-4 h-4 rounded border-emerald-500/30 bg-slate-900 text-emerald-500"
+                                                            />
+                                                            <label htmlFor={`rem-${ing.id}`} className="text-[9px] font-black uppercase text-emerald-500/60 tracking-wider cursor-pointer">
+                                                                MESERO PUEDE QUITARLO
+                                                            </label>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                        {allIngredients.length === 0 && (
+                                            <div className="col-span-2 p-8 text-center bg-slate-950 rounded-3xl border border-slate-800 italic text-slate-600 text-xs">
+                                                No hay ingredientes registrados en el sistema.
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Sticky Bottom Actions */}
+                            <div className="lg:col-span-12 flex flex-col md:flex-row gap-6 pt-12 border-t border-slate-800/50 mt-8">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsModalOpen(false)}
+                                    className="flex-1 py-6 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-[2rem] font-black uppercase tracking-widest transition-all active:scale-95 text-xs shadow-xl"
+                                >
+                                    Descartar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={saving}
+                                    className="flex-[2] py-6 bg-emerald-500 text-slate-900 rounded-[2rem] font-black uppercase tracking-widest shadow-[0_10px_40px_rgba(16,185,129,0.3)] hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0 text-xs"
+                                >
+                                    {saving ? 'Procesando...' : (editingProduct ? 'Confirmar Cambios' : 'Lanzar Plato')}
+                                </button>
                             </div>
                         </form>
                     </div>

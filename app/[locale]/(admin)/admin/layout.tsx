@@ -19,7 +19,10 @@ import {
     CreditCard,
     Calendar,
     Utensils,
-    X
+    X,
+    ChevronLeft,
+    ChevronRight,
+    Sparkles
 } from 'lucide-react';
 import { SidebarLink } from '@/components/admin/SidebarLink';
 
@@ -33,6 +36,7 @@ export default function ProtectedAdminLayout({
     const pathname = usePathname();
     const [loading, setLoading] = useState(true);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [authData, setAuthData] = useState<{ userProfile: any, restaurantId: string | null } | null>(null);
     const [restaurantName, setRestaurantName] = useState<string | null>(null);
     const [restaurantLogo, setRestaurantLogo] = useState<string | null>(null);
@@ -109,8 +113,12 @@ export default function ProtectedAdminLayout({
 
     if (loading || !authData) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-50">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 gap-4">
+                <div className="relative">
+                    <div className="w-16 h-16 border-4 border-emerald-500/20 rounded-full animate-ping absolute inset-0"></div>
+                    <div className="w-16 h-16 border-t-4 border-emerald-500 rounded-full animate-spin"></div>
+                </div>
+                <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-[10px] animate-pulse">Iniciando Panel...</p>
             </div>
         );
     }
@@ -129,62 +137,69 @@ export default function ProtectedAdminLayout({
 
     return (
         <AuthProvider value={authData}>
-            <div className="flex min-h-screen bg-slate-50">
+            <div className="flex min-h-screen bg-slate-950 font-sans selection:bg-emerald-500 selection:text-slate-900">
                 {/* Mobile Sidebar Overlay */}
                 {isSidebarOpen && (
                     <div
-                        className="fixed inset-0 bg-slate-900/50 z-40 lg:hidden backdrop-blur-sm transition-opacity"
+                        className="fixed inset-0 bg-slate-950/80 z-40 lg:hidden backdrop-blur-md transition-opacity duration-300"
                         onClick={() => setIsSidebarOpen(false)}
                     />
                 )}
 
                 {/* Sidebar */}
                 <aside className={`
-                    fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-100 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
+                    fixed inset-y-0 left-0 z-50 bg-slate-900/50 backdrop-blur-2xl border-r border-slate-800 transform transition-all duration-500 ease-in-out lg:translate-x-0 lg:static lg:inset-0
                     ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+                    ${isSidebarCollapsed ? 'w-24' : 'w-72'}
                 `}>
                     <div className="flex flex-col h-full">
-                        <div className="p-8 flex items-center justify-between">
-                            <div className="w-10 h-10 bg-primary-500 rounded-2xl flex items-center justify-center shadow-lg shadow-primary-200 overflow-hidden">
-                                {restaurantLogo ? (
-                                    <img src={restaurantLogo} alt={restaurantName || ''} className="w-full h-full object-cover" />
-                                ) : (
-                                    <span className="text-white font-black text-xl">
-                                        {restaurantName ? restaurantName.charAt(0).toUpperCase() : 'O'}
-                                    </span>
-                                )}
-                            </div>
-                            <div className="flex flex-col min-w-0">
-                                {loadingRestaurant ? (
-                                    <>
-                                        <div className="h-6 w-32 bg-slate-200 animate-pulse rounded-md mb-1"></div>
-                                        <div className="h-3 w-20 bg-slate-100 animate-pulse rounded-sm"></div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <span className="text-xl font-black text-slate-900 tracking-tighter truncate leading-tight">
-                                            {restaurantName || 'OrderPoint'}
+                        {/* Logo/Header */}
+                        <div className={`p-8 flex items-center gap-4 transition-all duration-500 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                            <div className="relative group">
+                                <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                                <div className="relative w-10 h-10 bg-slate-800 rounded-2xl flex items-center justify-center overflow-hidden border border-slate-700/50">
+                                    {restaurantLogo ? (
+                                        <img src={restaurantLogo} alt={restaurantName || ''} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-emerald-500 font-black text-xl">
+                                            {restaurantName ? restaurantName.charAt(0).toUpperCase() : 'O'}
                                         </span>
-                                        <span className="text-[10px] font-black text-primary-600 uppercase tracking-widest leading-none">
-                                            Admin Panel
-                                        </span>
-                                    </>
-                                )}
+                                    )}
+                                </div>
                             </div>
-                            <button
-                                className="lg:hidden p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl"
-                                onClick={() => setIsSidebarOpen(false)}
-                            >
-                                <X className="w-6 h-6" />
-                            </button>
+
+                            {!isSidebarCollapsed && (
+                                <div className="flex flex-col min-w-0 animate-in fade-in slide-in-from-left duration-500">
+                                    {loadingRestaurant ? (
+                                        <>
+                                            <div className="h-5 w-32 bg-slate-800 animate-pulse rounded-md mb-1"></div>
+                                            <div className="h-3 w-20 bg-slate-800/50 animate-pulse rounded-sm"></div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="text-lg font-black text-white tracking-tighter truncate leading-none uppercase italic">
+                                                {restaurantName || 'OrderPoint'}
+                                            </span>
+                                            <div className="flex items-center gap-1.5 mt-1">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                                <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] leading-none">
+                                                    Propietario
+                                                </span>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
-                        <nav className="flex-1 px-4 space-y-2">
+                        {/* Navigation */}
+                        <nav className={`flex-1 px-4 py-4 space-y-1.5 overflow-y-auto no-scrollbar`}>
                             {navigation.map((item) => (
                                 <SidebarLink
                                     key={item.label}
                                     icon={item.icon}
                                     label={item.label}
+                                    collapsed={isSidebarCollapsed}
                                     active={pathname.includes(item.href) && item.href !== '#'}
                                     onClick={() => {
                                         if (item.href !== '#') {
@@ -196,49 +211,91 @@ export default function ProtectedAdminLayout({
                             ))}
                         </nav>
 
-                        <div className="p-6 mt-auto border-t border-slate-50">
+                        {/* Footer & Collapse Toggle */}
+                        <div className="p-4 mt-auto border-t border-slate-800/50 bg-slate-900/30">
                             <button
                                 onClick={handleLogout}
-                                className="flex items-center gap-3 w-full px-6 py-4 text-slate-500 hover:bg-red-50 hover:text-red-600 rounded-2xl transition-all duration-300 font-bold group"
+                                className={`flex items-center gap-4 w-full px-4 py-4 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-2xl transition-all duration-300 font-black uppercase tracking-widest text-[10px] group ${isSidebarCollapsed ? 'justify-center px-0' : ''}`}
                             >
-                                <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                                <span>{t('logout') || 'Cerrar Sesión'}</span>
+                                <LogOut className={`w-5 h-5 transition-transform duration-300 ${isSidebarCollapsed ? '' : 'group-hover:-translate-x-1'}`} />
+                                {!isSidebarCollapsed && <span>{t('logout') || 'Cerrar Sesión'}</span>}
+                            </button>
+
+                            {/* Desktop Collapse Toggle */}
+                            <button
+                                onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                                className="hidden lg:flex absolute -right-3 top-24 w-6 h-6 bg-slate-800 border border-slate-700 rounded-full items-center justify-center text-slate-400 hover:text-emerald-500 hover:border-emerald-500/50 transition-all shadow-xl z-50 group"
+                            >
+                                {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
                             </button>
                         </div>
                     </div>
                 </aside>
 
                 {/* Main Content Area */}
-                <div className="flex-1 flex flex-col min-w-0 min-h-screen">
-                    {/* Mobile Header */}
-                    <header className="lg:hidden bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between sticky top-0 z-30">
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-primary-500 rounded-xl flex items-center justify-center shadow-lg shadow-primary-200 overflow-hidden">
-                                {restaurantLogo ? (
-                                    <img src={restaurantLogo} alt={restaurantName || ''} className="w-full h-full object-cover" />
-                                ) : (
-                                    <span className="text-white font-black text-sm">
-                                        {restaurantName ? restaurantName.charAt(0).toUpperCase() : 'O'}
-                                    </span>
-                                )}
+                <div className="flex-1 flex flex-col min-w-0 transition-all duration-500 overflow-hidden">
+                    {/* Header */}
+                    <header className="bg-slate-950/50 backdrop-blur-xl border-b border-slate-800/50 px-6 py-4 flex items-center justify-between sticky top-0 z-30 h-20">
+                        <div className="flex items-center gap-4">
+                            <button
+                                className="lg:hidden p-3 text-slate-400 bg-slate-900 border border-slate-800 rounded-2xl active:scale-95 transition-all hover:text-emerald-500 hover:border-emerald-500/50"
+                                onClick={() => setIsSidebarOpen(true)}
+                            >
+                                <Menu className="w-6 h-6" />
+                            </button>
+
+                            <div className="flex flex-col">
+                                <h1 className="text-xl font-black text-white italic tracking-tighter uppercase leading-none flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4 text-emerald-500" />
+                                    {navigation.find(n => pathname.includes(n.href) && n.href !== '#')?.label || 'Dashboard'}
+                                </h1>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">
+                                    GESTIÓN DE RESTAURANTE
+                                </p>
                             </div>
-                            <span className="text-lg font-black text-slate-900 tracking-tighter truncate max-w-[150px]">
-                                {restaurantName || 'OrderPoint'}
-                            </span>
                         </div>
-                        <button
-                            className="p-2 text-slate-600 bg-slate-50 border border-slate-100 rounded-xl active:scale-95 transition-all"
-                            onClick={() => setIsSidebarOpen(true)}
-                        >
-                            <Menu className="w-6 h-6" />
-                        </button>
+
+                        {/* Top Right Actions (can be expanded) */}
+                        <div className="flex items-center gap-3">
+                            <div className="hidden sm:flex items-center gap-3 px-4 py-2 bg-slate-900 border border-slate-800 rounded-2xl">
+                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                                    SINCRO OK
+                                </span>
+                            </div>
+                        </div>
                     </header>
 
-                    <main className="flex-1 overflow-x-hidden overflow-y-auto">
-                        {children}
+                    <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-950 custom-scrollbar">
+                        <div className="p-6 lg:p-10 max-w-7xl mx-auto w-full">
+                            {children}
+                        </div>
                     </main>
                 </div>
             </div>
+
+            <style jsx global>{`
+                .no-scrollbar::-webkit-scrollbar {
+                    display: none;
+                }
+                .no-scrollbar {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
+                }
+                .custom-scrollbar::-webkit-scrollbar {
+                    width: 6px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: #1e293b;
+                    border-radius: 10px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background: #334155;
+                }
+            `}</style>
         </AuthProvider>
     );
 }

@@ -150,125 +150,175 @@ export default function CategoriesPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-50">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+                <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+                <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Cargando Categorías...</p>
             </div>
         );
     }
 
     return (
-        <div className="p-4 md:p-8 lg:p-10">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+        <div className="space-y-10 animate-in fade-in duration-700">
+            {/* Header Section */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
                 <div>
-                    <h1 className="text-3xl md:text-4xl font-black text-secondary-900 tracking-tight">{t('categories')}</h1>
-                    <p className="text-secondary-500 font-bold mt-1 text-sm md:text-base">Gestiona las categorías de tu menú.</p>
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="w-8 h-1 bg-emerald-500 rounded-full"></span>
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Arquitectura del Menú</span>
+                    </div>
+                    <h1 className="text-4xl lg:text-5xl font-black text-white italic tracking-tighter uppercase leading-none">
+                        {t('categories')}
+                    </h1>
                 </div>
+
                 <button
                     onClick={() => {
                         setEditingCategory(null);
                         setNewCategory({ name: '', image_url: '' });
                         setIsModalOpen(true);
                     }}
-                    className="w-full md:w-auto flex items-center justify-center gap-3 bg-primary-500 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:-translate-y-1 transition-all active:scale-95"
+                    className="group relative flex items-center justify-center gap-3 px-10 py-4 bg-emerald-500 text-slate-900 rounded-2xl font-black uppercase tracking-widest shadow-[0_10px_20px_rgba(16,185,129,0.2)] hover:-translate-y-1 transition-all active:scale-95 w-full lg:w-auto"
                 >
-                    <Plus className="w-5 h-5" />
+                    <Plus className="w-6 h-6" />
                     <span>Nueva Categoría</span>
                 </button>
-            </header>
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
+            {/* Grid Area */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                 {categories.map((category, idx) => (
                     <div
                         key={category.id}
-                        className="bg-white rounded-[2rem] p-6 shadow-xl shadow-secondary-900/5 border border-secondary-100 group hover:-translate-y-1 transition-all duration-300 animate-scale-in"
-                        style={{ animationDelay: `${idx * 50}ms` }}
+                        className="group relative bg-slate-900/40 backdrop-blur-sm rounded-[3rem] p-8 border border-slate-800 hover:border-emerald-500/30 transition-all duration-500 flex flex-col items-center animate-in zoom-in slide-in-from-bottom-4"
+                        style={{ animationDelay: `${idx * 100}ms` }}
                     >
-                        <div className="relative w-full aspect-square rounded-[1.5rem] bg-secondary-50 mb-6 overflow-hidden flex items-center justify-center border border-secondary-100">
+                        {/* Image/Icon Circle */}
+                        <div className="relative w-40 h-40 rounded-full bg-slate-950 mb-8 overflow-hidden flex items-center justify-center border-4 border-slate-800 group-hover:border-emerald-500/20 transition-all duration-500 shadow-2xl">
                             {category.image_url ? (
-                                <img src={category.image_url} alt={category.name} className="w-full h-full object-cover" />
+                                <img
+                                    src={category.image_url}
+                                    alt={category.name}
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                                />
                             ) : (
-                                <List className="w-12 h-12 text-secondary-200" />
+                                <List className="w-16 h-16 text-slate-700 group-hover:text-emerald-500 transition-colors" />
                             )}
-                            <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+
+                            {/* Overlay Actions */}
+                            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center gap-3">
                                 <button
                                     onClick={() => handleEditClick(category)}
-                                    className="p-3 bg-white/90 backdrop-blur-sm text-secondary-600 rounded-xl hover:bg-primary-50 hover:text-primary-600 shadow-sm"
+                                    className="p-4 bg-emerald-500 text-slate-900 rounded-2xl hover:scale-110 transition-all shadow-xl"
                                 >
                                     <Pencil className="w-5 h-5" />
                                 </button>
                                 <button
                                     onClick={() => handleDeleteCategory(category.id)}
-                                    className="p-3 bg-white/90 backdrop-blur-sm text-red-500 rounded-xl hover:bg-red-50 shadow-sm"
+                                    className="p-4 bg-red-500 text-white rounded-2xl hover:scale-110 transition-all shadow-xl"
                                 >
                                     <Trash2 className="w-5 h-5" />
                                 </button>
                             </div>
                         </div>
-                        <h3 className="text-xl font-black text-secondary-900 text-center">{category.name}</h3>
+
+                        <div className="text-center">
+                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Sección {idx + 1}</span>
+                            <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase leading-tight group-hover:text-emerald-500 transition-colors">
+                                {category.name}
+                            </h3>
+                        </div>
                     </div>
                 ))}
+
+                {/* Empty State / Add Card */}
+                <button
+                    onClick={() => {
+                        setEditingCategory(null);
+                        setNewCategory({ name: '', image_url: '' });
+                        setIsModalOpen(true);
+                    }}
+                    className="group relative bg-slate-900/20 rounded-[3rem] p-8 border-2 border-dashed border-slate-800 hover:border-emerald-500/50 hover:bg-emerald-500/[0.02] transition-all duration-500 flex flex-col items-center justify-center min-h-[300px]"
+                >
+                    <div className="w-16 h-16 rounded-3xl bg-slate-800 flex items-center justify-center mb-6 group-hover:bg-emerald-500 group-hover:text-slate-900 transition-all duration-500">
+                        <Plus className="w-8 h-8" />
+                    </div>
+                    <span className="text-xs font-black text-slate-600 uppercase tracking-widest group-hover:text-emerald-500 transition-colors">Añadir Categoría</span>
+                </button>
             </div>
 
-            {/* Add/Edit Category Modal */}
+            {/* Modal Redesign */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="bg-white w-full max-w-md rounded-[2rem] md:rounded-[3rem] shadow-2xl overflow-hidden animate-scale-in">
-                        <div className="p-6 md:p-8 border-b border-secondary-50 flex justify-between items-center bg-secondary-50/30">
-                            <h2 className="text-xl md:text-2xl font-black text-secondary-900 tracking-tight">
-                                {editingCategory ? 'Editar Categoría' : 'Nueva Categoría'}
-                            </h2>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl animate-in fade-in duration-500">
+                    <div className="bg-slate-900 w-full max-w-xl rounded-[3rem] border border-slate-800 shadow-2xl relative animate-in zoom-in-95 duration-300">
+                        <div className="p-10 md:p-12 border-b border-slate-800/50 flex justify-between items-center">
+                            <div>
+                                <h1 className="text-3xl md:text-4xl font-black text-white italic tracking-tighter uppercase leading-none">
+                                    {editingCategory ? 'Editar' : 'Nueva'}
+                                </h1>
+                                <p className="text-slate-500 font-black uppercase tracking-widest text-[10px] mt-2 italic">Configuración de Menú</p>
+                            </div>
                             <button
                                 onClick={() => setIsModalOpen(false)}
-                                className="p-2 md:p-3 hover:bg-white rounded-xl md:rounded-2xl transition-all shadow-sm border border-secondary-100"
+                                className="p-4 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-2xl transition-all"
                             >
-                                <CloseIcon className="w-5 h-5 md:w-6 md:h-6 text-secondary-400" />
+                                <CloseIcon className="w-6 h-6" />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSaveCategory} className="p-6 md:p-8 space-y-6">
-                            <div>
-                                <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-2 px-2">Nombre</label>
+                        <form onSubmit={handleSaveCategory} className="p-10 md:p-12 space-y-10">
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">Nombre de la Categoría</label>
                                 <input
                                     type="text"
                                     required
                                     value={newCategory.name}
                                     onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                                    className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900"
-                                    placeholder="Ej: Hamburguesas"
+                                    className="w-full px-8 py-5 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-bold text-white uppercase italic tracking-tighter text-xl"
+                                    placeholder="EJ. HAMBURGUESAS"
                                 />
                             </div>
-                            <div>
-                                <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-2 px-2">Imagen de Categoría</label>
-                                <div className="relative aspect-video rounded-[2rem] overflow-hidden bg-secondary-50 border-2 border-dashed border-secondary-200 group transition-all hover:border-primary-500">
+
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">Icono / Representación</label>
+                                <div className="relative aspect-[21/9] rounded-[2rem] overflow-hidden bg-slate-950 border-2 border-dashed border-slate-800 group transition-all hover:border-emerald-500/50">
                                     {newCategory.image_url ? (
                                         <>
                                             <img src={newCategory.image_url} alt="Preview" className="w-full h-full object-cover" />
-                                            <div className="absolute inset-0 bg-secondary-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-                                                <label className="cursor-pointer bg-white text-secondary-900 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-primary-500 hover:text-white transition-all shadow-xl">
-                                                    Cambiar Imagen
+                                            <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-sm">
+                                                <label className="cursor-pointer bg-emerald-500 text-slate-900 px-8 py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all text-xs">
+                                                    Cambiar Foto
                                                     <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
                                                 </label>
                                             </div>
                                         </>
                                     ) : (
-                                        <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-white transition-colors">
-                                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm mb-3">
-                                                {uploadingImage ? <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" /> : <ImageIcon className="w-6 h-6 text-secondary-200" />}
+                                        <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-slate-900 transition-colors">
+                                            <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center mb-4 border border-slate-700">
+                                                {uploadingImage ? <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500" /> : <ImageIcon className="w-8 h-8 text-slate-600" />}
                                             </div>
-                                            <span className="text-xs font-black text-secondary-400 uppercase tracking-widest">{uploadingImage ? 'Subiendo...' : 'Subir Imagen'}</span>
+                                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{uploadingImage ? 'Procesando...' : 'Subir Imagen Representativa'}</span>
                                             <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
                                         </label>
                                     )}
                                 </div>
                             </div>
 
-                            <button
-                                type="submit"
-                                disabled={saving}
-                                className="w-full py-5 bg-primary-500 text-white rounded-[2rem] font-black uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0"
-                            >
-                                {saving ? 'Guardando...' : (editingCategory ? 'Guardar Cambios' : 'Crear Categoría')}
-                            </button>
+                            <div className="flex flex-col sm:flex-row gap-6 pt-6">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsModalOpen(false)}
+                                    className="flex-1 py-6 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-[2rem] font-black uppercase tracking-widest transition-all active:scale-95 text-xs shadow-xl"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={saving}
+                                    className="flex-[2] py-6 bg-emerald-500 text-slate-900 rounded-[2rem] font-black uppercase tracking-widest shadow-[0_10px_40px_rgba(16,185,129,0.3)] hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0 text-xs text-center"
+                                >
+                                    {saving ? 'Guardando...' : (editingCategory ? 'Confirmar Cambios' : 'Crear Categoría')}
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
