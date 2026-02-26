@@ -32,118 +32,120 @@ export default async function PerformancePage() {
     const dbStatus = pingError ? 'Offline' : 'Online';
 
     return (
-        <div className="p-6 sm:p-10 max-w-7xl mx-auto space-y-10 animate-in fade-in duration-700">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-10 animate-in fade-in duration-700 w-full overflow-hidden">
+            {/* Header section matches page.tsx style */}
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-8">
                 <div>
-                    <h1 className="text-4xl font-black text-secondary-900 tracking-tight flex items-center gap-3">
-                        <Activity className="w-10 h-10 text-primary-500" />
-                        Salud del Sistema
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="w-8 h-1 bg-emerald-500 rounded-full"></span>
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Gestión Global</span>
+                    </div>
+                    <h1 className="text-4xl lg:text-5xl font-black text-white italic tracking-tighter uppercase leading-none">
+                        Rendimiento
                     </h1>
-                    <p className="text-secondary-500 font-medium mt-2">
-                        Monitoreo en tiempo real de la infraestructura y base de datos.
-                    </p>
                 </div>
-                <RefreshButton />
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-6 w-full xl:w-auto">
+                    <RefreshButton />
+                </div>
             </div>
 
             {/* Grid de Métricas */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Tarjeta 1: Latencia DB */}
+                {/* Latencia DB */}
                 <div className={cn(
-                    "relative overflow-hidden p-8 rounded-[2.5rem] border-2 transition-all hover:shadow-2xl hover:-translate-y-1",
+                    "relative overflow-hidden p-8 rounded-[3rem] border border-slate-800 transition-all hover:shadow-2xl hover:-translate-y-1 group",
                     isLatencyHigh
-                        ? "bg-red-50 border-red-100 shadow-red-100/50"
-                        : "bg-white border-secondary-100 shadow-secondary-100/20"
+                        ? "bg-rose-500/5 shadow-rose-500/10"
+                        : "bg-slate-900/40 backdrop-blur-sm"
                 )}>
                     <div className={cn(
-                        "absolute top-0 right-0 p-4 opacity-10",
-                        isLatencyHigh ? "text-red-500" : "text-primary-500"
+                        "absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-500",
+                        isLatencyHigh ? "text-rose-500" : "text-emerald-500"
                     )}>
                         <Zap className="w-24 h-24" />
                     </div>
 
-                    <div className="relative z-10 space-y-4">
-                        <div className="flex items-center gap-3">
+                    <div className="relative z-10 space-y-6 flex flex-col h-full justify-between">
+                        <div className="flex items-center gap-4">
                             <div className={cn(
-                                "p-3 rounded-2xl",
-                                isLatencyHigh ? "bg-red-500 text-white" : "bg-primary-500 text-white"
+                                "p-4 rounded-[1.25rem] border shadow-inner flex items-center justify-center",
+                                isLatencyHigh ? "bg-rose-500/20 text-rose-500 border-rose-500/30" : "bg-emerald-500/20 text-emerald-500 border-emerald-500/30"
                             )}>
                                 <Zap className="w-6 h-6" />
                             </div>
-                            <span className="font-bold text-secondary-900">Latencia DB</span>
+                            <span className="font-black text-white text-lg uppercase tracking-widest italic text-center leading-none mt-2">Latencia DB</span>
                         </div>
 
                         <div>
                             <span className={cn(
-                                "text-5xl font-black",
-                                isLatencyHigh ? "text-red-600" : "text-emerald-600"
+                                "text-6xl font-black tracking-tighter italic leading-none block",
+                                isLatencyHigh ? "text-rose-500" : "text-emerald-500"
                             )}>
                                 {dbLatency}
                             </span>
-                            <span className="text-xl font-bold text-secondary-500 ml-2">ms</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">MS</span>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 mt-4">
                             <div className={cn(
                                 "w-3 h-3 rounded-full animate-pulse",
-                                isLatencyHigh ? "bg-red-500" : "bg-emerald-500"
+                                isLatencyHigh ? "bg-rose-500" : "bg-emerald-500"
                             )} />
-                            <p className="text-sm font-bold text-secondary-500 uppercase tracking-wider">
-                                {isLatencyHigh ? 'Rendimiento Crítico' : 'Rendimiento Óptimo'}
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                {isLatencyHigh ? 'Rendimiento Extremo' : 'Rendimiento Óptimo'}
                             </p>
                         </div>
                     </div>
                 </div>
 
-                {/* Tarjeta 2: Estado API / Carga */}
-                <div className="relative overflow-hidden p-8 rounded-[2.5rem] border-2 border-secondary-100 bg-white shadow-xl shadow-secondary-100/20 transition-all hover:shadow-2xl hover:-translate-y-1">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 text-secondary-500">
+                {/* Estado API / Carga */}
+                <div className="relative overflow-hidden p-8 rounded-[3rem] border border-slate-800 bg-slate-900/40 backdrop-blur-sm transition-all hover:shadow-2xl hover:-translate-y-1 group">
+                    <div className="absolute top-0 right-0 p-6 opacity-10 text-slate-500 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-500">
                         <Database className="w-24 h-24" />
                     </div>
 
-                    <div className="relative z-10 space-y-4">
-                        <div className="flex items-center gap-3">
-                            <div className="p-3 bg-secondary-900 rounded-2xl text-white">
+                    <div className="relative z-10 space-y-6 flex flex-col h-full justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="p-4 bg-slate-800 rounded-[1.25rem] border border-slate-700 text-slate-400 flex items-center justify-center">
                                 <Database className="w-6 h-6" />
                             </div>
-                            <span className="font-bold text-secondary-900">Estado API</span>
+                            <span className="font-black text-white text-lg uppercase tracking-widest italic text-center leading-none mt-2">Estado API</span>
                         </div>
 
                         <div>
-                            <span className="text-5xl font-black text-secondary-900">
+                            <span className="text-5xl font-black text-white tracking-tighter italic leading-none block uppercase">
                                 {dbStatus}
                             </span>
                         </div>
 
-                        <p className="text-sm font-medium text-secondary-500 leading-relaxed">
-                            Respuesta de conteo: <span className="font-bold text-secondary-900">{dataLatency}ms</span> para <span className="font-bold text-secondary-900">{count}</span> registros.
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 leading-relaxed mt-4">
+                            Conteo: <span className="text-emerald-500">{dataLatency}ms</span> para <span className="text-white">{count}</span> reg.
                         </p>
                     </div>
                 </div>
 
-                {/* Tarjeta 3: Región Servidor */}
-                <div className="relative overflow-hidden p-8 rounded-[2.5rem] border-2 border-secondary-100 bg-white shadow-xl shadow-secondary-100/20 transition-all hover:shadow-2xl hover:-translate-y-1 text-white bg-gradient-to-br from-secondary-900 via-secondary-800 to-black">
-                    <div className="absolute top-0 right-0 p-4 opacity-20 text-white">
-                        <Globe className="w-24 h-24" />
+                {/* Región Servidor */}
+                <div className="relative overflow-hidden p-8 rounded-[3rem] border border-slate-800 bg-slate-950 backdrop-blur-sm border-t-emerald-500/30 transition-all hover:shadow-2xl hover:-translate-y-1 group">
+                    <div className="absolute top-0 right-0 p-6 opacity-5 text-emerald-500 group-hover:scale-110 group-hover:-rotate-12 transition-transform duration-500">
+                        <Globe className="w-32 h-32" />
                     </div>
 
-                    <div className="relative z-10 space-y-4">
-                        <div className="flex items-center gap-3">
-                            <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl text-white border border-white/20">
+                    <div className="relative z-10 space-y-6 flex flex-col h-full justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="p-4 bg-emerald-500/10 rounded-[1.25rem] border border-emerald-500/20 text-emerald-500 flex items-center justify-center">
                                 <Server className="w-6 h-6" />
                             </div>
-                            <span className="font-bold text-white/80">Infraestructura</span>
+                            <span className="font-black text-white text-lg uppercase tracking-widest italic text-center leading-none mt-2">Host</span>
                         </div>
 
                         <div>
-                            <span className="text-4xl font-black text-white uppercase tracking-tight">
+                            <span className="text-4xl font-black text-white uppercase tracking-tighter italic leading-none block">
                                 {region}
                             </span>
                         </div>
 
-                        <div className="flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full border border-white/10 w-max">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white/60">
+                        <div className="flex items-center gap-2 mt-4 bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl w-max">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
                                 {isVercel ? 'Vercel Edge Network' : 'Entorno Local'}
                             </span>
                         </div>
@@ -152,31 +154,33 @@ export default async function PerformancePage() {
             </div>
 
             {/* Subsección de Detalles */}
-            <div className="bg-secondary-50 p-8 sm:p-10 rounded-[3rem] border border-secondary-100 space-y-6">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-2xl font-black text-secondary-900">Detalles de Conectividad</h2>
-                    <div className="flex items-center gap-2 text-primary-500 font-bold text-sm">
-                        <span>Ver logs completos</span>
-                        <ChevronRight className="w-4 h-4" />
+            <div className="bg-slate-900/50 backdrop-blur-md p-10 rounded-[3.5rem] border border-slate-800 space-y-8">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-6">
+                    <div>
+                        <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter">Detalles de Conexión</h2>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Logs crudos del host virtual</p>
+                    </div>
+                    <div className="hidden sm:flex items-center justify-center w-12 h-12 rounded-2xl bg-slate-950 border border-slate-800 text-slate-500">
+                        <Activity className="w-5 h-5" />
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm font-mono text-secondary-600 bg-white p-6 rounded-3xl border border-secondary-100">
-                    <div className="flex justify-between border-b border-secondary-50 pb-2">
-                        <span className="font-bold">Database Engine:</span>
-                        <span>PostgreSQL (Supabase)</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[11px] font-bold uppercase tracking-widest font-mono text-slate-400 bg-slate-950 p-6 md:p-8 rounded-[2rem] border border-slate-800">
+                    <div className="flex justify-between items-center border-b border-slate-800/50 pb-4">
+                        <span>Database Engine //</span>
+                        <span className="text-emerald-500">PostgreSQL (Supabase)</span>
                     </div>
-                    <div className="flex justify-between border-b border-secondary-50 pb-2">
-                        <span className="font-bold">Next.js Version:</span>
-                        <span>15.1.0</span>
+                    <div className="flex justify-between items-center border-b border-slate-800/50 pb-4">
+                        <span>Next.js Version //</span>
+                        <span className="text-blue-500">15.1.0</span>
                     </div>
-                    <div className="flex justify-between border-b border-secondary-50 pb-2">
-                        <span className="font-bold">Server Timestamp:</span>
-                        <span>{new Date().toISOString()}</span>
+                    <div className="flex justify-between items-center border-b md:border-b-0 md:border-r-0 border-slate-800/50 pb-4 md:pb-0 pt-4 md:pt-0">
+                        <span>Server Timestamp //</span>
+                        <span className="text-white normal-case">{new Date().toISOString()}</span>
                     </div>
-                    <div className="flex justify-between border-b border-secondary-50 pb-2">
-                        <span className="font-bold">Request Protocol:</span>
-                        <span>HTTPS/Edge</span>
+                    <div className="flex justify-between items-center pt-4 md:pt-0">
+                        <span>Request Protocol //</span>
+                        <span className="text-amber-500">HTTPS/Edge</span>
                     </div>
                 </div>
             </div>

@@ -19,9 +19,9 @@ export function RefreshButton() {
         <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="flex items-center gap-2 px-6 py-3 bg-white border border-secondary-200 rounded-2xl font-bold text-secondary-700 hover:bg-secondary-50 hover:shadow-md transition-all active:scale-95 disabled:opacity-50 group"
+            className="group relative flex items-center justify-center gap-3 px-8 py-4 bg-slate-900 border border-slate-800 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-slate-800 hover:border-emerald-500 transition-all active:scale-95 disabled:opacity-50 text-[10px]"
         >
-            <RefreshCcw className={`w-5 h-5 text-primary-500 ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
+            <RefreshCcw className={`w-5 h-5 text-emerald-500 ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
             <span>Recargar Pruebas</span>
         </button>
     );

@@ -4,23 +4,14 @@ import { useState } from 'react';
 import {
     Search,
     KeyRound,
-    MoreVertical,
     User,
     Building2,
     Shield,
     AlertCircle,
     CheckCircle2,
-    X
+    X,
+    MoreVertical
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter
-} from '@/components/ui/dialog';
 import { resetUserPassword } from '@/actions/users';
 import { cn } from '@/lib/utils';
 
@@ -66,158 +57,180 @@ export default function UsersClient({ initialUsers }: { initialUsers: GlobalUser
 
     return (
         <div className="space-y-6">
-            {/* Header / Search */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-[2.5rem] shadow-sm border border-secondary-100">
-                <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary-400" />
-                    <Input
-                        placeholder="Buscar por nombre, email o restaurante..."
-                        className="pl-12"
+            {/* Search */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="relative group flex-1 max-w-xl">
+                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-emerald-500 transition-colors" />
+                    <input
+                        type="text"
+                        placeholder="BUSCAR USUARIO O RESTAURANTE..."
+                        className="w-full pl-16 pr-8 py-5 bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-3xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-white text-xs uppercase tracking-widest"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <div className="flex items-center gap-2 text-secondary-500 text-sm font-bold">
-                    <span className="bg-secondary-100 px-3 py-1 rounded-full">{filteredUsers.length} Usuarios</span>
+                <div className="flex items-center gap-2 text-slate-400 font-bold">
+                    <span className="bg-slate-900 border border-slate-800 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest">
+                        {filteredUsers.length} Usuarios Encontrados
+                    </span>
                 </div>
             </div>
 
             {/* Users Table */}
-            <div className="bg-white rounded-[2.5rem] shadow-xl shadow-secondary-200/20 border border-secondary-100 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-secondary-50/50 border-b border-secondary-100">
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-secondary-400">Usuario</th>
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-secondary-400">Rol</th>
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-secondary-400">Restaurante</th>
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-secondary-400 text-right">Acciones</th>
+            <div className="bg-slate-900/40 backdrop-blur-sm rounded-[3.5rem] border border-slate-800 overflow-hidden shadow-2xl">
+                <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left">
+                        <thead className="bg-slate-950/20 border-b border-slate-800/50">
+                            <tr>
+                                <th className="px-12 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Usuario</th>
+                                <th className="px-12 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Rol / Permisos</th>
+                                <th className="px-12 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Tenant</th>
+                                <th className="px-12 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-right">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-secondary-50">
+                        <tbody className="divide-y divide-slate-800/50">
                             {filteredUsers.map((user) => (
-                                <tr key={user.id} className="hover:bg-secondary-50/30 transition-colors group">
-                                    <td className="px-8 py-6">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-2xl bg-primary-50 flex items-center justify-center text-primary-600">
-                                                <User className="w-6 h-6" />
+                                <tr key={user.id} className="group hover:bg-slate-800/20 transition-all duration-300">
+                                    <td className="px-12 py-8">
+                                        <div className="flex items-center gap-6">
+                                            <div className="w-14 h-14 rounded-[1.25rem] bg-slate-950 flex items-center justify-center border border-slate-800 group-hover:border-emerald-500/30 transition-all duration-500 shadow-xl overflow-hidden">
+                                                <User className="w-6 h-6 text-slate-600 group-hover:text-emerald-500 transition-colors" />
                                             </div>
                                             <div>
-                                                <p className="font-black text-secondary-900 leading-tight tracking-tight">
+                                                <p className="font-black text-white text-xl italic tracking-tighter uppercase group-hover:text-emerald-500 transition-colors leading-none">
                                                     {user.full_name || 'Sin Nombre'}
                                                 </p>
-                                                <p className="text-secondary-500 text-sm font-medium italic">
+                                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">
                                                     {user.email}
                                                 </p>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-8 py-6">
+                                    <td className="px-12 py-8">
                                         <div className={cn(
-                                            "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border",
-                                            user.role === 'owner' ? "bg-amber-50 text-amber-600 border-amber-100" :
-                                                user.role === 'admin' ? "bg-blue-50 text-blue-600 border-blue-100" :
-                                                    "bg-secondary-50 text-secondary-600 border-secondary-100"
+                                            "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border",
+                                            user.role === 'owner' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
+                                                user.role === 'admin' ? "bg-blue-500/10 text-blue-500 border-blue-500/20" :
+                                                    "bg-slate-800/50 text-slate-400 border-slate-700"
                                         )}>
                                             <Shield className="w-3 h-3" />
                                             {user.role}
                                         </div>
                                     </td>
-                                    <td className="px-8 py-6">
-                                        <div className="flex items-center gap-2 text-secondary-700 font-bold">
-                                            <Building2 className="w-4 h-4 text-secondary-400" />
-                                            {user.restaurant_name}
+                                    <td className="px-12 py-8">
+                                        <div className="flex items-center gap-3 text-slate-400 font-bold bg-slate-900 px-4 py-2 rounded-xl border border-slate-800 w-fit">
+                                            <Building2 className="w-4 h-4 text-emerald-500/50" />
+                                            <span className="font-black text-xs uppercase tracking-widest text-slate-300">{user.restaurant_name}</span>
                                         </div>
                                     </td>
-                                    <td className="px-8 py-6 text-right">
-                                        <Button
-                                            variant="ghost"
-                                            onClick={() => setSelectedUser(user)}
-                                            className="rounded-2xl hover:bg-primary-50 hover:text-primary-600 gap-2 h-12 px-6"
-                                        >
-                                            <KeyRound className="w-4 h-4" />
-                                            <span className="font-black text-xs uppercase tracking-widest">Reset Pass</span>
-                                        </Button>
+                                    <td className="px-12 py-8 text-right">
+                                        <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => setSelectedUser(user)}
+                                                className="group relative flex items-center justify-center gap-2 px-6 py-4 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-slate-900 rounded-2xl font-black uppercase tracking-widest border border-emerald-500/20 hover:border-emerald-500 transition-all active:scale-95 whitespace-nowrap"
+                                            >
+                                                <KeyRound className="w-4 h-4" />
+                                                <span className="text-[10px]">Restablecer</span>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
+
+                    {filteredUsers.length === 0 && (
+                        <div className="p-32 text-center">
+                            <User className="w-16 h-16 text-slate-800 mx-auto mb-6" />
+                            <h2 className="text-2xl font-black text-slate-700 uppercase italic tracking-tighter">No se encontraron usuarios</h2>
+                        </div>
+                    )}
                 </div>
             </div>
 
             {/* Reset Password Dialog */}
-            <Dialog open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
-                <DialogContent className="max-w-md p-0 overflow-hidden bg-white border-none shadow-2xl sm:rounded-[3rem] animate-scale-in">
-                    <div className="bg-secondary-900 p-8 text-white relative h-32 flex items-end">
-                        <div className="absolute top-0 right-0 p-8 opacity-10">
-                            <KeyRound className="w-24 h-24" />
-                        </div>
-                        <DialogHeader className="relative z-10 w-full">
-                            <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-3">
-                                <KeyRound className="w-6 h-6 text-primary-400" />
-                                Restaurar Contraseña
-                            </DialogTitle>
-                        </DialogHeader>
-                        <button
-                            onClick={() => setSelectedUser(null)}
-                            className="absolute top-6 right-6 p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
-                        >
-                            <X className="w-5 h-5 text-white" />
-                        </button>
-                    </div>
+            {selectedUser && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-2xl animate-in fade-in duration-500">
+                    <div className="bg-slate-900 w-full max-w-xl rounded-[3rem] border border-slate-800 shadow-2xl relative animate-in zoom-in-95 duration-300 overflow-hidden">
 
-                    <div className="p-8 space-y-6">
-                        {selectedUser && (
-                            <div className="p-4 bg-secondary-50 rounded-2xl border border-secondary-100 mb-6">
-                                <p className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1">Usuario seleccionado</p>
-                                <p className="font-black text-secondary-900">{selectedUser.full_name}</p>
-                                <p className="text-sm font-medium text-secondary-500 italic">{selectedUser.email}</p>
+                        <div className="bg-slate-900 p-10 md:p-12 relative flex items-end border-b border-slate-800/50">
+                            <div className="absolute top-0 right-0 p-8 opacity-5">
+                                <KeyRound className="w-32 h-32 text-emerald-500" />
                             </div>
-                        )}
-
-                        <div className="space-y-4">
-                            <label className="text-sm font-black text-secondary-700 uppercase tracking-widest ml-1">Nueva Contraseña</label>
-                            <Input
-                                type="password"
-                                placeholder="Escribe la nueva contraseña..."
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                            />
-                            <p className="text-[10px] text-secondary-400 font-bold px-1 italic">
-                                * Se recomienda usar al menos 8 caracteres con letras y símbolos.
-                            </p>
+                            <div className="relative z-10 w-full">
+                                <h2 className="text-3xl md:text-4xl font-black tracking-tighter uppercase italic text-white flex items-center gap-3">
+                                    <KeyRound className="w-8 h-8 text-emerald-500" />
+                                    Restaurar Acceso
+                                </h2>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Nueva Contraseña para Usuario</p>
+                            </div>
+                            <button
+                                onClick={() => setSelectedUser(null)}
+                                className="absolute top-6 right-6 p-4 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-2xl transition-all"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
                         </div>
 
-                        {status && (
-                            <div className={cn(
-                                "p-4 rounded-2xl flex items-center gap-3 animate-in slide-in-from-top-2 duration-300",
-                                status.type === 'success' ? "bg-emerald-50 text-emerald-700 border border-emerald-100" : "bg-red-50 text-red-700 border border-red-100"
-                            )}>
-                                {status.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-                                <p className="text-sm font-bold">{status.message}</p>
-                            </div>
-                        )}
-                    </div>
+                        <div className="p-10 md:p-12 space-y-8">
+                            {selectedUser && (
+                                <div className="p-6 bg-slate-950 rounded-[2rem] border border-slate-800 mb-6 flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center border border-slate-800 shrink-0">
+                                        <User className="w-5 h-5 text-slate-500" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mb-1">Usuario Seleccionado</p>
+                                        <p className="font-black text-white text-lg italic uppercase tracking-tighter leading-none">{selectedUser.full_name}</p>
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">{selectedUser.email}</p>
+                                    </div>
+                                </div>
+                            )}
 
-                    <DialogFooter className="p-8 bg-secondary-50/50 flex flex-col sm:flex-row gap-3 border-t border-secondary-100">
-                        <Button
-                            variant="ghost"
-                            className="rounded-2xl font-black h-12 uppercase tracking-widest flex-1"
-                            onClick={() => setSelectedUser(null)}
-                        >
-                            Cancelar
-                        </Button>
-                        <Button
-                            className="rounded-2xl font-black h-12 uppercase tracking-widest flex-1 bg-primary-600 hover:bg-primary-700"
-                            onClick={handleResetPassword}
-                            disabled={!newPassword || isResetting}
-                        >
-                            {isResetting ? 'Restaurando...' : 'Guardar Nueva'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">Nueva Contraseña</label>
+                                <input
+                                    type="password"
+                                    placeholder="ESCRÍBELA AQUÍ..."
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    className="w-full px-8 py-6 bg-slate-950 border border-slate-800 rounded-[2rem] focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-white uppercase tracking-widest text-sm shadow-inner placeholder:text-slate-700"
+                                />
+                                <p className="text-[9px] text-slate-600 font-black uppercase tracking-widest px-2">
+                                    * Se recomienda usar al menos 8 caracteres.
+                                </p>
+                            </div>
+
+                            {status && (
+                                <div className={cn(
+                                    "p-6 rounded-2xl flex items-center gap-4 animate-in slide-in-from-top-2 duration-300 font-black text-[10px] uppercase tracking-widest border",
+                                    status.type === 'success'
+                                        ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                                        : "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                                )}>
+                                    {status.type === 'success' ? <CheckCircle2 className="w-6 h-6" /> : <AlertCircle className="w-6 h-6" />}
+                                    <p>{status.message}</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-10 md:p-12 bg-slate-900/50 flex flex-col sm:flex-row gap-6 border-t border-slate-800/50">
+                            <button
+                                className="flex-1 py-6 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-[2rem] font-black uppercase tracking-widest transition-all active:scale-95 text-xs shadow-xl"
+                                onClick={() => setSelectedUser(null)}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                className="flex-[2] py-6 bg-emerald-500 text-slate-900 rounded-[2rem] font-black uppercase tracking-widest shadow-[0_10px_40px_rgba(16,185,129,0.3)] hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 text-xs text-center"
+                                onClick={handleResetPassword}
+                                disabled={!newPassword || isResetting}
+                            >
+                                {isResetting ? 'Aplicando Cambios...' : 'Guardar Nueva Contraseña'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
