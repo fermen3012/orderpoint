@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/browser';
 import QuickOrderMenu from '@/components/exo/QuickOrderMenu';
 import { useExoCartStore } from '@/store/exo-cart-store';
 import { useRestaurantStore } from '@/store/restaurant-store';
-import { Loader2, ArrowLeft, Send, LogOut, Trash2, AlertTriangle, X as CloseIcon } from 'lucide-react';
+import { Loader2, ArrowLeft, Send, LogOut, Trash2, AlertTriangle, CheckCircle2, Sparkles, X as CloseIcon } from 'lucide-react';
 import { useRouter } from '@/i18n/routing';
 import { formatPrice } from '@/lib/utils';
 
@@ -22,6 +22,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
     const [table, setTable] = useState<any>(null);
     const [isVaciarModalOpen, setIsVaciarModalOpen] = useState(false);
     const [isVaciarLoading, setIsVaciarLoading] = useState(false);
+    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
     const {
         items,
@@ -235,12 +236,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
         // Success flow
         decrementPendingOrders();
         setIsSending(false);
-        alert('¡Pedido enviado con éxito a la cocina!');
-
-        // Short delay before redirecting to let the user see the success
-        setTimeout(() => {
-            router.push('/exo/tables');
-        }, 500);
+        setIsSuccessModalOpen(true);
     };
 
     if (loading) {
@@ -360,6 +356,49 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                                 className="w-full py-4 bg-slate-700 hover:bg-slate-600 text-white rounded-2xl font-black uppercase tracking-widest transition-all active:scale-95"
                             >
                                 Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Success Modal */}
+            {isSuccessModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-500">
+                    <div className="bg-slate-900 w-full max-w-sm rounded-[3rem] border border-emerald-500/20 shadow-[0_0_50px_rgba(16,185,129,0.1)] overflow-hidden animate-in zoom-in-95 duration-500">
+                        <div className="p-10 text-center relative overflow-hidden">
+                            {/* Animated Background Decoration */}
+                            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-emerald-500/10 to-transparent pointer-events-none" />
+                            <div className="absolute -top-24 -right-24 w-48 h-48 bg-emerald-500/5 rounded-full blur-3xl" />
+                            <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-emerald-500/5 rounded-full blur-3xl" />
+
+                            <div className="relative z-10 flex flex-col items-center">
+                                <div className="w-24 h-24 bg-emerald-500 rounded-3xl flex items-center justify-center mb-6 shadow-[0_20px_40px_rgba(16,185,129,0.3)] rotate-3 animate-in zoom-in-50 duration-500">
+                                    <CheckCircle2 className="w-12 h-12 text-slate-900" />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-center gap-2">
+                                        <Sparkles className="w-4 h-4 text-emerald-500 animate-pulse" />
+                                        <h3 className="text-3xl font-black text-white italic tracking-tighter uppercase">¡Enviado!</h3>
+                                        <Sparkles className="w-4 h-4 text-emerald-500 animate-pulse" />
+                                    </div>
+                                    <p className="text-slate-400 font-bold text-sm leading-tight">
+                                        El pedido se ha enviado con éxito.<br />
+                                        ¡La cocina ya está en marcha!
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-6 bg-slate-800/50 border-t border-slate-800">
+                            <button
+                                onClick={() => {
+                                    setIsSuccessModalOpen(false);
+                                    router.push('/exo/tables');
+                                }}
+                                className="w-full py-5 bg-emerald-500 hover:bg-emerald-400 text-slate-900 rounded-[2rem] font-black uppercase tracking-widest transition-all active:scale-95 shadow-[0_10px_20px_rgba(16,185,129,0.2)]"
+                            >
+                                Continuar
                             </button>
                         </div>
                     </div>

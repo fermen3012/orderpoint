@@ -13,7 +13,7 @@ import { useReactToPrint } from 'react-to-print';
 import { getModifiersByProduct } from '@/actions/modifiers';
 import { getMenuWithSchedule } from '@/actions/products';
 import LanguageSwitcher from '@/components/kiosk/LanguageSwitcher';
-import { Globe, ShoppingBag, ArrowLeft, Utensils, Search } from 'lucide-react';
+import { Globe, ShoppingBag, ArrowLeft, Utensils, Search, CheckCircle2, Sparkles } from 'lucide-react';
 import { useRouter, usePathname } from '@/i18n/routing';
 import { useSearchParams } from 'next/navigation';
 import type { Database } from '@/lib/supabase/types';
@@ -46,6 +46,7 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
     const [restaurantName, setRestaurantName] = useState<string | null>(null);
     const [orderToPrint, setOrderToPrint] = useState<any | null>(null);
     const [isCartOpen, setIsCartOpen] = useState(false);
+    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
     const ticketRef = useRef<HTMLDivElement>(null);
 
@@ -283,6 +284,7 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
             setOrderToPrint(ticketData);
             clearCart();
             setIsCartOpen(false);
+            setIsSuccessModalOpen(true);
         } catch (error: any) {
             alert(`${t('orderError')}: ${error.message}`);
         } finally {
@@ -452,6 +454,48 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
             <div className="hidden">
                 {orderToPrint && <OrderTicket ref={ticketRef} order={orderToPrint} />}
             </div>
+
+            {/* Success Modal */}
+            {isSuccessModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-500">
+                    <div className="bg-white w-full max-w-md rounded-[3rem] border border-primary-500/20 shadow-[0_0_80px_rgba(16,185,129,0.15)] overflow-hidden animate-in zoom-in-95 duration-500">
+                        <div className="p-12 text-center relative overflow-hidden">
+                            {/* Animated Background Decoration */}
+                            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-primary-500/5 to-transparent pointer-events-none" />
+                            <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary-500/5 rounded-full blur-3xl opacity-50" />
+                            <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-primary-500/5 rounded-full blur-3xl opacity-50" />
+
+                            <div className="relative z-10 flex flex-col items-center">
+                                <div className="w-28 h-28 bg-primary-500 rounded-[2.5rem] flex items-center justify-center mb-8 shadow-[0_25px_50px_rgba(16,185,129,0.4)] rotate-3 animate-in zoom-in-50 duration-500">
+                                    <CheckCircle2 className="w-14 h-14 text-white" />
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-center gap-3">
+                                        <Sparkles className="w-6 h-6 text-primary-500 animate-pulse" />
+                                        <h3 className="text-4xl font-black text-slate-900 italic tracking-tighter uppercase">{t('orderPlaced')}</h3>
+                                        <Sparkles className="w-6 h-6 text-primary-500 animate-pulse" />
+                                    </div>
+                                    <p className="text-slate-500 font-bold text-lg leading-tight px-4">
+                                        {t('orderSuccessMessage')}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-8 bg-slate-50 border-t border-slate-100">
+                            <button
+                                onClick={() => {
+                                    setIsSuccessModalOpen(false);
+                                    router.push('/categories');
+                                }}
+                                className="w-full py-6 bg-primary-500 hover:bg-primary-600 text-white rounded-[2rem] font-black uppercase tracking-widest text-xl transition-all active:scale-95 shadow-[0_15px_30px_rgba(16,185,129,0.3)]"
+                            >
+                                {t('continue')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 }

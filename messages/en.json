@@ -10,6 +10,7 @@
         "total": "Total",
         "empty": "Your cart is empty",
         "orderPlaced": "Order placed!",
+        "orderSuccessMessage": "Your order has been successfully sent to the kitchen.",
         "orderNumber": "Order number",
         "orderError": "Error creating order",
         "selectModifiers": "Select your options",
