@@ -237,7 +237,7 @@ export default function TablesPage() {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4">
                                 <div>
                                     <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-2 px-2">Capacidad</label>
                                     <input
@@ -251,20 +251,6 @@ export default function TablesPage() {
                                         }}
                                         className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900"
                                     />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-2 px-2">Mesera (Opcional)</label>
-                                    <select
-                                        value={newTable.waitress_id}
-                                        onChange={(e) => setNewTable({ ...newTable, waitress_id: e.target.value })}
-                                        className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900 appearance-none bg-no-repeat bg-[right_1.5rem_center] bg-[length:1rem_1rem]"
-                                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='y19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")` }}
-                                    >
-                                        <option value="">Sin asignar</option>
-                                        {staff.map(s => (
-                                            <option key={s.id} value={s.id}>{s.full_name}</option>
-                                        ))}
-                                    </select>
                                 </div>
                             </div>
 
