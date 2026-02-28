@@ -137,7 +137,7 @@ export default function CategoriesPage() {
     };
 
     const handleDeleteCategory = async (id: string) => {
-        if (confirm('¿Estás seguro de eliminar esta categoría?')) {
+        if (confirm(t('deleteCategoryConfirm'))) {
             const { error } = await (adminSupabase.from('categories' as any) as any).delete().eq('id', id);
             if (!error) loadCategories();
         }
@@ -152,7 +152,7 @@ export default function CategoriesPage() {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
                 <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
-                <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Cargando Categorías...</p>
+                <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">{t('loadingCategories')}</p>
             </div>
         );
     }
@@ -164,7 +164,7 @@ export default function CategoriesPage() {
                 <div>
                     <div className="flex items-center gap-2 mb-2">
                         <span className="w-8 h-1 bg-emerald-500 rounded-full"></span>
-                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Arquitectura del Menú</span>
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">{t('menuArchitecture')}</span>
                     </div>
                     <h1 className="text-4xl lg:text-5xl font-black text-white italic tracking-tighter uppercase leading-none">
                         {t('categories')}
@@ -180,7 +180,7 @@ export default function CategoriesPage() {
                     className="group relative flex items-center justify-center gap-3 px-10 py-4 bg-emerald-500 text-slate-900 rounded-2xl font-black uppercase tracking-widest shadow-[0_10px_20px_rgba(16,185,129,0.2)] hover:-translate-y-1 transition-all active:scale-95 w-full lg:w-auto"
                 >
                     <Plus className="w-6 h-6" />
-                    <span>Nueva Categoría</span>
+                    <span>{t('newCategory')}</span>
                 </button>
             </div>
 
@@ -222,7 +222,7 @@ export default function CategoriesPage() {
                         </div>
 
                         <div className="text-center">
-                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Sección {idx + 1}</span>
+                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">{t('section')} {idx + 1}</span>
                             <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase leading-tight group-hover:text-emerald-500 transition-colors">
                                 {category.name}
                             </h3>
@@ -242,7 +242,7 @@ export default function CategoriesPage() {
                     <div className="w-16 h-16 rounded-3xl bg-slate-800 flex items-center justify-center mb-6 group-hover:bg-emerald-500 group-hover:text-slate-900 transition-all duration-500">
                         <Plus className="w-8 h-8" />
                     </div>
-                    <span className="text-xs font-black text-slate-600 uppercase tracking-widest group-hover:text-emerald-500 transition-colors">Añadir Categoría</span>
+                    <span className="text-xs font-black text-slate-600 uppercase tracking-widest group-hover:text-emerald-500 transition-colors">{t('addCategory')}</span>
                 </button>
             </div>
 
@@ -253,9 +253,9 @@ export default function CategoriesPage() {
                         <div className="p-10 md:p-12 border-b border-slate-800/50 flex justify-between items-center">
                             <div>
                                 <h1 className="text-3xl md:text-4xl font-black text-white italic tracking-tighter uppercase leading-none">
-                                    {editingCategory ? 'Editar' : 'Nueva'}
+                                    {editingCategory ? t('edit') : t('new')}
                                 </h1>
-                                <p className="text-slate-500 font-black uppercase tracking-widest text-[10px] mt-2 italic">Configuración de Menú</p>
+                                <p className="text-slate-500 font-black uppercase tracking-widest text-[10px] mt-2 italic">{t('menuConfig')}</p>
                             </div>
                             <button
                                 onClick={() => setIsModalOpen(false)}
@@ -267,7 +267,7 @@ export default function CategoriesPage() {
 
                         <form onSubmit={handleSaveCategory} className="p-10 md:p-12 space-y-10">
                             <div className="space-y-4">
-                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">Nombre de la Categoría</label>
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">{t('categoryName')}</label>
                                 <input
                                     type="text"
                                     required
@@ -279,14 +279,14 @@ export default function CategoriesPage() {
                             </div>
 
                             <div className="space-y-4">
-                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">Icono / Representación</label>
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">{t('iconRepresentation')}</label>
                                 <div className="relative aspect-[21/9] rounded-[2rem] overflow-hidden bg-slate-950 border-2 border-dashed border-slate-800 group transition-all hover:border-emerald-500/50">
                                     {newCategory.image_url ? (
                                         <>
                                             <img src={newCategory.image_url} alt="Preview" className="w-full h-full object-cover" />
                                             <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-sm">
                                                 <label className="cursor-pointer bg-emerald-500 text-slate-900 px-8 py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all text-xs">
-                                                    Cambiar Foto
+                                                    {t('changePhoto')}
                                                     <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
                                                 </label>
                                             </div>
@@ -296,7 +296,7 @@ export default function CategoriesPage() {
                                             <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center mb-4 border border-slate-700">
                                                 {uploadingImage ? <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500" /> : <ImageIcon className="w-8 h-8 text-slate-600" />}
                                             </div>
-                                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{uploadingImage ? 'Procesando...' : 'Subir Imagen Representativa'}</span>
+                                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{uploadingImage ? t('processing') : t('uploadRepresentativeImage')}</span>
                                             <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
                                         </label>
                                     )}
@@ -309,14 +309,14 @@ export default function CategoriesPage() {
                                     onClick={() => setIsModalOpen(false)}
                                     className="flex-1 py-6 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-[2rem] font-black uppercase tracking-widest transition-all active:scale-95 text-xs shadow-xl"
                                 >
-                                    Cancelar
+                                    {t('cancel')}
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={saving}
                                     className="flex-[2] py-6 bg-emerald-500 text-slate-900 rounded-[2rem] font-black uppercase tracking-widest shadow-[0_10px_40px_rgba(16,185,129,0.3)] hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0 text-xs text-center"
                                 >
-                                    {saving ? 'Guardando...' : (editingCategory ? 'Confirmar Cambios' : 'Crear Categoría')}
+                                    {saving ? t('saving') : (editingCategory ? t('confirmChanges') : t('createCategory'))}
                                 </button>
                             </div>
                         </form>

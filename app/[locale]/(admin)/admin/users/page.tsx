@@ -100,7 +100,7 @@ export default function UsersPage() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('¿Estás seguro de eliminar este usuario?')) return;
+        if (!confirm(t('deleteUserConfirm'))) return;
         const result = await deleteStaffUser(id);
         if (!result.error) {
             loadData();
@@ -116,7 +116,7 @@ export default function UsersPage() {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
                 <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
-                <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Cargando Personal...</p>
+                <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">{t('loadingStaff')}</p>
             </div>
         );
     }
@@ -128,10 +128,10 @@ export default function UsersPage() {
                 <div>
                     <div className="flex items-center gap-2 mb-2">
                         <span className="w-8 h-1 bg-emerald-500 rounded-full"></span>
-                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Gestión de Accesos</span>
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">{t('accessManagement')}</span>
                     </div>
                     <h1 className="text-4xl lg:text-5xl font-black text-white italic tracking-tighter uppercase leading-none">
-                        Personal
+                        {t('staff')}
                     </h1>
                 </div>
 
@@ -143,7 +143,7 @@ export default function UsersPage() {
                     className="group relative flex items-center justify-center gap-3 px-10 py-4 bg-emerald-500 text-slate-900 rounded-2xl font-black uppercase tracking-widest shadow-[0_10px_20px_rgba(16,185,129,0.2)] hover:-translate-y-1 transition-all active:scale-95 w-full lg:w-auto"
                 >
                     <UserPlus className="w-6 h-6" />
-                    <span>Añadir Miembro</span>
+                    <span>{t('addMember')}</span>
                 </button>
             </div>
 
@@ -153,11 +153,11 @@ export default function UsersPage() {
                     <table className="w-full">
                         <thead className="bg-slate-950/20">
                             <tr>
-                                <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">Nombre del Usuario</th>
-                                <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">Correo Electrónico</th>
-                                <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">Rol Asignado</th>
-                                <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">Sede / Restaurante</th>
-                                <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Acciones</th>
+                                <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">{t('userName')}</th>
+                                <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">{t('email')}</th>
+                                <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">{t('assignedRole')}</th>
+                                <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">{t('branchOrRestaurant')}</th>
+                                <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">{t('actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/50">
@@ -185,13 +185,13 @@ export default function UsersPage() {
                                                 profile.role === 'mesera' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
                                                     'bg-slate-500/10 text-slate-400 border-slate-500/20'
                                             }`}>
-                                            {profile.role === 'mesera' ? 'Mesera (Exo)' : profile.role}
+                                            {profile.role === 'mesera' ? t('roleWaitressExo') : profile.role}
                                         </span>
                                     </td>
                                     <td className="px-10 py-8">
                                         <div className="flex items-center gap-2 text-slate-500 font-black uppercase tracking-widest text-[10px]">
                                             <Store className="w-3 h-3" />
-                                            {profile.restaurant?.name || 'Sistema Central'}
+                                            {profile.restaurant?.name || t('centralSystem')}
                                         </div>
                                     </td>
                                     <td className="px-10 py-8">
@@ -249,8 +249,8 @@ export default function UsersPage() {
                         <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 flex items-center gap-4 mb-8">
                             <Store className="w-5 h-5 text-emerald-500/50" />
                             <div>
-                                <p className="text-[8px] text-slate-500 font-black uppercase tracking-[0.2em] mb-1">Centro de Trabajo</p>
-                                <p className="text-xs font-black text-white uppercase tracking-widest">{profile.restaurant?.name || 'GLOBAL'}</p>
+                                <p className="text-[8px] text-slate-500 font-black uppercase tracking-[0.2em] mb-1">{t('workCenter')}</p>
+                                <p className="text-xs font-black text-white uppercase tracking-widest">{profile.restaurant?.name || t('global')}</p>
                             </div>
                         </div>
 
@@ -260,14 +260,14 @@ export default function UsersPage() {
                                 className="flex-1 py-4 bg-slate-800 text-slate-400 rounded-2xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
                             >
                                 <Edit2 className="w-4 h-4" />
-                                Ajustar
+                                {t('adjust')}
                             </button>
                             <button
                                 onClick={() => handleDelete(profile.id)}
                                 className="flex-1 py-4 bg-red-500/10 text-red-500 rounded-2xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
                             >
                                 <Trash2 className="w-4 h-4" />
-                                Remover
+                                {t('remove')}
                             </button>
                         </div>
                     </div>
@@ -278,8 +278,8 @@ export default function UsersPage() {
             {users.length === 0 && (
                 <div className="p-24 text-center bg-slate-900/20 rounded-[4rem] border border-dashed border-slate-800">
                     <Users className="w-16 h-16 text-slate-700 mx-auto mb-6" />
-                    <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter mb-2">Sin Equipo Registrado</h2>
-                    <p className="text-slate-500 font-bold text-sm">Comienza a construir tu equipo de trabajo hoy mismo.</p>
+                    <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter mb-2">{t('noTeamRegistered')}</h2>
+                    <p className="text-slate-500 font-bold text-sm">{t('startBuildingTeam')}</p>
                 </div>
             )}
 
@@ -290,9 +290,9 @@ export default function UsersPage() {
                         <div className="p-10 md:p-12 border-b border-slate-800/50 flex justify-between items-center bg-slate-900/50 backdrop-blur-md rounded-t-[3rem] sticky top-0 z-10">
                             <div>
                                 <h1 className="text-3xl md:text-4xl font-black text-white italic tracking-tighter uppercase leading-none">
-                                    {editingUser ? 'Editar' : 'Nuevo'} Miembro
+                                    {editingUser ? t('edit') : t('newMasc')} {t('member')}
                                 </h1>
-                                <p className="text-slate-500 font-black uppercase tracking-widest text-[10px] mt-2 italic">Credenciales y Seguridad</p>
+                                <p className="text-slate-500 font-black uppercase tracking-widest text-[10px] mt-2 italic">{t('credentialsAndSecurity')}</p>
                             </div>
                             <button
                                 onClick={handleCloseModal}
@@ -304,7 +304,7 @@ export default function UsersPage() {
 
                         <form onSubmit={handleSubmit} className="p-10 md:p-12 space-y-8">
                             <div className="space-y-3">
-                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">Nombre completo del trabajador</label>
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">{t('workerFullName')}</label>
                                 <div className="relative group">
                                     <input
                                         name="fullName"
@@ -318,7 +318,7 @@ export default function UsersPage() {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">Correo Electrónico</label>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">{t('email')}</label>
                                     <div className="relative group">
                                         <Mail className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-emerald-500 transition-colors" />
                                         <input
@@ -333,7 +333,7 @@ export default function UsersPage() {
                                 </div>
                                 <div className="space-y-3">
                                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">
-                                        Clave de Acceso {editingUser && '(Opcional)'}
+                                        {t('accessKey')} {editingUser && `(${t('optional')})`}
                                     </label>
                                     <div className="relative group">
                                         <Lock className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-emerald-500 transition-colors" />
@@ -350,28 +350,28 @@ export default function UsersPage() {
 
                             <div className={`grid ${userProfile?.is_super_admin ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'} gap-8`}>
                                 <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">Nivel de Privilegios (Rol)</label>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">{t('privilegeLevelRole')}</label>
                                     <select
                                         name="role"
                                         defaultValue={editingUser?.role || 'kitchen'}
                                         className="w-full px-8 py-5 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-white appearance-none uppercase tracking-widest text-xs italic"
                                     >
-                                        <option value="mesera" className="bg-slate-900">Mesera (Servicio)</option>
-                                        <option value="kitchen" className="bg-slate-900">Equipo de Cocina</option>
-                                        <option value="kiosk" className="bg-slate-900">Terminal de Quiosco</option>
-                                        <option value="admin" className="bg-slate-900">Administrador de Local</option>
+                                        <option value="mesera" className="bg-slate-900">{t('waitressService')}</option>
+                                        <option value="kitchen" className="bg-slate-900">{t('kitchenTeam')}</option>
+                                        <option value="kiosk" className="bg-slate-900">{t('kioskTerminal')}</option>
+                                        <option value="admin" className="bg-slate-900">{t('localAdmin')}</option>
                                     </select>
                                 </div>
 
                                 {userProfile?.is_super_admin && (
                                     <div className="space-y-3">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">Asignación de Restaurante</label>
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">{t('restaurantAssignment')}</label>
                                         <select
                                             name="restaurantId"
                                             defaultValue={editingUser?.restaurant_id || ''}
                                             className="w-full px-8 py-5 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-white appearance-none uppercase tracking-widest text-xs italic"
                                         >
-                                            <option value="" className="bg-slate-900">Seleccionar Localidad...</option>
+                                            <option value="" className="bg-slate-900">{t('selectLocation')}</option>
                                             {restaurants.map(r => (
                                                 <option key={r.id} value={r.id} className="bg-slate-900">{r.name.toUpperCase()}</option>
                                             ))}
@@ -392,14 +392,14 @@ export default function UsersPage() {
                                     onClick={handleCloseModal}
                                     className="flex-1 py-6 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-[2rem] font-black uppercase tracking-widest transition-all active:scale-95 text-[10px] shadow-xl"
                                 >
-                                    Descartar
+                                    {t('discard')}
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={creating}
                                     className="flex-[2] py-6 bg-emerald-500 text-slate-900 rounded-[2rem] font-black uppercase tracking-widest shadow-[0_10px_40px_rgba(16,185,129,0.3)] hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3 text-[10px] text-center"
                                 >
-                                    {creating ? <Loader2 className="w-5 h-5 animate-spin" /> : (editingUser ? 'Actualizar Ficha' : 'Habilitar Acceso')}
+                                    {creating ? <Loader2 className="w-5 h-5 animate-spin" /> : (editingUser ? t('updateRecord') : t('enableAccess'))}
                                 </button>
                             </div>
                         </form>

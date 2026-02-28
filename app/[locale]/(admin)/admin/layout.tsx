@@ -25,6 +25,7 @@ import {
     Sparkles
 } from 'lucide-react';
 import { SidebarLink } from '@/components/admin/SidebarLink';
+import AdminLanguageSwitcher from '@/components/admin/AdminLanguageSwitcher';
 
 export default function ProtectedAdminLayout({
     children,
@@ -118,7 +119,7 @@ export default function ProtectedAdminLayout({
                     <div className="w-16 h-16 border-4 border-emerald-500/20 rounded-full animate-ping absolute inset-0"></div>
                     <div className="w-16 h-16 border-t-4 border-emerald-500 rounded-full animate-spin"></div>
                 </div>
-                <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-[10px] animate-pulse">Iniciando Panel...</p>
+                <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-[10px] animate-pulse">{t('startingPanel')}</p>
             </div>
         );
     }
@@ -128,10 +129,10 @@ export default function ProtectedAdminLayout({
         { icon: <ShoppingBag className="w-5 h-5" />, label: t('orders'), href: '#' },
         { icon: <Package className="w-5 h-5" />, label: t('products'), href: '/admin/products' },
         { icon: <List className="w-5 h-5" />, label: t('categories'), href: '/admin/categories' },
-        { icon: <Calendar className="w-5 h-5" />, label: 'Programación', href: '/admin/schedule' },
-        { icon: <ChefHat className="w-5 h-5" />, label: 'Ingredientes', href: '/admin/ingredients' },
-        { icon: <Utensils className="w-5 h-5" />, label: 'Mesas', href: '/admin/tables' },
-        { icon: <CreditCard className="w-5 h-5" />, label: 'Facturación', href: '/admin/billing' },
+        { icon: <Calendar className="w-5 h-5" />, label: t('schedule'), href: '/admin/schedule' },
+        { icon: <ChefHat className="w-5 h-5" />, label: t('ingredients'), href: '/admin/ingredients' },
+        { icon: <Utensils className="w-5 h-5" />, label: t('tables'), href: '/admin/tables' },
+        { icon: <CreditCard className="w-5 h-5" />, label: t('billing'), href: '/admin/billing' },
         { icon: <Users className="w-5 h-5" />, label: t('users'), href: '/admin/users' },
     ];
 
@@ -183,7 +184,7 @@ export default function ProtectedAdminLayout({
                                             <div className="flex items-center gap-1.5 mt-1">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                                                 <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] leading-none">
-                                                    Propietario
+                                                    {t('owner')}
                                                 </span>
                                             </div>
                                         </>
@@ -250,17 +251,18 @@ export default function ProtectedAdminLayout({
                                     {navigation.find(n => pathname.includes(n.href) && n.href !== '#')?.label || 'Dashboard'}
                                 </h1>
                                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">
-                                    GESTIÓN DE RESTAURANTE
+                                    {t('restaurantManagement')}
                                 </p>
                             </div>
                         </div>
 
                         {/* Top Right Actions (can be expanded) */}
                         <div className="flex items-center gap-3">
+                            <AdminLanguageSwitcher />
                             <div className="hidden sm:flex items-center gap-3 px-4 py-2 bg-slate-900 border border-slate-800 rounded-2xl">
                                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
-                                    SINCRO OK
+                                    {t('syncOk')}
                                 </span>
                             </div>
                         </div>

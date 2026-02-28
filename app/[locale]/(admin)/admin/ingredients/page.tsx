@@ -97,7 +97,7 @@ export default function IngredientsPage() {
     };
 
     const handleDeleteIngredient = async (id: string) => {
-        if (confirm('¿Estás seguro de eliminar este ingrediente?')) {
+        if (confirm(t('deleteIngredientConfirm'))) {
             const supabase = createClient();
             const { error } = await (supabase.from('ingredients' as any) as any).delete().eq('id', id);
             if (!error) loadIngredients();
@@ -118,7 +118,7 @@ export default function IngredientsPage() {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
                 <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
-                <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Cargando Ingredientes...</p>
+                <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">{t('loadingIngredients')}</p>
             </div>
         );
     }
@@ -130,10 +130,10 @@ export default function IngredientsPage() {
                 <div>
                     <div className="flex items-center gap-2 mb-2">
                         <span className="w-8 h-1 bg-emerald-500 rounded-full"></span>
-                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Gestión de Atributos</span>
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">{t('attributeManagement')}</span>
                     </div>
                     <h1 className="text-4xl lg:text-5xl font-black text-white italic tracking-tighter uppercase leading-none">
-                        Ingredientes
+                        {t('ingredients')}
                     </h1>
                 </div>
 
@@ -142,7 +142,7 @@ export default function IngredientsPage() {
                         <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-emerald-500 transition-colors" />
                         <input
                             type="text"
-                            placeholder="FILTRAR POR NOMBRE..."
+                            placeholder={t('filterByName')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full pl-16 pr-8 py-5 bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-3xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-white text-xs uppercase tracking-widest"
@@ -157,7 +157,7 @@ export default function IngredientsPage() {
                         className="group relative flex items-center justify-center gap-3 px-10 py-5 bg-emerald-500 text-slate-900 rounded-[2rem] font-black uppercase tracking-widest shadow-[0_10px_25px_rgba(16,185,129,0.3)] hover:-translate-y-1 transition-all active:scale-95 whitespace-nowrap"
                     >
                         <Plus className="w-6 h-6" />
-                        <span>Añadir Nuevo</span>
+                        <span>{t('addNew')}</span>
                     </button>
                 </div>
             </div>
@@ -168,9 +168,9 @@ export default function IngredientsPage() {
                     <table className="w-full">
                         <thead className="bg-slate-950/20 border-b border-slate-800/50">
                             <tr>
-                                <th className="px-12 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Especificación del Ingrediente</th>
-                                <th className="px-12 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Registro de Sistema</th>
-                                <th className="px-12 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-right">Controles</th>
+                                <th className="px-12 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">{t('ingredientSpecification')}</th>
+                                <th className="px-12 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">{t('systemRegistry')}</th>
+                                <th className="px-12 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-right">{t('controls')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/50">
@@ -221,7 +221,7 @@ export default function IngredientsPage() {
                     {filteredIngredients.length === 0 && (
                         <div className="p-32 text-center">
                             <ChefHat className="w-16 h-16 text-slate-800 mx-auto mb-6" />
-                            <h2 className="text-2xl font-black text-slate-700 uppercase italic tracking-tighter">Sin Resultados Encontrados</h2>
+                            <h2 className="text-2xl font-black text-slate-700 uppercase italic tracking-tighter">{t('noResultsFound')}</h2>
                         </div>
                     )}
                 </div>
@@ -252,14 +252,14 @@ export default function IngredientsPage() {
                                 className="flex-1 py-4 bg-slate-800 text-slate-400 rounded-2xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-lg"
                             >
                                 <Pencil className="w-4 h-4" />
-                                Editar
+                                {t('edit')}
                             </button>
                             <button
                                 onClick={() => handleDeleteIngredient(ingredient.id)}
                                 className="flex-1 py-4 bg-red-500/10 text-red-500 rounded-2xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-lg border border-red-500/20"
                             >
                                 <Trash2 className="w-4 h-4" />
-                                Borrar
+                                {t('delete')}
                             </button>
                         </div>
                     </div>
@@ -268,7 +268,7 @@ export default function IngredientsPage() {
                 {filteredIngredients.length === 0 && (
                     <div className="p-20 text-center bg-slate-900/20 rounded-[3rem] border border-dashed border-slate-800">
                         <Search className="w-12 h-12 text-slate-800 mx-auto mb-4" />
-                        <p className="font-black text-slate-600 uppercase tracking-widest text-xs">No hay coincidencias.</p>
+                        <p className="font-black text-slate-600 uppercase tracking-widest text-xs">{t('noMatches')}</p>
                     </div>
                 )}
             </div>
@@ -280,9 +280,9 @@ export default function IngredientsPage() {
                         <div className="p-10 md:p-12 border-b border-slate-800/50 flex justify-between items-center bg-slate-900/50 backdrop-blur-md rounded-t-[3rem]">
                             <div>
                                 <h1 className="text-3xl md:text-4xl font-black text-white italic tracking-tighter uppercase leading-none">
-                                    {editingIngredient ? 'Editar' : 'Nuevo'}
+                                    {editingIngredient ? t('edit') : t('newMasc')}
                                 </h1>
-                                <p className="text-slate-500 font-black uppercase tracking-widest text-[10px] mt-2 italic">Registro de Componentes</p>
+                                <p className="text-slate-500 font-black uppercase tracking-widest text-[10px] mt-2 italic">{t('componentRegistry')}</p>
                             </div>
                             <button
                                 onClick={() => setIsModalOpen(false)}
@@ -294,7 +294,7 @@ export default function IngredientsPage() {
 
                         <form onSubmit={handleSaveIngredient} className="p-10 md:p-12 space-y-10">
                             <div className="space-y-4">
-                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">Denominación del Ingrediente</label>
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">{t('ingredientDenomination')}</label>
                                 <input
                                     type="text"
                                     required
@@ -312,14 +312,14 @@ export default function IngredientsPage() {
                                     onClick={() => setIsModalOpen(false)}
                                     className="flex-1 py-6 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-[2rem] font-black uppercase tracking-widest transition-all active:scale-95 text-xs shadow-xl"
                                 >
-                                    Cancelar
+                                    {t('cancel')}
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={saving}
                                     className="flex-[2] py-6 bg-emerald-500 text-slate-900 rounded-[2rem] font-black uppercase tracking-widest shadow-[0_10px_40px_rgba(16,185,129,0.3)] hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 text-xs text-center"
                                 >
-                                    {saving ? 'Procesando...' : (editingIngredient ? 'Confirmar Ajuste' : 'Registrar Ingrediente')}
+                                    {saving ? t('processing') : (editingIngredient ? t('confirmAdjustment') : t('registerIngredient'))}
                                 </button>
                             </div>
                         </form>

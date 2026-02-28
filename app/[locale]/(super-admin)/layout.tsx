@@ -13,7 +13,8 @@ import {
     Menu,
     ChevronLeft,
     ChevronRight,
-    Sparkles
+    Sparkles,
+    CreditCard
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/browser';
 import { useRouter } from '@/i18n/routing';
@@ -40,6 +41,7 @@ export default function SuperAdminLayout({
         { icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard', href: '/super-admin/dashboard' },
         { icon: <Building2 className="w-5 h-5" />, label: 'Restaurantes', href: '/super-admin/restaurants' },
         { icon: <Users className="w-5 h-5" />, label: 'Usuarios', href: '/super-admin/users' },
+        { icon: <CreditCard className="w-5 h-5" />, label: 'Facturación', href: '/super-admin/billing' },
         { icon: <Activity className="w-5 h-5" />, label: 'Sistema', href: '/super-admin/performance' },
     ];
 

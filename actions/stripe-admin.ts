@@ -88,6 +88,62 @@ export async function getAllCustomersBilling(): Promise<BillingCustomer[]> {
     }
 }
 
+export async function getOwnerBilling(restaurantId: string): Promise<BillingCustomer | null> {
+    const supabase = await createClient();
+
+    try {
+        const { data: restaurant, error } = await (supabase
+            .from('restaurants' as any) as any)
+            .select('id, name, stripe_customer_id, stripe_subscription_id, plan_quantity, subscription_status')
+            .eq('id', restaurantId)
+            .single();
+
+        if (error || !restaurant) return null;
+
+        let mrr = 0;
+        let next_billing_date = '';
+        let currency = 'usd';
+        let status = restaurant.subscription_status || 'inactive';
+        let quantity = restaurant.plan_quantity || 1;
+
+        if (restaurant.stripe_subscription_id) {
+            try {
+                const sub = await stripe.subscriptions.retrieve(restaurant.stripe_subscription_id);
+                status = sub.status;
+
+                if (sub.items.data.length > 0) {
+                    const mainItem = sub.items.data[0];
+                    const price = mainItem.price.unit_amount || 0;
+                    quantity = mainItem.quantity || 1;
+                    mrr = (price * quantity) / 100;
+                    currency = mainItem.price.currency;
+                }
+
+                next_billing_date = new Date((sub as any).current_period_end * 1000).toISOString();
+            } catch (stripeError) {
+                console.error(`Stripe Error for ${restaurant.id}:`, stripeError);
+                status = 'error_sync';
+            }
+        }
+
+        return {
+            id: restaurant.id,
+            name: restaurant.name,
+            stripe_customer_id: restaurant.stripe_customer_id,
+            stripe_subscription_id: restaurant.stripe_subscription_id,
+            plan_quantity: quantity,
+            subscription_status: status,
+            mrr,
+            next_billing_date,
+            currency
+        };
+
+    } catch (err: any) {
+        console.error('getOwnerBilling Error:', err);
+        return null;
+    }
+}
+
 export async function updateSubscriptionQuantity(restaurantId: string, newQuantity: number) {
     const supabase = await createClient();
 
