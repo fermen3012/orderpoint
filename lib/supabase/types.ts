@@ -319,6 +319,9 @@ export interface Database {
                     full_name: string | null
                     is_super_admin: boolean
                     created_at: string
+                    terms_accepted: boolean | null
+                    terms_accepted_at: string | null
+                    terms_version: string | null
                 }
                 Insert: {
                     id: string
@@ -327,6 +330,9 @@ export interface Database {
                     full_name?: string | null
                     is_super_admin?: boolean
                     created_at?: string
+                    terms_accepted?: boolean | null
+                    terms_accepted_at?: string | null
+                    terms_version?: string | null
                 }
                 Update: {
                     id?: string
@@ -335,6 +341,9 @@ export interface Database {
                     full_name?: string | null
                     is_super_admin?: boolean
                     created_at?: string
+                    terms_accepted?: boolean | null
+                    terms_accepted_at?: string | null
+                    terms_version?: string | null
                 }
             }
             tables: {

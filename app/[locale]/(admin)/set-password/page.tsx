@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { createClient } from '@/lib/supabase/browser';
 import { useRouter } from '@/i18n/routing';
-import { Lock, User, Loader2, CheckCircle2 } from 'lucide-react';
+import { Lock, User, Loader2, CheckCircle2, ScrollText, X } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
 
@@ -25,6 +25,7 @@ export default function SetPasswordPage() {
     const [hasSession, setHasSession] = useState(false);
     const [checkingSession, setCheckingSession] = useState(true);
     const [termsAccepted, setTermsAccepted] = useState(false);
+    const [showTerms, setShowTerms] = useState(false);
 
     useEffect(() => {
         let isMounted = true;
@@ -294,7 +295,7 @@ export default function SetPasswordPage() {
                             className="mt-1"
                         />
                         <label htmlFor="terms" className="text-sm text-slate-500 font-medium leading-tight">
-                            He leído y acepto los <a href={`/${locale}/legal/terms`} target="_blank" rel="noopener noreferrer" className="text-primary-600 font-bold hover:underline">Términos y Condiciones</a> y la Política de Privacidad de OrderPoint.
+                            He leído y acepto los <button type="button" onClick={() => setShowTerms(true)} className="text-primary-600 font-bold hover:underline">Términos y Condiciones</button> y la Política de Privacidad de OrderPoint.
                         </label>
                     </div>
 
@@ -318,6 +319,63 @@ export default function SetPasswordPage() {
                     </button>
                 </form>
             </div>
+
+            {/* Terms Modal */}
+            {showTerms && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+                        <div className="relative p-6 pt-8 pb-4 border-b border-slate-100 shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setShowTerms(false)}
+                                className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full transition-colors"
+                            >
+                                <X className="w-6 h-6 text-slate-400" />
+                            </button>
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-primary-50 rounded-2xl">
+                                    <ScrollText className="w-6 h-6 text-primary-600" />
+                                </div>
+                                <h2 className="text-2xl font-black text-slate-900 leading-tight">
+                                    Términos y Condiciones
+                                </h2>
+                            </div>
+                        </div>
+                        <div className="p-8 overflow-y-auto grow text-slate-600 space-y-4">
+                            <p className="font-medium">
+                                Bienvenido a OrderPoint. Al aceptar esta invitación y usar nuestros servicios, aceptas estos términos.
+                            </p>
+                            <h3 className="font-bold text-slate-900 pt-2">1. Uso del Servicio</h3>
+                            <p className="text-sm leading-relaxed">
+                                El usuario se compromete a utilizar la plataforma de acuerdo con la ley, la moral y el orden público. Toda la información proporcionada debe ser veraz.
+                            </p>
+                            <h3 className="font-bold text-slate-900 pt-2">2. Privacidad y Datos</h3>
+                            <p className="text-sm leading-relaxed">
+                                Nos tomamos muy en serio tu privacidad. Lee nuestra política de privacidad completa para entender cómo manejamos tus datos. No compartimos tu información con terceros sin consentimiento.
+                            </p>
+                            <h3 className="font-bold text-slate-900 pt-2">3. Responsabilidad</h3>
+                            <p className="text-sm leading-relaxed">
+                                OrderPoint provee la infraestructura tecnológica, pero el negocio es responsable del manejo de sus operaciones, menú, cobros e impuestos aplicables.
+                            </p>
+                            <div className="mt-6 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-500 uppercase tracking-widest text-center">
+                                Versión v1.0 - Última actualización: Marzo 2026
+                            </div>
+                        </div>
+                        <div className="p-6 border-t border-slate-100 shrink-0 bg-slate-50">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setTermsAccepted(true);
+                                    setShowTerms(false);
+                                }}
+                                className="w-full bg-primary-500 hover:bg-primary-600 text-white font-black py-4 rounded-[1.5rem] transition-all shadow-lg hover:-translate-y-0.5 tracking-widest uppercase text-sm"
+                            >
+                                HE LEÍDO Y ACEPTO LOS TÉRMINOS
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
