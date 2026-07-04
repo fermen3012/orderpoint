@@ -45,8 +45,9 @@ export async function updateSession(request: NextRequest, response: NextResponse
         const isKitchenRoute = pathname.includes('/kitchen')
         const isKioskRoute = pathname.includes('/kiosk')
         const isAdminRoute = pathname.match(/\/(es|en)\/admin/)
+        const isExoRoute = pathname.includes('/exo')
 
-        if (isSuperAdminRoute || isKitchenRoute || isKioskRoute || isAdminRoute) {
+        if (isSuperAdminRoute || isKitchenRoute || isKioskRoute || isAdminRoute || isExoRoute) {
             const localeMatch = pathname.match(/^\/(es|en)/);
             const locale = (localeMatch ? localeMatch[0] : '/es').replace(/^\//, '');
 
@@ -89,6 +90,10 @@ export async function updateSession(request: NextRequest, response: NextResponse
             }
 
             if (isAdminRoute && profile.role !== 'admin' && profile.role !== 'owner') {
+                return createRedirect(`/${locale}/login`);
+            }
+
+            if (isExoRoute && profile.role !== 'mesera' && profile.role !== 'admin' && profile.role !== 'owner' && !profile.is_super_admin) {
                 return createRedirect(`/${locale}/login`);
             }
         }

@@ -2,12 +2,10 @@ import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { supabaseAdmin } from '@/lib/supabase/server-admin';
-
-
+import { stripe } from '@/lib/stripe';
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
-// Add GET method to avoid 405 error when testing in browser
 export async function GET() {
     return new NextResponse('Stripe Webhook Endpoint is active. Please use POST to send events.', { status: 200 });
 }
@@ -15,11 +13,6 @@ export async function GET() {
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
-    // Initialize Stripe with a fallback key to prevent build-time errors.
-    // The actual key check happens below.
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_build_placeholder', {
-        typescript: true,
-    });
     const body = await request.text();
     const sig = (await headers()).get('stripe-signature') as string;
 
@@ -27,7 +20,7 @@ export async function POST(request: Request) {
 
     try {
         if (!sig || !endpointSecret || !process.env.STRIPE_SECRET_KEY) {
-            console.error('Webhook Error: Missing signature, endpoint secret, or Stripe key');
+            console.error('Webhook Error: Configuration variables are missing');
             return new NextResponse('Webhook Error: Configuration missing', { status: 400 });
         }
         event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
@@ -36,105 +29,167 @@ export async function POST(request: Request) {
         return new NextResponse(`Webhook Error: ${err.message}`, { status: 400 });
     }
 
-    // Handle the event
     try {
         switch (event.type) {
-            // Event sent when a checkout session is successfully completed (payment made)
             case 'checkout.session.completed': {
                 const session = event.data.object as Stripe.Checkout.Session;
-
-                // This is the critical part: client_reference_id must be the restaurantId sent from frontend
                 const restaurantId = session.client_reference_id;
                 const customerId = session.customer as string;
+                const subscriptionId = session.subscription as string;
 
                 if (!restaurantId) {
-                    console.warn('⚠️ No client_reference_id found in session. Cannot link to restaurant.');
+                    console.warn('⚠️ No client_reference_id found in checkout session.');
                     break;
                 }
 
-                console.log(`✅ Payment received for Restaurant ID: ${restaurantId}`);
+                if (!subscriptionId) {
+                    console.error('❌ No subscription ID found in checkout session.');
+                    return new NextResponse('Webhook Error: Subscription ID is required', { status: 400 });
+                }
 
-                // Calculate period end if available, otherwise default to a month from now (logic can vary)
-                // Usually, for subscriptions, we might listen to 'invoice.payment_succeeded' for recurring updates,
-                // but 'checkout.session.completed' is great for the initial activation.
+                console.log(`✅ Checkout completed for Restaurant ID: ${restaurantId}`);
 
-                // If it's a subscription, let's fetch it to get precise dates
+                let status = 'active';
+                let quantity = 1;
                 let currentPeriodEnd = new Date();
-                currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1); // Default backup
+                currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1); // Default backup date
 
-                if (session.subscription) {
-                    const subscription: any = await stripe.subscriptions.retrieve(session.subscription as string);
-                    currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+                if (subscriptionId) {
+                    try {
+                        const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any;
+                        status = subscription.status;
+                        currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+                        if (subscription.items?.data?.length > 0) {
+                            quantity = subscription.items.data[0].quantity || 1;
+                        }
+                    } catch (stripeError) {
+                        console.error('Error fetching subscription details from Stripe:', stripeError);
+                    }
                 }
 
                 // Update Supabase
                 const { error } = await (supabaseAdmin
                     .from('restaurants' as any) as any)
                     .update({
-                        subscription_status: 'active',
+                        subscription_status: status,
                         stripe_customer_id: customerId,
+                        stripe_subscription_id: subscriptionId,
+                        plan_quantity: quantity,
                         current_period_end: currentPeriodEnd.toISOString()
                     })
                     .eq('id', restaurantId);
 
                 if (error) {
-                    console.error('❌ Failed to update restaurant in Supabase:', error);
+                    console.error('❌ Failed to update restaurant subscription in database:', error);
                     return new NextResponse('Database Error', { status: 500 });
                 }
 
-                console.log(`🎉 Restaurant ${restaurantId} activated successfully.`);
+                console.log(`🎉 Restaurant ${restaurantId} subscription initialized successfully.`);
                 break;
             }
 
-            // Event sent when a subscription is canceled or unpaid
-            case 'customer.subscription.deleted': {
-                const subscription = event.data.object as Stripe.Subscription;
+            case 'customer.subscription.created':
+            case 'customer.subscription.updated': {
+                const subscription = event.data.object as any;
                 const customerId = subscription.customer as string;
+                const subscriptionId = subscription.id;
+                const status = subscription.status;
+                const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+                let quantity = 1;
 
-                // Find restaurant by stripe_customer_id
+                if (subscription.items?.data?.length > 0) {
+                    quantity = subscription.items.data[0].quantity || 1;
+                }
+
+                // Sync with DB
                 const { error } = await (supabaseAdmin
                     .from('restaurants' as any) as any)
-                    .update({ subscription_status: 'inactive' })
+                    .update({
+                        stripe_subscription_id: subscriptionId,
+                        subscription_status: status,
+                        plan_quantity: quantity,
+                        current_period_end: currentPeriodEnd.toISOString()
+                    })
                     .eq('stripe_customer_id', customerId);
 
                 if (error) {
-                    console.error('❌ Failed to deactivate restaurant:', error);
+                    console.error(`❌ Failed to update subscription status for customer ${customerId}:`, error);
                 } else {
-                    console.log(`🚫 Subscription deleted for customer ${customerId}. Restaurant deactivated.`);
+                    console.log(`🔄 Subscription updated for customer ${customerId}. Status: ${status}.`);
                 }
                 break;
             }
 
-            // Optional: Handle successful recurring payments to update the period end
+            case 'customer.subscription.deleted': {
+                const subscription = event.data.object as any;
+                const customerId = subscription.customer as string;
+
+                // Mark restaurant subscription status as canceled / inactive
+                const { error } = await (supabaseAdmin
+                    .from('restaurants' as any) as any)
+                    .update({
+                        subscription_status: 'canceled',
+                        plan_quantity: 0
+                    })
+                    .eq('stripe_customer_id', customerId);
+
+                if (error) {
+                    console.error(`❌ Failed to deactivate subscription for customer ${customerId}:`, error);
+                } else {
+                    console.log(`🚫 Subscription deleted for customer ${customerId}. Restaurant marked as canceled.`);
+                }
+                break;
+            }
+
             case 'invoice.payment_succeeded': {
-                const invoice: any = event.data.object;
-                if (invoice.subscription) {
-                    const subscriptionId = invoice.subscription as string;
-                    const subscription: any = await stripe.subscriptions.retrieve(subscriptionId);
-                    const customerId = subscription.customer as string;
+                const invoice = event.data.object as any;
+                const customerId = invoice.customer as string;
+                const subscriptionId = invoice.subscription as string;
 
-                    await (supabaseAdmin
-                        .from('restaurants' as any) as any)
-                        .update({
-                            subscription_status: 'active', // Ensure it stays active
-                            current_period_end: new Date(subscription.current_period_end * 1000).toISOString()
-                        })
-                        .eq('stripe_customer_id', customerId);
+                let currentPeriodEnd = new Date();
+                currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
 
-                    console.log(`🔄 Recurring payment success for customer ${customerId}. Period extended.`);
+                if (subscriptionId) {
+                    try {
+                        const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any;
+                        currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+                    } catch (stripeError) {
+                        console.error('Error fetching updated period end from Stripe:', stripeError);
+                    }
+                }
+
+                const { error } = await (supabaseAdmin
+                    .from('restaurants' as any) as any)
+                    .update({
+                        subscription_status: 'active',
+                        current_period_end: currentPeriodEnd.toISOString()
+                    })
+                    .eq('stripe_customer_id', customerId);
+
+                if (error) {
+                    console.error(`❌ Failed to extend subscription period end for customer ${customerId}:`, error);
+                } else {
+                    console.log(`🔄 Recurring payment succeeded for customer ${customerId}. Period extended.`);
                 }
                 break;
             }
 
-            // Optional: Handle payment failure
             case 'invoice.payment_failed': {
                 const invoice = event.data.object as Stripe.Invoice;
                 const customerId = invoice.customer as string;
-                await (supabaseAdmin
+
+                const { error } = await (supabaseAdmin
                     .from('restaurants' as any) as any)
-                    .update({ subscription_status: 'past_due' })
+                    .update({
+                        subscription_status: 'past_due'
+                    })
                     .eq('stripe_customer_id', customerId);
-                console.log(`⚠️ Payment failed for customer ${customerId}. Status set to past_due.`);
+
+                if (error) {
+                    console.error(`❌ Failed to set past_due status for customer ${customerId}:`, error);
+                } else {
+                    console.log(`⚠️ Recurring payment failed for customer ${customerId}. Status set to past_due.`);
+                }
                 break;
             }
 

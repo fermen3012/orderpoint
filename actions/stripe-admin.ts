@@ -3,9 +3,10 @@
 import Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { requireSuperAdmin, requireProfile, requireSameRestaurant, requireRestaurantRole } from '@/lib/auth/guards';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2026-01-28.clover', // Use latest stable version supported by the SDK
+    apiVersion: '2026-01-28.clover' as any, // Stable version supported by the local SDK
 });
 
 export interface BillingCustomer {
@@ -21,10 +22,14 @@ export interface BillingCustomer {
     currency?: string;
 }
 
+/**
+ * Super Admin: Retrieves billing information for all restaurants.
+ */
 export async function getAllCustomersBilling(): Promise<BillingCustomer[]> {
-    const supabase = await createClient();
-
     try {
+        await requireSuperAdmin();
+        const supabase = await createClient();
+
         // 1. Get all restaurants from Supabase
         const { data: restaurants, error } = await (supabase
             .from('restaurants' as any) as any)
@@ -34,7 +39,7 @@ export async function getAllCustomersBilling(): Promise<BillingCustomer[]> {
         if (error) throw new Error(`Supabase Error: ${error.message}`);
         if (!restaurants) return [];
 
-        // 2. Enrich with Stripe Data (in parallel for performance)
+        // 2. Enrich with Stripe Data
         const enrichedCustomers = await Promise.all(
             restaurants.map(async (rest: any) => {
                 let mrr = 0;
@@ -48,7 +53,6 @@ export async function getAllCustomersBilling(): Promise<BillingCustomer[]> {
                         const sub = await stripe.subscriptions.retrieve((rest as any).stripe_subscription_id);
                         status = sub.status;
 
-                        // Calculate MRR from active items
                         if (sub.items.data.length > 0) {
                             const mainItem = sub.items.data[0];
                             const price = mainItem.price.unit_amount || 0;
@@ -58,8 +62,6 @@ export async function getAllCustomersBilling(): Promise<BillingCustomer[]> {
                         }
 
                         next_billing_date = new Date((sub as any).current_period_end * 1000).toISOString();
-
-                        // Sync DB if needed (optional optimization)
                     } catch (stripeError) {
                         console.error(`Stripe Error for ${(rest as any).id}:`, stripeError);
                         status = 'error_sync';
@@ -84,14 +86,25 @@ export async function getAllCustomersBilling(): Promise<BillingCustomer[]> {
 
     } catch (err: any) {
         console.error('getAllCustomersBilling Error:', err);
-        throw new Error(err.message);
+        throw new Error('No se pudo obtener la facturación global de clientes');
     }
 }
 
+/**
+ * Restaurant Owner: Retrieves billing information for their specific restaurant.
+ */
 export async function getOwnerBilling(restaurantId: string): Promise<BillingCustomer | null> {
-    const supabase = await createClient();
-
     try {
+        await requireRestaurantRole(['admin', 'owner']);
+        await requireSameRestaurant(restaurantId);
+
+        // Validate UUID
+        if (!restaurantId || !restaurantId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            throw new Error('Invalid restaurant ID format');
+        }
+
+        const supabase = await createClient();
+
         const { data: restaurant, error } = await (supabase
             .from('restaurants' as any) as any)
             .select('id, name, stripe_customer_id, stripe_subscription_id, plan_quantity, subscription_status')
@@ -106,6 +119,7 @@ export async function getOwnerBilling(restaurantId: string): Promise<BillingCust
         let status = restaurant.subscription_status || 'inactive';
         let quantity = restaurant.plan_quantity || 1;
 
+        // If active subscription exists, fetch the latest details from Stripe
         if (restaurant.stripe_subscription_id) {
             try {
                 const sub = await stripe.subscriptions.retrieve(restaurant.stripe_subscription_id);
@@ -144,10 +158,25 @@ export async function getOwnerBilling(restaurantId: string): Promise<BillingCust
     }
 }
 
+/**
+ * Super Admin: Updates the subscription quantity/license count.
+ */
 export async function updateSubscriptionQuantity(restaurantId: string, newQuantity: number) {
-    const supabase = await createClient();
-
     try {
+        await requireSuperAdmin();
+
+        // Validate quantity
+        if (!Number.isInteger(newQuantity) || newQuantity < 1) {
+            throw new Error('La cantidad de licencias debe ser un número entero mayor o igual a 1');
+        }
+
+        // Validate UUID
+        if (!restaurantId || !restaurantId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            throw new Error('Invalid restaurant ID format');
+        }
+
+        const supabase = await createClient();
+
         // 1. Get current subscription ID
         const { data: restaurant } = await (supabase
             .from('restaurants' as any) as any)
@@ -175,22 +204,62 @@ export async function updateSubscriptionQuantity(restaurantId: string, newQuanti
             .update({ plan_quantity: newQuantity })
             .eq('id', restaurantId);
 
+        revalidatePath('/super-admin/billing');
         revalidatePath('/admin/billing');
         return { success: true };
 
     } catch (err: any) {
         console.error('updateSubscriptionQuantity Error:', err);
-        return { success: false, error: err.message };
+        return { success: false, error: err.message || 'Error al actualizar la suscripción' };
     }
 }
 
-export async function getCustomerInvoices(stripeCustomerId: string) {
-    if (!stripeCustomerId) return [];
+/**
+ * Retrieves paid invoices.
+ * For Owners, restaurantId parameter is ignored and resolved from profile.
+ * For Super Admins, resolves Stripe Customer ID from the provided restaurantId.
+ */
+export async function getCustomerInvoices(restaurantId?: string) {
     try {
+        const profile = await requireProfile();
+        let targetRestaurantId = restaurantId;
+
+        if (!profile.is_super_admin) {
+            // Owner flow
+            if (profile.role !== 'admin' && profile.role !== 'owner') {
+                throw new Error('Forbidden: Unauthorized role');
+            }
+            if (!profile.restaurant_id) {
+                throw new Error('Forbidden: No restaurant associated');
+            }
+            targetRestaurantId = profile.restaurant_id;
+        } else {
+            // Super Admin flow: requires explicit restaurantId
+            if (!targetRestaurantId) {
+                throw new Error('Restaurant ID is required for Super Admin queries');
+            }
+        }
+
+        // Validate UUID
+        if (!targetRestaurantId || !targetRestaurantId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            throw new Error('Invalid restaurant ID format');
+        }
+
+        const supabase = await createClient();
+        const { data: rest, error: restError } = await (supabase
+            .from('restaurants' as any) as any)
+            .select('stripe_customer_id')
+            .eq('id', targetRestaurantId)
+            .single();
+
+        if (restError || !rest || !(rest as any).stripe_customer_id) {
+            return []; // Return empty invoices list if no Stripe Customer exists
+        }
+
         const invoices = await stripe.invoices.list({
-            customer: stripeCustomerId,
+            customer: (rest as any).stripe_customer_id,
             limit: 12,
-            status: 'paid', // Or 'all'
+            status: 'paid',
         });
 
         return invoices.data.map(inv => ({
@@ -208,15 +277,58 @@ export async function getCustomerInvoices(stripeCustomerId: string) {
     }
 }
 
-export async function generatePortalLink(stripeCustomerId: string) {
-    if (!stripeCustomerId) return null;
+/**
+ * Generates Stripe Portal link.
+ * For Owners, restaurantId parameter is ignored and resolved from profile.
+ * For Super Admins, resolves Stripe Customer ID from the provided restaurantId.
+ */
+export async function generatePortalLink(restaurantId?: string) {
     try {
+        const profile = await requireProfile();
+        let targetRestaurantId = restaurantId;
+
+        if (!profile.is_super_admin) {
+            // Owner flow
+            if (profile.role !== 'admin' && profile.role !== 'owner') {
+                throw new Error('Forbidden: Unauthorized role');
+            }
+            if (!profile.restaurant_id) {
+                throw new Error('Forbidden: No restaurant associated');
+            }
+            targetRestaurantId = profile.restaurant_id;
+        } else {
+            // Super admin flow
+            if (!targetRestaurantId) {
+                throw new Error('Restaurant ID is required for Super Admin queries');
+            }
+        }
+
+        // Validate UUID
+        if (!targetRestaurantId || !targetRestaurantId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            throw new Error('Invalid restaurant ID format');
+        }
+
+        const supabase = await createClient();
+        const { data: rest, error: restError } = await (supabase
+            .from('restaurants' as any) as any)
+            .select('stripe_customer_id')
+            .eq('id', targetRestaurantId)
+            .single();
+
+        if (restError || !rest || !(rest as any).stripe_customer_id) {
+            throw new Error('No Stripe Customer ID associated with this restaurant');
+        }
+
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+        const returnUrl = profile.is_super_admin ? `${appUrl}/super-admin/billing` : `${appUrl}/admin/billing`;
+
         const session = await stripe.billingPortal.sessions.create({
-            customer: stripeCustomerId,
-            return_url: `${process.env.NEXT_PUBLIC_APP_URL}/admin/billing`,
+            customer: (rest as any).stripe_customer_id,
+            return_url: returnUrl,
         });
+
         return session.url;
-    } catch (err) {
+    } catch (err: any) {
         console.error('generatePortalLink Error:', err);
         return null;
     }

@@ -35,7 +35,7 @@ export default function BillingPage() {
             setBillingInfo(data);
 
             if (data?.stripe_customer_id) {
-                const inv = await getCustomerInvoices(data.stripe_customer_id);
+                const inv = await getCustomerInvoices();
                 setInvoices(inv);
             }
         } catch (error) {
@@ -49,7 +49,7 @@ export default function BillingPage() {
         if (!billingInfo?.stripe_customer_id) return;
         setLoadingPortal(true);
         try {
-            const url = await generatePortalLink(billingInfo.stripe_customer_id);
+            const url = await generatePortalLink();
             if (url) {
                 window.location.href = url; // Redirect instead of open new window to avoid pop-up blockers
             } else {

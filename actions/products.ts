@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/server-admin';
 import { Database } from '@/lib/supabase/types';
 import { revalidatePath } from 'next/cache';
+import { requireRestaurantRole } from '@/lib/auth/guards';
 
 interface IngredientSelection {
     ingredient_id: string;
@@ -23,18 +24,46 @@ interface ProductInput {
 }
 
 export async function saveProduct(product: ProductInput, ingredients: IngredientSelection[]) {
-    const supabase = await createClient();
-
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-        return { error: 'Unauthorized', success: false };
-    }
-
     try {
+        const profile = await requireRestaurantRole(['admin', 'owner']);
+        const supabase = await createClient();
+
+        // If user is not super-admin, override client restaurant_id with the user's profile restaurant_id
+        if (!profile.is_super_admin) {
+            product.restaurant_id = profile.restaurant_id!;
+        }
+
+        // Validate UUIDs
+        if (!product.restaurant_id || !product.restaurant_id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            return { error: 'ID de restaurante inválido', success: false };
+        }
+
+        if (product.category_id && !product.category_id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            return { error: 'ID de categoría inválido', success: false };
+        }
+
         let productId: string;
 
         if (product.id) {
+            if (!product.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                return { error: 'ID de producto inválido', success: false };
+            }
+
+            // Verify product belongs to the user's restaurant before modifying it
+            const { data: existingProd, error: checkError } = await (supabase
+                .from('products' as any) as any)
+                .select('restaurant_id')
+                .eq('id', product.id)
+                .single();
+
+            if (checkError || !existingProd) {
+                return { error: 'Producto no encontrado', success: false };
+            }
+
+            if ((existingProd as any).restaurant_id !== product.restaurant_id) {
+                return { error: 'No tiene permisos para modificar este producto', success: false };
+            }
+
             // Update existing product
             const updateData: Database['public']['Tables']['products']['Update'] = {
                 name: product.name,
@@ -77,6 +106,31 @@ export async function saveProduct(product: ProductInput, ingredients: Ingredient
             productId = newProduct.id;
         }
 
+        // Validate that all associated ingredients belong to the target restaurant
+        if (ingredients.length > 0) {
+            const ingredientIds = ingredients.map(ing => ing.ingredient_id);
+
+            for (const ingId of ingredientIds) {
+                if (!ingId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                    return { error: 'ID de ingrediente inválido', success: false };
+                }
+            }
+
+            const { data: dbIngredients, error: ingError } = await (supabase
+                .from('ingredients' as any) as any)
+                .select('id, restaurant_id')
+                .in('id', ingredientIds);
+
+            if (ingError || !dbIngredients) {
+                return { error: 'Error al validar ingredientes', success: false };
+            }
+
+            const invalid = (dbIngredients as any[]).some(ing => ing.restaurant_id !== product.restaurant_id);
+            if (invalid || dbIngredients.length !== ingredientIds.length) {
+                return { error: 'Uno o más ingredientes no pertenecen a este restaurante', success: false };
+            }
+        }
+
         // Manage Ingredients
         // 1. Delete existing (for updates)
         const { error: deleteError } = await (supabaseAdmin
@@ -109,7 +163,7 @@ export async function saveProduct(product: ProductInput, ingredients: Ingredient
 
     } catch (error: any) {
         console.error('Error saving product:', error);
-        return { error: error.message || 'Error saving product', success: false };
+        return { error: error.message || 'Error al guardar el producto', success: false };
     }
 }
 

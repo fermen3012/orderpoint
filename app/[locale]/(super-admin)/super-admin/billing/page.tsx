@@ -66,7 +66,7 @@ export default function SuperAdminBillingPage() {
         setSelectedCustomer(customer);
         setLoadingInvoices(true);
         if (customer.stripe_customer_id) {
-            const data = await getCustomerInvoices(customer.stripe_customer_id);
+            const data = await getCustomerInvoices(customer.id);
             setInvoices(data);
         } else {
             setInvoices([]);
@@ -76,7 +76,7 @@ export default function SuperAdminBillingPage() {
 
     const handleOpenPortal = async () => {
         if (!selectedCustomer?.stripe_customer_id) return;
-        const url = await generatePortalLink(selectedCustomer.stripe_customer_id);
+        const url = await generatePortalLink(selectedCustomer.id);
         if (url) window.open(url, '_blank');
         else alert('No se pudo generar el enlace al portal');
     };

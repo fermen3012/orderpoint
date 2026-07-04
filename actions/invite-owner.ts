@@ -2,25 +2,40 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/lib/supabase/types';
+import { requireSuperAdmin } from '@/lib/auth/guards';
 
 export async function inviteRestaurantOwner(email: string, restaurantId: string, locale: string) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://192.168.4.28:3000';
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-        return { error: 'Missing environment variables' };
-    }
-
-    // Usamos el service role key para tener privilegios de admin
-    const supabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceKey, {
-        auth: {
-            autoRefreshToken: false,
-            persistSession: false
-        }
-    });
-
     try {
+        // Enforce super admin authorization
+        await requireSuperAdmin();
+
+        // Input validation
+        if (!email || !email.includes('@')) {
+            return { error: 'Correo electrónico inválido' };
+        }
+        if (!restaurantId || !restaurantId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            return { error: 'ID de restaurante inválido' };
+        }
+        if (!['es', 'en'].includes(locale)) {
+            locale = 'es';
+        }
+
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://192.168.4.28:3000';
+
+        if (!supabaseUrl || !supabaseServiceKey) {
+            return { error: 'Missing environment variables' };
+        }
+
+        // Usamos el service role key para tener privilegios de admin (instantiated after auth check)
+        const supabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceKey, {
+            auth: {
+                autoRefreshToken: false,
+                persistSession: false
+            }
+        });
+
         // 1. Verificar si el usuario ya existe
         const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
         if (listError) throw listError;
@@ -52,8 +67,8 @@ export async function inviteRestaurantOwner(email: string, restaurantId: string,
         }
 
         return { success: true, data };
-    } catch (err) {
+    } catch (err: any) {
         console.error('Unexpected error:', err);
-        return { error: 'Ocurrió un error inesperado al enviar la invitación' };
+        return { error: err.message || 'Ocurrió un error inesperado al enviar la invitación' };
     }
 }
