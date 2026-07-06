@@ -9,23 +9,7 @@ export async function getAllUsersWithRestaurants() {
         await requireSuperAdmin();
         const admin = getAdminClient();
 
-        // 1. Fetch profiles and restaurant names
-        const { data: profiles, error: profileError } = await admin
-            .from('profiles')
-            .select(`
-                *,
-                restaurants (
-                    name
-                )
-            `)
-            .order('created_at', { ascending: false });
-
-        if (profileError || !profiles) {
-            console.error('Error fetching profiles:', profileError);
-            return { data: null, error: profileError };
-        }
-
-        // 2. Fetch email addresses from auth.users (requires service role)
+        // 1. Fetch email addresses from auth.users (requires service role)
         const { data: { users }, error: authError } = await admin.auth.admin.listUsers();
 
         if (authError) {
@@ -33,18 +17,45 @@ export async function getAllUsersWithRestaurants() {
             return { data: null, error: authError };
         }
 
-        // 3. Map email to profiles
-        const mappedUsers = profiles.map((profile: any) => {
-            const authUser = users.find(u => u.id === profile.id);
+        // 2. Fetch profiles and restaurant names
+        const { data: profiles, error: profileError } = await admin
+            .from('profiles')
+            .select(`
+                *,
+                restaurants (
+                    name
+                )
+            `);
+
+        if (profileError) {
+            console.error('Error fetching profiles:', profileError);
+            return { data: null, error: profileError };
+        }
+
+        // 3. Map auth.users to profiles with metadata fallback
+        const profilesData = (profiles || []) as any[];
+        const mappedUsers = users.map((authUser: any) => {
+            const profile = profilesData.find(p => p.id === authUser.id);
+            
+            const role = profile?.role || authUser.user_metadata?.role || 'user';
+            const fullName = profile?.full_name || authUser.user_metadata?.full_name || 'N/A';
+            const restaurantName = profile?.restaurants?.name || 
+                                   (authUser.user_metadata?.restaurant_id 
+                                       ? (profilesData.find(p => p.restaurant_id === authUser.user_metadata.restaurant_id)?.restaurants?.name || 'Restaurante Vinculado') 
+                                       : 'Super Admin / Sin Asignar');
+
             return {
-                id: profile.id,
-                full_name: profile.full_name,
-                role: profile.role,
-                created_at: profile.created_at,
-                email: authUser?.email || 'N/A',
-                restaurant_name: profile.restaurants?.name || 'Super Admin / Sin Asignar'
+                id: authUser.id,
+                full_name: fullName,
+                role: role,
+                created_at: authUser.created_at || profile?.created_at || new Date().toISOString(),
+                email: authUser.email || 'N/A',
+                restaurant_name: restaurantName
             };
         });
+
+        // Sort by created_at descending
+        mappedUsers.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
         return { data: mappedUsers, error: null };
     } catch (e: any) {

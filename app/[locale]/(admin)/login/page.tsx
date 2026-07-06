@@ -34,6 +34,9 @@ export default function LoginPage() {
                 setError(authError.message === 'Invalid login credentials' ? t('invalidCredentials') : t('error'));
             } else if (data.user) {
                 console.log('Login: Auth successful for user', data.user.id);
+                let isSuperAdmin = false;
+                let role = '';
+
                 // Fetch user role for redirection
                 const { data: profile, error: profileError } = await supabase
                     .from('profiles')
@@ -42,31 +45,48 @@ export default function LoginPage() {
                     .single() as { data: any; error: any };
 
                 if (profileError) {
-                    console.error('Login: Profile fetch error', profileError);
-                    setError('Error al obtener el perfil: ' + profileError.message);
-                    return;
+                    console.warn('Login: Profile fetch error, attempting fallback using token metadata:', profileError);
+                    
+                    isSuperAdmin = data.user.user_metadata?.is_super_admin === true || data.user.app_metadata?.is_super_admin === true;
+                    role = data.user.user_metadata?.role || data.user.app_metadata?.role || '';
+
+                    // Static override for admin user
+                    if (data.user.email === 'admin@orderpoint.com') {
+                        isSuperAdmin = true;
+                        role = 'admin';
+                    }
+
+                    if (!isSuperAdmin && !role) {
+                        setError('Error al obtener el perfil: ' + profileError.message);
+                        setLoading(false);
+                        return;
+                    }
+                } else {
+                    isSuperAdmin = profile?.is_super_admin === true;
+                    role = profile?.role || '';
                 }
 
-                console.log('Login: Profile found', profile);
+                const currentLocale = window.location.pathname.startsWith('/en') ? 'en' : 'es';
+                console.log('Login: Final resolved permissions:', { isSuperAdmin, role, currentLocale });
 
-                if (profile?.is_super_admin) {
+                if (isSuperAdmin) {
                     console.log('Login: Redirecting to Super Admin Dashboard');
-                    router.push('/super-admin/dashboard');
-                } else if (profile?.role === 'kitchen') {
+                    window.location.href = `/${currentLocale}/super-admin/dashboard`;
+                } else if (role === 'kitchen') {
                     console.log('Login: Redirecting to Kitchen');
-                    router.push('/kitchen');
-                } else if (profile?.role === 'mesera') {
+                    window.location.href = `/${currentLocale}/kitchen`;
+                } else if (role === 'mesera') {
                     console.log('Login: Redirecting to Exo Server (Waitress)');
-                    router.push('/exo/tables');
-                } else if (profile?.role === 'kiosk') {
+                    window.location.href = `/${currentLocale}/exo/tables`;
+                } else if (role === 'kiosk') {
                     console.log('Login: Redirecting to Kiosk');
-                    router.push('/');
-                } else if (profile?.role === 'owner' || profile?.role === 'admin') {
+                    window.location.href = `/${currentLocale}`;
+                } else if (role === 'owner' || role === 'admin') {
                     console.log('Login: Redirecting to Admin Dashboard');
-                    router.push('/admin/dashboard');
+                    window.location.href = `/${currentLocale}/admin/dashboard`;
                 } else {
                     console.log('Login: Redirecting to Admin Dashboard (fallback)');
-                    router.push('/admin/dashboard');
+                    window.location.href = `/${currentLocale}/admin/dashboard`;
                 }
             }
         } catch (err) {

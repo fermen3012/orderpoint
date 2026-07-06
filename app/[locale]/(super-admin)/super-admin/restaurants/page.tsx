@@ -14,12 +14,14 @@ import {
     XCircle,
     UserPlus,
     Calendar,
-    Upload
+    Upload,
+    Trash2,
+    Loader2
 } from 'lucide-react';
 import InviteOwnerModal from '@/components/super-admin/InviteOwnerModal';
 import RestaurantLogoModal from '@/components/super-admin/RestaurantLogoModal';
 import { useRouter } from '@/i18n/routing';
-import { createRestaurant, toggleRestaurantStatus, getRestaurants } from './actions';
+import { createRestaurant, toggleRestaurantStatus, getRestaurants, deleteRestaurant } from './actions';
 
 export default function SuperAdminRestaurants() {
     const router = useRouter();
@@ -37,6 +39,27 @@ export default function SuperAdminRestaurants() {
     });
     const [logoModalData, setLogoModalData] = useState<{ id: string, name: string, logo: string } | null>(null);
     const [inviteModalData, setInviteModalData] = useState<{ id: string, name: string } | null>(null);
+    const [deleteModalData, setDeleteModalData] = useState<{ id: string, name: string } | null>(null);
+    const [deleting, setDeleting] = useState(false);
+
+    const handleDeleteRestaurant = async () => {
+        if (!deleteModalData) return;
+        setDeleting(true);
+        try {
+            const result = await deleteRestaurant(deleteModalData.id);
+            if (result.error) {
+                alert('Error al eliminar el restaurante: ' + result.error);
+            } else {
+                setDeleteModalData(null);
+                loadRestaurants();
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Ocurrió un error inesperado al eliminar el restaurante.');
+        } finally {
+            setDeleting(false);
+        }
+    };
 
     useEffect(() => {
         loadRestaurants();
@@ -223,6 +246,13 @@ export default function SuperAdminRestaurants() {
                                             >
                                                 <UserPlus className="w-5 h-5" />
                                             </button>
+                                            <button
+                                                onClick={() => setDeleteModalData({ id: res.id, name: res.name })}
+                                                className="p-4 bg-slate-800 hover:bg-red-500 text-slate-400 hover:text-white rounded-2xl transition-all shadow-xl"
+                                                title="Eliminar Restaurante"
+                                            >
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -281,7 +311,7 @@ export default function SuperAdminRestaurants() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-2 gap-4">
                             <button
                                 onClick={() => handleToggleActive(res.id, res.is_active)}
                                 className={`py-4 rounded-2xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-lg border ${res.is_active
@@ -306,6 +336,13 @@ export default function SuperAdminRestaurants() {
                                 <UserPlus className="w-4 h-4" />
                                 Invitar
                             </button>
+                            <button
+                                onClick={() => setDeleteModalData({ id: res.id, name: res.name })}
+                                className="py-4 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-2xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-lg border border-rose-500/20"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                Eliminar
+                            </button>
                         </div>
                     </div>
                 ))}
@@ -321,8 +358,8 @@ export default function SuperAdminRestaurants() {
             {/* Create Restaurant Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-2xl animate-in fade-in duration-500">
-                    <div className="bg-slate-900 w-full max-w-xl rounded-[3rem] border border-slate-800 shadow-2xl relative animate-in zoom-in-95 duration-300">
-                        <div className="p-10 md:p-12 border-b border-slate-800/50 flex justify-between items-center bg-slate-900/50 backdrop-blur-md rounded-t-[3rem]">
+                    <div className="bg-slate-900 w-full max-w-xl rounded-[3rem] border border-slate-800 shadow-2xl relative animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col overflow-hidden">
+                        <div className="p-8 md:p-10 border-b border-slate-800/50 flex justify-between items-center bg-slate-900/50 backdrop-blur-md rounded-t-[3rem] shrink-0">
                             <div>
                                 <h1 className="text-3xl md:text-4xl font-black text-white italic tracking-tighter uppercase leading-none">
                                     Nuevo Tenant
@@ -337,7 +374,7 @@ export default function SuperAdminRestaurants() {
                             </button>
                         </div>
 
-                        <form onSubmit={handleCreateRestaurant} className="p-10 md:p-12 space-y-10">
+                        <form onSubmit={handleCreateRestaurant} className="p-8 md:p-10 space-y-8 overflow-y-auto custom-scrollbar flex-1">
                             <div className="space-y-4">
                                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">Nombre Comercial</label>
                                 <input
@@ -424,6 +461,59 @@ export default function SuperAdminRestaurants() {
                     onClose={() => setLogoModalData(null)}
                     onSuccess={handleLogoSuccess}
                 />
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {deleteModalData && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-2xl animate-in fade-in duration-500">
+                    <div className="bg-slate-900 w-full max-w-md rounded-[2.5rem] border border-slate-800 shadow-2xl relative animate-in zoom-in-95 duration-300">
+                        <button
+                            onClick={() => setDeleteModalData(null)}
+                            className="absolute top-6 right-6 p-2 hover:bg-slate-800 rounded-full transition-colors"
+                        >
+                            <CloseIcon className="w-5 h-5 text-slate-400" />
+                        </button>
+
+                        <div className="p-8 md:p-10 text-center">
+                            <div className="w-20 h-20 bg-rose-500/10 text-rose-500 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-rose-500/20">
+                                <Trash2 className="w-10 h-10 animate-pulse" />
+                            </div>
+
+                            <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase leading-none mb-2">
+                                ¿Eliminar Restaurante?
+                            </h2>
+                            <p className="text-slate-500 font-black uppercase tracking-widest text-[9px] mt-1">Esta acción es irreversible</p>
+
+                            <p className="text-slate-300 text-sm font-medium leading-relaxed mb-8 mt-6">
+                                ¿Estás completamente seguro de que deseas eliminar permanentemente el restaurante <span className="text-rose-500 font-bold">{deleteModalData.name}</span> del sistema? Se perderán todos los datos vinculados.
+                            </p>
+
+                            <div className="flex flex-col sm:flex-row gap-4">
+                                <button
+                                    onClick={() => setDeleteModalData(null)}
+                                    disabled={deleting}
+                                    className="flex-1 py-4 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-2xl font-black uppercase tracking-widest transition-all active:scale-95 text-[10px] border border-slate-700 disabled:opacity-50"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleDeleteRestaurant}
+                                    disabled={deleting}
+                                    className="flex-1 py-4 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-rose-900/20 transition-all active:scale-95 disabled:opacity-50 text-[10px] flex items-center justify-center gap-2"
+                                >
+                                    {deleting ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            <span>Eliminando...</span>
+                                        </>
+                                    ) : (
+                                        <span>Sí, Eliminar</span>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

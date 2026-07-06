@@ -22,7 +22,7 @@ export async function inviteRestaurantOwner(email: string, restaurantId: string,
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://192.168.4.28:3000';
+        const siteUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
         if (!supabaseUrl || !supabaseServiceKey) {
             return { error: 'Missing environment variables' };
@@ -66,7 +66,7 @@ export async function inviteRestaurantOwner(email: string, restaurantId: string,
             return { error: error.message };
         }
 
-        return { success: true, data };
+        return { success: true };
     } catch (err: any) {
         console.error('Unexpected error:', err);
         return { error: err.message || 'Ocurrió un error inesperado al enviar la invitación' };

@@ -65,6 +65,17 @@ export default function SetPasswordPage() {
                     setError(`Error al establecer sesión: ${setSessionError.message}`);
                 } else if (data.session) {
                     console.log('Manual session set successful');
+                    const user = data.session.user;
+                    if (user && user.invited_at) {
+                        const invitedTime = new Date(user.invited_at).getTime();
+                        const currentTime = new Date().getTime();
+                        const diffMinutes = (currentTime - invitedTime) / (1000 * 60);
+                        if (diffMinutes > 10) {
+                            setError('Esta invitación ha expirado porque superó el límite de 10 minutos. Solicita una nueva invitación al administrador.');
+                            setCheckingSession(false);
+                            return;
+                        }
+                    }
                     setHasSession(true);
                     setCheckingSession(false);
                 }
@@ -76,6 +87,18 @@ export default function SetPasswordPage() {
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             console.log('Supabase Auth Event:', event, session ? 'Session active' : 'No session');
             if (session && isMounted) {
+                const user = session.user;
+                if (user && user.invited_at) {
+                    const invitedTime = new Date(user.invited_at).getTime();
+                    const currentTime = new Date().getTime();
+                    const diffMinutes = (currentTime - invitedTime) / (1000 * 60);
+                    if (diffMinutes > 10) {
+                        setError('Esta invitación ha expirado porque superó el límite de 10 minutos. Solicita una nueva invitación al administrador.');
+                        setHasSession(false);
+                        setCheckingSession(false);
+                        return;
+                    }
+                }
                 setHasSession(true);
                 setCheckingSession(false);
             }
@@ -110,6 +133,16 @@ export default function SetPasswordPage() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
                 throw new Error('No se encontró una sesión activa de invitación. Asegúrate de haber hecho clic en el enlace del correo y de no haber recargado la página manualmente.');
+            }
+
+            // Validar que la invitación no tenga más de 10 minutos
+            if (session.user && session.user.invited_at) {
+                const invitedTime = new Date(session.user.invited_at).getTime();
+                const currentTime = new Date().getTime();
+                const diffMinutes = (currentTime - invitedTime) / (1000 * 60);
+                if (diffMinutes > 10) {
+                    throw new Error('Esta invitación ha expirado porque superó el límite de 10 minutos. Por favor, solicita al administrador que te envíe una nueva invitación.');
+                }
             }
 
             // 1. Actualizar la contraseña en Auth

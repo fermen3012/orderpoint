@@ -4,13 +4,19 @@ import { useState, useTransition, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
     Search, Users, MoreHorizontal, Download, ExternalLink,
-    CreditCard, Calendar, CheckCircle, AlertTriangle, ChevronDown
+    CreditCard, Calendar, CheckCircle, AlertTriangle, ChevronDown,
+    Mail, Send, Loader2, Copy
 } from 'lucide-react';
 import {
     getAllCustomersBilling,
     updateSubscriptionQuantity,
     getCustomerInvoices,
     generatePortalLink,
+    sendInvoiceEmail,
+    updateSubscriptionPrice,
+    updateSubscriptionBillingDate,
+    updateCustomerEmail,
+    logClientError,
     BillingCustomer
 } from '@/actions/stripe-admin';
 import { formatPrice } from '@/lib/utils';
@@ -27,19 +33,150 @@ export default function SuperAdminBillingPage() {
     const [invoices, setInvoices] = useState<any[]>([]);
     const [loadingInvoices, setLoadingInvoices] = useState(false);
     const [isPending, startTransition] = useTransition();
+    const [sendingInvoiceId, setSendingInvoiceId] = useState<string | null>(null);
+
+    const [customPrice, setCustomPrice] = useState<string>('');
+    const [customDate, setCustomDate] = useState<string>('');
+    const [customEmail, setCustomEmail] = useState<string>('');
+    const [customQuantity, setCustomQuantity] = useState<string>('');
+    const [updatingPrice, setUpdatingPrice] = useState(false);
+    const [updatingDate, setUpdatingDate] = useState(false);
+    const [updatingEmail, setUpdatingEmail] = useState(false);
+    const [updatingQuantity, setUpdatingQuantity] = useState(false);
+
+    const loadBillingData = async () => {
+        setLoading(true);
+        try {
+            const data = await getAllCustomersBilling();
+            setCustomers(data);
+        } catch (err) {
+            console.error('Error loading billing data', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSendInvoice = async (customerId: string) => {
+        setSendingInvoiceId(customerId);
+        try {
+            const res = await sendInvoiceEmail(customerId);
+            if (res.success) {
+                alert('La factura y el enlace de pago de Stripe se enviaron exitosamente por correo electrónico al cliente.');
+            } else {
+                alert('Error al enviar la factura: ' + res.error);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Ocurrió un error inesperado al enviar la factura.');
+        } finally {
+            setSendingInvoiceId(null);
+        }
+    };
+
+    const handleUpdatePrice = async () => {
+        if (!selectedCustomer) return;
+        const newPrice = parseFloat(customPrice);
+        if (isNaN(newPrice) || newPrice <= 0) {
+            alert('Por favor, ingresa un precio válido mayor a 0.');
+            return;
+        }
+        setUpdatingPrice(true);
+        try {
+            const result = await updateSubscriptionPrice(selectedCustomer.id, newPrice);
+            if (result.success) {
+                alert('El costo de la suscripción ha sido actualizado exitosamente.');
+                const updatedCustomers = await getAllCustomersBilling();
+                setCustomers(updatedCustomers);
+                const updatedCust = updatedCustomers.find(c => c.id === selectedCustomer.id);
+                if (updatedCust) setSelectedCustomer(updatedCust);
+            } else {
+                alert('Error al actualizar el precio: ' + result.error);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Ocurrió un error inesperado al actualizar el precio.');
+        } finally {
+            setUpdatingPrice(false);
+        }
+    };
+
+    const handleUpdateBillingDate = async () => {
+        if (!selectedCustomer || !customDate) return;
+        setUpdatingDate(true);
+        try {
+            const result = await updateSubscriptionBillingDate(selectedCustomer.id, customDate);
+            if (result.success) {
+                alert('La fecha de facturación ha sido actualizada exitosamente.');
+                const updatedCustomers = await getAllCustomersBilling();
+                setCustomers(updatedCustomers);
+                const updatedCust = updatedCustomers.find(c => c.id === selectedCustomer.id);
+                if (updatedCust) setSelectedCustomer(updatedCust);
+            } else {
+                alert('Error al actualizar la fecha: ' + result.error);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Ocurrió un error inesperado al actualizar la fecha.');
+        } finally {
+            setUpdatingDate(false);
+        }
+    };
+
+    const handleUpdateEmail = async () => {
+        if (!selectedCustomer) return;
+        if (!customEmail || !customEmail.includes('@')) {
+            alert('Por favor, ingresa un correo electrónico válido.');
+            return;
+        }
+        setUpdatingEmail(true);
+        try {
+            const result = await updateCustomerEmail(selectedCustomer.id, customEmail);
+            if (result.success) {
+                alert('El correo electrónico de cobro ha sido actualizado exitosamente.');
+                const updatedCustomers = await getAllCustomersBilling();
+                setCustomers(updatedCustomers);
+                const updatedCust = updatedCustomers.find(c => c.id === selectedCustomer.id);
+                if (updatedCust) setSelectedCustomer(updatedCust);
+            } else {
+                alert('Error al actualizar el correo: ' + result.error);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Ocurrió un error inesperado al actualizar el correo.');
+        } finally {
+            setUpdatingEmail(false);
+        }
+    };
+
+    const handleUpdateQuantity = async () => {
+        if (!selectedCustomer) return;
+        const newQty = parseInt(customQuantity);
+        if (isNaN(newQty) || newQty < 1) {
+            alert('Por favor, ingresa una cantidad de quioscos válida mayor o igual a 1.');
+            return;
+        }
+        setUpdatingQuantity(true);
+        try {
+            const result = await updateSubscriptionQuantity(selectedCustomer.id, newQty);
+            if (result.success) {
+                alert('La cantidad de licencias/quioscos ha sido actualizada exitosamente.');
+                const updatedCustomers = await getAllCustomersBilling();
+                setCustomers(updatedCustomers);
+                const updatedCust = updatedCustomers.find(c => c.id === selectedCustomer.id);
+                if (updatedCust) setSelectedCustomer(updatedCust);
+            } else {
+                alert('Error al actualizar la cantidad: ' + result.error);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Ocurrió un error inesperado al actualizar la cantidad.');
+        } finally {
+            setUpdatingQuantity(false);
+        }
+    };
 
     useEffect(() => {
-        const load = async () => {
-            try {
-                const data = await getAllCustomersBilling();
-                setCustomers(data);
-            } catch (err) {
-                console.error('Error loading billing data', err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        load();
+        loadBillingData();
     }, []);
 
     const onUpdateQuantity = async (customer: BillingCustomer, newQty: number) => {
@@ -63,15 +200,43 @@ export default function SuperAdminBillingPage() {
     };
 
     const openDetails = async (customer: BillingCustomer) => {
-        setSelectedCustomer(customer);
-        setLoadingInvoices(true);
-        if (customer.stripe_customer_id) {
-            const data = await getCustomerInvoices(customer.id);
-            setInvoices(data);
-        } else {
-            setInvoices([]);
+        try {
+            setSelectedCustomer(customer);
+            setCustomPrice(customer.unit_price?.toString() || '49');
+            
+            let initialDate = '';
+            if (customer.next_billing_date) {
+                try {
+                    const dateObj = new Date(customer.next_billing_date);
+                    if (!isNaN(dateObj.getTime())) {
+                        initialDate = dateObj.toISOString().split('T')[0];
+                    }
+                } catch (e) {
+                    console.error('Invalid billing date format:', e);
+                }
+            }
+            setCustomDate(initialDate);
+            
+            setCustomEmail(customer.email || '');
+            setCustomQuantity(customer.plan_quantity?.toString() || '1');
+            setLoadingInvoices(true);
+            try {
+                if (customer.stripe_customer_id) {
+                    const data = await getCustomerInvoices(customer.id);
+                    setInvoices(data);
+                } else {
+                    setInvoices([]);
+                }
+            } catch (invErr) {
+                console.error('Error fetching customer invoices:', invErr);
+                setInvoices([]);
+            }
+            setLoadingInvoices(false);
+        } catch (err: any) {
+            console.error('Global openDetails error:', err);
+            await logClientError(err?.message || 'Unknown openDetails error', err?.stack);
+            alert('Error al gestionar: ' + (err?.message || err));
         }
-        setLoadingInvoices(false);
     };
 
     const handleOpenPortal = async () => {
@@ -138,31 +303,37 @@ export default function SuperAdminBillingPage() {
             {/* Desktop Table View */}
             <div className="hidden lg:block bg-slate-900/40 backdrop-blur-sm rounded-[3.5rem] border border-slate-800 overflow-hidden shadow-2xl">
                 <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full">
+                    <table className="w-full min-w-[1200px]">
                         <thead className="bg-slate-950/20 border-b border-slate-800/50">
                             <tr>
-                                <th className="px-12 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Restaurante Cliente</th>
-                                <th className="px-12 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Estado Suscripción</th>
-                                <th className="px-12 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Ingreso Mensual</th>
-                                <th className="px-12 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-center">Nº Quioscos</th>
-                                <th className="px-12 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-right">Opciones</th>
+                                <th className="px-6 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Restaurante Cliente</th>
+                                <th className="px-6 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Suscripción ID</th>
+                                <th className="px-6 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Estado</th>
+                                <th className="px-6 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Vence el</th>
+                                <th className="px-6 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Costo Unit.</th>
+                                <th className="px-6 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-center">Nº Quioscos</th>
+                                <th className="px-6 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">MRR Total</th>
+                                <th className="px-6 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-right">Opciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/50">
                             {loading ? (
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        <td className="px-12 py-8"><div className="h-6 w-48 bg-slate-800 rounded"></div></td>
-                                        <td className="px-12 py-8"><div className="h-6 w-24 bg-slate-800 rounded"></div></td>
-                                        <td className="px-12 py-8"><div className="h-6 w-20 bg-slate-800 rounded"></div></td>
-                                        <td className="px-12 py-8"><div className="h-8 w-24 bg-slate-800 rounded mx-auto"></div></td>
-                                        <td className="px-12 py-8"><div className="h-8 w-8 bg-slate-800 rounded ml-auto"></div></td>
+                                        <td className="px-6 py-8"><div className="h-6 w-48 bg-slate-800 rounded"></div></td>
+                                        <td className="px-6 py-8"><div className="h-6 w-32 bg-slate-800 rounded"></div></td>
+                                        <td className="px-6 py-8"><div className="h-6 w-24 bg-slate-800 rounded"></div></td>
+                                        <td className="px-6 py-8"><div className="h-6 w-20 bg-slate-800 rounded"></div></td>
+                                        <td className="px-6 py-8"><div className="h-6 w-16 bg-slate-800 rounded"></div></td>
+                                        <td className="px-6 py-8"><div className="h-8 w-24 bg-slate-800 rounded mx-auto"></div></td>
+                                        <td className="px-6 py-8"><div className="h-6 w-24 bg-slate-800 rounded"></div></td>
+                                        <td className="px-6 py-8"><div className="h-8 w-8 bg-slate-800 rounded ml-auto"></div></td>
                                     </tr>
                                 ))
                             ) : (
                                 filteredCustomers.map((customer) => (
                                     <tr key={customer.id} className="group hover:bg-slate-800/20 transition-all duration-300">
-                                        <td className="px-12 py-8">
+                                        <td className="px-6 py-8">
                                             <div className="flex items-center gap-6">
                                                 <div className="w-14 h-14 rounded-[1.25rem] bg-slate-950 flex items-center justify-center border border-slate-800 group-hover:border-emerald-500/30 transition-all duration-500 shadow-xl">
                                                     <span className="font-black text-slate-700 text-xl group-hover:text-emerald-500 transition-colors uppercase">
@@ -179,7 +350,26 @@ export default function SuperAdminBillingPage() {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-12 py-8">
+                                        <td className="px-6 py-8">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-mono text-xs text-slate-400">
+                                                    {customer.stripe_subscription_id ? `${customer.stripe_subscription_id.substring(0, 12)}...` : 'Sin Suscripción'}
+                                                </span>
+                                                {customer.stripe_subscription_id && (
+                                                    <button
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(customer.stripe_subscription_id || '');
+                                                            alert('ID de suscripción copiado.');
+                                                        }}
+                                                        className="text-slate-600 hover:text-emerald-500 transition-colors"
+                                                        title="Copiar ID de Suscripción"
+                                                    >
+                                                        <Copy className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-8">
                                             <span className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border shadow-lg ${customer.subscription_status === 'active'
                                                     ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                                                     : customer.subscription_status === 'past_due'
@@ -189,13 +379,17 @@ export default function SuperAdminBillingPage() {
                                                 {customer.subscription_status}
                                             </span>
                                         </td>
-                                        <td className="px-12 py-8">
-                                            <span className="flex items-end gap-1 font-black text-white text-2xl italic tracking-tighter uppercase">
-                                                {formatPrice(customer.mrr || 0, 'en-US')}
-                                                <span className="text-[10px] text-slate-600 uppercase tracking-widest leading-6">/MES</span>
+                                        <td className="px-6 py-8">
+                                            <span className="font-black text-slate-300 text-xs uppercase tracking-widest">
+                                                {customer.next_billing_date ? new Date(customer.next_billing_date).toLocaleDateString() : '—'}
                                             </span>
                                         </td>
-                                        <td className="px-12 py-8">
+                                        <td className="px-6 py-8">
+                                            <span className="font-black text-white text-lg italic tracking-tighter">
+                                                {formatPrice(customer.unit_price || 49, 'en-US')}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-8">
                                             <div className="flex items-center justify-center gap-4 bg-slate-900/50 w-max mx-auto p-2 rounded-2xl border border-slate-800">
                                                 <button
                                                     onClick={() => onUpdateQuantity(customer, (customer.plan_quantity || 0) - 1)}
@@ -213,10 +407,16 @@ export default function SuperAdminBillingPage() {
                                                 </button>
                                             </div>
                                         </td>
-                                        <td className="px-12 py-8 text-right">
+                                        <td className="px-6 py-8">
+                                            <span className="flex items-end gap-1 font-black text-white text-2xl italic tracking-tighter uppercase">
+                                                {formatPrice(customer.mrr || 0, 'en-US')}
+                                                <span className="text-[10px] text-slate-600 uppercase tracking-widest leading-6">/MES</span>
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-8 text-right">
                                             <button
                                                 onClick={() => openDetails(customer)}
-                                                className="p-5 bg-slate-800 hover:bg-emerald-500 text-slate-400 hover:text-slate-900 rounded-2xl transition-all shadow-xl group-hover:scale-110 translate-x-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 ml-auto flex items-center gap-2"
+                                                className="p-5 bg-slate-800 hover:bg-emerald-500 text-slate-400 hover:text-slate-900 rounded-2xl transition-all shadow-xl hover:scale-105 ml-auto flex items-center gap-2"
                                             >
                                                 <span className="text-[8px] font-black uppercase tracking-widest hidden lg:block">Gestionar</span>
                                                 <MoreHorizontal className="w-5 h-5" />
@@ -228,6 +428,79 @@ export default function SuperAdminBillingPage() {
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="lg:hidden space-y-6">
+                {loading ? (
+                    Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="bg-slate-900/40 backdrop-blur-sm p-8 rounded-[3rem] border border-slate-800 animate-pulse space-y-6">
+                            <div className="flex items-center gap-5">
+                                <div className="w-14 h-14 bg-slate-800 rounded-[1.25rem]"></div>
+                                <div className="flex-1 space-y-2">
+                                    <div className="h-5 bg-slate-800 rounded w-2/3"></div>
+                                    <div className="h-3 bg-slate-800 rounded w-1/2"></div>
+                                </div>
+                            </div>
+                            <div className="h-10 bg-slate-800 rounded-2xl"></div>
+                        </div>
+                    ))
+                ) : (
+                    filteredCustomers.map((customer) => (
+                        <div key={customer.id} className="bg-slate-900/50 backdrop-blur-md p-8 rounded-[3rem] border border-slate-800 relative group overflow-hidden animate-in fade-in duration-300">
+                            <div className="flex items-center justify-between gap-4 mb-6">
+                                <div className="flex items-center gap-5">
+                                    <div className="w-14 h-14 rounded-[1.25rem] bg-slate-950 flex items-center justify-center border border-slate-800 shadow-xl overflow-hidden flex-shrink-0">
+                                        <span className="font-black text-slate-700 text-lg uppercase">{customer.name.substring(0, 1)}</span>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <h3 className="font-black text-white text-xl italic tracking-tighter uppercase leading-tight truncate">
+                                            {customer.name}
+                                        </h3>
+                                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest truncate mt-0.5">
+                                            {customer.email || 'SIN CORREO'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <span className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider shrink-0 border ${customer.subscription_status === 'active'
+                                        ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                                        : customer.subscription_status === 'past_due'
+                                            ? 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                                            : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                                    }`}>
+                                    {customer.subscription_status}
+                                </span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 mb-6">
+                                <div className="bg-slate-950/50 p-4 rounded-2xl border border-slate-800">
+                                    <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Costo Unitario</p>
+                                    <p className="text-sm font-black text-white">{formatPrice(customer.unit_price || 49, 'en-US')}</p>
+                                </div>
+                                <div className="bg-slate-950/50 p-4 rounded-2xl border border-slate-800">
+                                    <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">MRR Total</p>
+                                    <p className="text-sm font-black text-emerald-500">{formatPrice(customer.mrr || 0, 'en-US')}</p>
+                                </div>
+                                <div className="bg-slate-950/50 p-4 rounded-2xl border border-slate-800">
+                                    <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Nº Quioscos</p>
+                                    <p className="text-sm font-black text-white">{customer.plan_quantity} dispositivo(s)</p>
+                                </div>
+                                <div className="bg-slate-950/50 p-4 rounded-2xl border border-slate-800">
+                                    <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Próx. Vencimiento</p>
+                                    <p className="text-xs font-black text-slate-300 truncate">{customer.next_billing_date ? new Date(customer.next_billing_date).toLocaleDateString() : '—'}</p>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => openDetails(customer)}
+                                className="w-full py-5 bg-slate-800 hover:bg-emerald-500 text-slate-400 hover:text-slate-900 rounded-2xl flex items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-lg border border-slate-700 hover:border-emerald-500"
+                            >
+                                <MoreHorizontal className="w-5 h-5" />
+                                <span>Gestionar Suscripción</span>
+                            </button>
+                        </div>
+                    ))
+                )}
             </div>
 
             {/* Empty UI Check */}
@@ -274,6 +547,200 @@ export default function SuperAdminBillingPage() {
 
                         {/* Body Dialog */}
                         <div className="flex-1 overflow-y-auto custom-scrollbar p-10 md:p-12">
+                            {/* Manual Invoicing Section */}
+                            <div className="mb-10 p-8 rounded-[2rem] bg-slate-950/60 border border-slate-800 relative overflow-hidden group">
+                                <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-emerald-500/10 blur-2xl"></div>
+                                
+                                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                    <div className="space-y-1">
+                                        <h4 className="text-lg font-black text-white italic tracking-tighter uppercase flex items-center gap-2 leading-none">
+                                            <Mail className="w-5 h-5 text-emerald-500" />
+                                            Enviar Factura de Pago
+                                        </h4>
+                                        <p className="text-slate-500 font-bold uppercase tracking-widest text-[9px] mt-1">Cobros automáticos recurrentes por correo</p>
+                                        <p className="text-slate-400 text-xs font-medium leading-relaxed max-w-lg mt-3">
+                                            Crea una factura mensual en Stripe calculada según el número de quioscos actual ({selectedCustomer.plan_quantity} licencia(s) = {formatPrice((selectedCustomer.mrr || 49), 'en-US')}/mes) y la envía directamente al correo <span className="text-emerald-500 font-bold">{selectedCustomer.email || 'propietario'}</span> con el enlace del formulario de pagos de Stripe.
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        onClick={() => handleSendInvoice(selectedCustomer.id)}
+                                        disabled={sendingInvoiceId !== null}
+                                        className="px-8 py-5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-slate-900 rounded-2xl font-black uppercase tracking-widest border border-emerald-500/20 hover:border-emerald-500 transition-all active:scale-95 text-[10px] flex items-center justify-center gap-3 disabled:opacity-50 shrink-0 self-start md:self-center shadow-lg"
+                                    >
+                                        {sendingInvoiceId === selectedCustomer.id ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                <span>Enviando...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Send className="w-4 h-4" />
+                                                <span>Enviar Factura</span>
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                            {/* Advanced Subscription Controls */}
+                            <div className="mb-10 p-8 rounded-[2rem] bg-slate-950/60 border border-slate-800 relative overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
+                                <h4 className="text-xs font-black text-white uppercase tracking-widest mb-6 px-1">
+                                    Configuración Avanzada de Suscripción
+                                </h4>
+
+                                <div className="grid grid-cols-1 gap-8">
+                                    {/* Edit Email Form */}
+                                    <div className="space-y-4">
+                                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">
+                                            Correo de Cobro (Stripe & Auth Owner)
+                                        </label>
+                                        <div className="flex flex-col sm:flex-row gap-4">
+                                            <input
+                                                type="email"
+                                                value={customEmail}
+                                                onChange={(e) => setCustomEmail(e.target.value)}
+                                                placeholder="correo@ejemplo.com"
+                                                className="flex-1 px-6 py-4 bg-slate-900 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-sans font-bold text-white text-sm"
+                                            />
+                                            <button
+                                                onClick={handleUpdateEmail}
+                                                disabled={updatingEmail}
+                                                className="w-full sm:w-auto px-6 bg-emerald-500 hover:bg-emerald-600 text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center sm:min-w-[120px]"
+                                            >
+                                                {updatingEmail ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                    'Guardar Correo'
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Edit Quantity Form */}
+                                    <div className="space-y-4">
+                                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">
+                                            Cantidad de Quioscos (Licencias)
+                                        </label>
+                                        <div className="flex flex-col sm:flex-row gap-4">
+                                            <input
+                                                type="number"
+                                                value={customQuantity}
+                                                onChange={(e) => setCustomQuantity(e.target.value)}
+                                                placeholder="Cantidad..."
+                                                className="flex-1 px-6 py-4 bg-slate-900 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-mono font-black text-white text-sm"
+                                            />
+                                            <button
+                                                onClick={handleUpdateQuantity}
+                                                disabled={updatingQuantity}
+                                                className="w-full sm:w-auto px-6 bg-emerald-500 hover:bg-emerald-600 text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center sm:min-w-[120px]"
+                                            >
+                                                {updatingQuantity ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                    'Guardar Cantidad'
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Edit Billing Date Form */}
+                                    <div className="space-y-4">
+                                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">
+                                            Próxima Fecha de Facturación
+                                        </label>
+                                        <div className="flex flex-col sm:flex-row gap-4">
+                                            <input
+                                                type="date"
+                                                value={customDate}
+                                                onChange={(e) => setCustomDate(e.target.value)}
+                                                className="flex-1 px-6 py-4 bg-slate-900 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-mono font-black text-white text-sm uppercase"
+                                            />
+                                            <button
+                                                onClick={handleUpdateBillingDate}
+                                                disabled={updatingDate}
+                                                className="w-full sm:w-auto px-6 bg-emerald-500 hover:bg-emerald-600 text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center sm:min-w-[120px]"
+                                            >
+                                                {updatingDate ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                    'Guardar Fecha'
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Edit Price Form */}
+                                    <div className="space-y-4">
+                                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">
+                                            Costo Unitario por Licencia (USD)
+                                        </label>
+                                        <div className="flex flex-col sm:flex-row gap-4">
+                                            <input
+                                                type="number"
+                                                value={customPrice}
+                                                onChange={(e) => setCustomPrice(e.target.value)}
+                                                placeholder="Precio unitario..."
+                                                className="flex-1 px-6 py-4 bg-slate-900 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-mono font-black text-white text-sm"
+                                            />
+                                            <button
+                                                onClick={handleUpdatePrice}
+                                                disabled={updatingPrice}
+                                                className="w-full sm:w-auto px-6 bg-emerald-500 hover:bg-emerald-600 text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center sm:min-w-[120px]"
+                                            >
+                                                {updatingPrice ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                    'Guardar Costo'
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* IDs copy board */}
+                                {(selectedCustomer.stripe_customer_id || selectedCustomer.stripe_subscription_id) && (
+                                    <div className="mt-8 pt-6 border-t border-slate-800/50 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {selectedCustomer.stripe_customer_id && (
+                                            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex items-center justify-between gap-4">
+                                                <div className="min-w-0">
+                                                    <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest leading-none">Stripe Customer ID</p>
+                                                    <p className="font-mono text-xs font-black text-slate-300 truncate mt-1.5">{selectedCustomer.stripe_customer_id}</p>
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText(selectedCustomer.stripe_customer_id || '');
+                                                        alert('Customer ID copiado.');
+                                                    }}
+                                                    className="p-2 text-slate-500 hover:text-emerald-500 hover:bg-slate-800 rounded-lg transition-all shrink-0"
+                                                    title="Copiar ID de Cliente"
+                                                >
+                                                    <Copy className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {selectedCustomer.stripe_subscription_id && (
+                                            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex items-center justify-between gap-4">
+                                                <div className="min-w-0">
+                                                    <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest leading-none">Stripe Subscription ID</p>
+                                                    <p className="font-mono text-xs font-black text-slate-300 truncate mt-1.5">{selectedCustomer.stripe_subscription_id}</p>
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText(selectedCustomer.stripe_subscription_id || '');
+                                                        alert('Subscription ID copiado.');
+                                                    }}
+                                                    className="p-2 text-slate-500 hover:text-emerald-500 hover:bg-slate-800 rounded-lg transition-all shrink-0"
+                                                    title="Copiar ID de Suscripción"
+                                                >
+                                                    <Copy className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
                             <h3 className="text-xl font-black text-white italic tracking-tighter uppercase mb-6 flex items-center gap-3">
                                 <Calendar className="w-5 h-5 text-emerald-500" />
                                 Historial de Facturación

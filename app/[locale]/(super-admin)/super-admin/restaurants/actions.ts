@@ -132,3 +132,28 @@ export async function uploadRestaurantLogo(formData: FormData) {
         return { error: 'Error inesperado: ' + err.message };
     }
 }
+
+export async function deleteRestaurant(id: string) {
+    try {
+        await requireSuperAdmin();
+        if (!id || !id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            return { error: 'ID de restaurante inválido' };
+        }
+
+        const supabase = getAdminClient();
+
+        const { error } = await (supabase
+            .from('restaurants' as any) as any)
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            return { error: error.message };
+        }
+
+        revalidatePath('/[locale]/super-admin/restaurants', 'page');
+        return { success: true };
+    } catch (e: any) {
+        return { error: e.message || 'Unauthorized' };
+    }
+}

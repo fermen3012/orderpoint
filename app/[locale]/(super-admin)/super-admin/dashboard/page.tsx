@@ -19,18 +19,29 @@ export default async function SuperAdminDashboard() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const [restaurantsRes, activeRes, ordersTodayRes] = await Promise.all([
-        (supabase.from('restaurants') as any).select('*', { count: 'exact', head: true }),
-        (supabase.from('restaurants').select('*', { count: 'exact', head: true }).eq('is_active', true) as any),
-        (supabase.from('orders').select('total_amount').gte('created_at', today.toISOString()) as any)
-    ]);
-
-    const stats = {
-        totalRestaurants: restaurantsRes.count || 0,
-        activeRestaurants: activeRes.count || 0,
-        totalOrdersToday: (ordersTodayRes.data as any[])?.length || 0,
-        totalRevenue: (ordersTodayRes.data as any[])?.reduce((acc: number, order: any) => acc + Number(order.total_amount), 0) || 0
+    let stats = {
+        totalRestaurants: 0,
+        activeRestaurants: 0,
+        totalOrdersToday: 0,
+        totalRevenue: 0
     };
+
+    try {
+        const [restaurantsRes, activeRes, ordersTodayRes] = await Promise.all([
+            (supabase.from('restaurants') as any).select('*', { count: 'exact', head: true }),
+            (supabase.from('restaurants').select('*', { count: 'exact', head: true }).eq('is_active', true) as any),
+            (supabase.from('orders').select('total_amount').gte('created_at', today.toISOString()) as any)
+        ]);
+
+        stats = {
+            totalRestaurants: restaurantsRes.count || 0,
+            activeRestaurants: activeRes.count || 0,
+            totalOrdersToday: (ordersTodayRes.data as any[])?.length || 0,
+            totalRevenue: (ordersTodayRes.data as any[])?.reduce((acc: number, order: any) => acc + Number(order.total_amount), 0) || 0
+        };
+    } catch (err) {
+        console.warn('SuperAdminDashboard: Database fetch skipped/failed (offline/network issue):', err);
+    }
 
     return (
         <div className="space-y-10 animate-in fade-in duration-700">

@@ -124,7 +124,7 @@ export default function UsersClient({ initialUsers }: { initialUsers: GlobalUser
                                         </div>
                                     </td>
                                     <td className="px-12 py-8 text-right">
-                                        <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex justify-end">
                                             <button
                                                 onClick={() => setSelectedUser(user)}
                                                 className="group relative flex items-center justify-center gap-2 px-6 py-4 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-slate-900 rounded-2xl font-black uppercase tracking-widest border border-emerald-500/20 hover:border-emerald-500 transition-all active:scale-95 whitespace-nowrap"

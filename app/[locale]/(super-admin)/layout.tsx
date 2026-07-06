@@ -14,7 +14,8 @@ import {
     ChevronLeft,
     ChevronRight,
     Sparkles,
-    CreditCard
+    CreditCard,
+    X
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/browser';
 import { useRouter } from '@/i18n/routing';
@@ -43,6 +44,7 @@ export default function SuperAdminLayout({
         { icon: <Users className="w-5 h-5" />, label: 'Usuarios', href: '/super-admin/users' },
         { icon: <CreditCard className="w-5 h-5" />, label: 'Facturación', href: '/super-admin/billing' },
         { icon: <Activity className="w-5 h-5" />, label: 'Sistema', href: '/super-admin/performance' },
+        { icon: <Settings className="w-5 h-5" />, label: 'Configuraciones', href: '/super-admin/settings' },
     ];
 
     return (
@@ -57,34 +59,47 @@ export default function SuperAdminLayout({
 
             {/* Sidebar */}
             <aside className={`
-                fixed inset-y-0 left-0 z-50 bg-slate-900/50 backdrop-blur-2xl border-r border-slate-800 transform transition-all duration-500 ease-in-out lg:translate-x-0 lg:static lg:inset-0
+                fixed inset-y-0 left-0 z-50 bg-slate-900/50 backdrop-blur-2xl border-r border-slate-800 transform transition-all duration-500 ease-in-out lg:translate-x-0 lg:relative lg:inset-0
                 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-                ${isSidebarCollapsed ? 'w-24' : 'w-72'}
+                ${isSidebarCollapsed ? 'lg:w-24 w-72' : 'w-72'}
             `}>
                 <div className="flex flex-col h-full">
                     {/* Logo/Header */}
-                    <div className={`p-8 flex items-center gap-4 transition-all duration-500 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                        <div className="relative group">
-                            <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
-                            <div className="relative w-10 h-10 bg-slate-800 rounded-2xl flex items-center justify-center overflow-hidden border border-slate-700/50">
-                                <span className="text-emerald-500 font-black text-xl">
-                                    O
-                                </span>
-                            </div>
-                        </div>
-
-                        {!isSidebarCollapsed && (
-                            <div className="flex flex-col min-w-0 animate-in fade-in slide-in-from-left duration-500">
-                                <span className="text-lg font-black text-white tracking-tighter truncate leading-none uppercase italic">
-                                    OrderPoint
-                                </span>
-                                <div className="flex items-center gap-1.5 mt-1">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] leading-none">
-                                        Super Admin
+                    <div className={`p-8 flex items-center justify-between gap-4 transition-all duration-500 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                        <div className="flex items-center gap-4">
+                            <div className="relative group">
+                                <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                                <div className="relative w-10 h-10 bg-slate-800 rounded-2xl flex items-center justify-center overflow-hidden border border-slate-700/50">
+                                    <span className="text-emerald-500 font-black text-xl">
+                                        O
                                     </span>
                                 </div>
                             </div>
+
+                            {!isSidebarCollapsed && (
+                                <div className="flex flex-col min-w-0 animate-in fade-in slide-in-from-left duration-500">
+                                    <span className="text-lg font-black text-white tracking-tighter truncate leading-none uppercase italic">
+                                        OrderPoint
+                                    </span>
+                                    <div className="flex items-center gap-1.5 mt-1">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] leading-none">
+                                            Super Admin
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Mobile Close Button */}
+                        {isSidebarOpen && (
+                            <button
+                                onClick={() => setIsSidebarOpen(false)}
+                                className="lg:hidden p-2 text-slate-400 hover:text-emerald-500 bg-slate-800/50 border border-slate-700/50 rounded-xl transition-colors active:scale-95"
+                                title="Cerrar menú"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
                         )}
                     </div>
 
