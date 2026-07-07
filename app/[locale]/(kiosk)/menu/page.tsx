@@ -28,8 +28,47 @@ type Category = Database['public']['Tables']['categories']['Row'];
 
 const getLocalizedValue = (field: any, currentLang: string): string => {
     if (!field) return '';
-    if (typeof field === 'string') return field;
-    return field[currentLang] || field['es'] || '';
+    let current = field;
+    for (let i = 0; i < 5; i++) {
+        if (typeof current === 'string') {
+            const trimmed = current.trim();
+            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    if (parsed !== null && parsed !== undefined) {
+                        current = parsed;
+                        continue;
+                    }
+                } catch (e) {
+                    try {
+                        const fixed = trimmed.replace(/""/g, '"');
+                        const parsed = JSON.parse(fixed);
+                        if (parsed !== null && parsed !== undefined) {
+                            current = parsed;
+                            continue;
+                        }
+                    } catch (err) {}
+                }
+            }
+            break;
+        } else if (current && typeof current === 'object') {
+            const foundKey = Object.keys(current).find(pk => pk.toLowerCase() === currentLang.toLowerCase());
+            if (foundKey) {
+                current = current[foundKey];
+            } else {
+                const esKey = Object.keys(current).find(pk => pk.toLowerCase() === 'es');
+                if (esKey) {
+                    current = current[esKey];
+                } else {
+                    const firstKey = Object.keys(current)[0];
+                    current = firstKey ? current[firstKey] : '';
+                }
+            }
+        } else {
+            break;
+        }
+    }
+    return typeof current === 'string' ? current : (current ? String(current) : '');
 };
 
 export default function MenuPage({ params }: { params: Promise<{ locale: string }> }) {

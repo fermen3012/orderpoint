@@ -22,7 +22,8 @@ import {
     ChefHat,
     Loader2,
     Sparkles,
-    RefreshCw
+    RefreshCw,
+    Upload
 } from 'lucide-react';
 import { generateDualTranslation } from '@/actions/translate-gemini';
 import { formatPrice } from '@/lib/utils';
@@ -37,48 +38,56 @@ import {
 } from '@/actions/products';
 import imageCompression from 'browser-image-compression';
 
-const parseLocalizedField = (val: any): { es: string; en: string } => {
-    if (!val) return { es: '', en: '' };
-    
-    let current = val;
-    
-    // Attempt parsing up to 3 times to handle double/triple serialization and outer quotes
-    for (let i = 0; i < 3; i++) {
-        if (typeof current === 'string') {
-            try {
-                const parsed = JSON.parse(current);
-                if (parsed !== null && parsed !== undefined) {
-                    current = parsed;
-                } else {
-                    break;
+export const parseLocalizedField = (value: any): { es: string; en: string } => {
+    if (!value) return { es: '', en: '' };
+
+    const extractLang = (val: any, lang: 'es' | 'en'): string => {
+        let current = val;
+        for (let i = 0; i < 5; i++) {
+            if (typeof current === 'string') {
+                const trimmed = current.trim();
+                if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                    try {
+                        const parsed = JSON.parse(trimmed);
+                        if (parsed !== null && parsed !== undefined) {
+                            current = parsed;
+                            continue;
+                        }
+                    } catch (e) {
+                        try {
+                            const fixed = trimmed.replace(/""/g, '"');
+                            const parsed = JSON.parse(fixed);
+                            if (parsed !== null && parsed !== undefined) {
+                                current = parsed;
+                                continue;
+                            }
+                        } catch (err) {}
+                    }
                 }
-            } catch (e) {
+                break;
+            } else if (current && typeof current === 'object') {
+                const foundKey = Object.keys(current).find(pk => pk.toLowerCase() === lang.toLowerCase());
+                if (foundKey) {
+                    current = current[foundKey];
+                } else {
+                    const otherKey = Object.keys(current).find(pk => pk.toLowerCase() !== lang.toLowerCase());
+                    if (otherKey) {
+                        current = current[otherKey];
+                    } else {
+                        break;
+                    }
+                }
+            } else {
                 break;
             }
-        } else {
-            break;
         }
-    }
-    
-    if (current && typeof current === 'object') {
-        const getVal = (keys: string[]) => {
-            for (const k of keys) {
-                const foundKey = Object.keys(current).find(pk => pk.toLowerCase() === k.toLowerCase());
-                if (foundKey) return current[foundKey];
-            }
-            return '';
-        };
-        return {
-            es: getVal(['es']) || '',
-            en: getVal(['en']) || ''
-        };
-    }
-    
-    if (typeof current === 'string') {
-        return { es: current, en: '' };
-    }
-    
-    return { es: '', en: '' };
+        return typeof current === 'string' ? current : (current ? String(current) : '');
+    };
+
+    return {
+        es: extractLang(value, 'es'),
+        en: extractLang(value, 'en')
+    };
 };
 
 export default function ProductsPageContent({ restaurantId: propRestaurantId }: { restaurantId?: string }) {
@@ -437,6 +446,16 @@ export default function ProductsPageContent({ restaurantId: propRestaurantId }: 
                             className="w-full pl-16 pr-8 py-4 bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-bold text-white placeholder:text-slate-600"
                         />
                     </div>
+
+                    {propRestaurantId && (
+                        <button
+                            onClick={() => router.push(`/super-admin/restaurants/${restaurantId}/import`)}
+                            className="group flex items-center justify-center gap-3 px-6 py-4 bg-slate-900/50 backdrop-blur-md border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all hover:-translate-y-1 active:scale-95 whitespace-nowrap"
+                        >
+                            <Upload className="w-5 h-5 text-emerald-500" />
+                            <span>Importar CSV</span>
+                        </button>
+                    )}
 
                     <button
                         onClick={() => {

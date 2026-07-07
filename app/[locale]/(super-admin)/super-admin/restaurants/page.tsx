@@ -265,15 +265,7 @@ export default function SuperAdminRestaurants() {
                                                         Ver Menú
                                                     </Link>
 
-                                                    {/* Importar CSV */}
-                                                    <Link
-                                                        href={`/super-admin/restaurants/${res.id}/import`}
-                                                        onClick={() => setOpenMenuId(null)}
-                                                        className="flex items-center gap-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-900/50 transition-colors text-xs font-bold uppercase tracking-wider"
-                                                    >
-                                                        <Upload className="w-4 h-4 text-sky-400" />
-                                                        Importar CSV
-                                                    </Link>
+
 
                                                     {/* Editar Restaurante (Subir Logo) */}
                                                     <button
