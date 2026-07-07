@@ -181,7 +181,12 @@
         "activeSub": "Activa",
         "inactiveSub": "Inactiva",
         "pastDueSub": "Atrasada",
-        "managePaymentMethods": "Modificar Tarjeta de Crédito"
+        "managePaymentMethods": "Modificar Tarjeta de Crédito",
+        "subscribeNow": "Suscribirse Ahora",
+        "noSubscriptionTitle": "Activar tu Suscripción",
+        "noSubscriptionDesc": "Para comenzar a usar OrderPoint y conectar tus quioscos, por favor configura tu método de pago y activa tu suscripción.",
+        "subscriptionSuccess": "¡Suscripción configurada con éxito!",
+        "subscriptionCanceled": "El proceso de suscripción fue cancelado. Por favor, inténtalo de nuevo si deseas activar tu cuenta."
     },
     "common": {
         "search": "Buscar",

@@ -52,13 +52,18 @@ export async function inviteRestaurantOwner(email: string, restaurantId: string,
             await supabaseAdmin.auth.admin.deleteUser(existingUser.id);
         }
 
+        // next-intl default locale is 'es', which hides the locale prefix.
+        // We use the canonical path to avoid next-intl redirects that can drop hash parameters.
+        const redirectPath = locale === 'es' ? '/set-password' : `/${locale}/set-password`;
+        const redirectToUrl = `${siteUrl}${redirectPath}`;
+
         // 2. Enviar invitación
         const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
             data: {
                 role: 'owner',
                 restaurant_id: restaurantId
             },
-            redirectTo: `${siteUrl}/${locale}/set-password`,
+            redirectTo: redirectToUrl,
         });
 
         if (error) {

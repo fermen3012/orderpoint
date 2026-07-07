@@ -181,7 +181,12 @@
         "activeSub": "Active",
         "inactiveSub": "Inactive",
         "pastDueSub": "Past Due",
-        "managePaymentMethods": "Manage Credit Card"
+        "managePaymentMethods": "Manage Credit Card",
+        "subscribeNow": "Subscribe Now",
+        "noSubscriptionTitle": "Activate Your Subscription",
+        "noSubscriptionDesc": "To start using OrderPoint and connect your kiosks, please set up your payment method and activate your subscription.",
+        "subscriptionSuccess": "Subscription set up successfully!",
+        "subscriptionCanceled": "Subscription setup was canceled. Please try again if you wish to activate your account."
     },
     "common": {
         "search": "Search",

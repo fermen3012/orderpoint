@@ -70,8 +70,8 @@ export default function SetPasswordPage() {
                         const invitedTime = new Date(user.invited_at).getTime();
                         const currentTime = new Date().getTime();
                         const diffMinutes = (currentTime - invitedTime) / (1000 * 60);
-                        if (diffMinutes > 10) {
-                            setError('Esta invitación ha expirado porque superó el límite de 10 minutos. Solicita una nueva invitación al administrador.');
+                        if (diffMinutes > 1440) {
+                            setError('Esta invitación ha expirado porque superó el límite de 24 horas. Solicita una nueva invitación al administrador.');
                             setCheckingSession(false);
                             return;
                         }
@@ -92,8 +92,8 @@ export default function SetPasswordPage() {
                     const invitedTime = new Date(user.invited_at).getTime();
                     const currentTime = new Date().getTime();
                     const diffMinutes = (currentTime - invitedTime) / (1000 * 60);
-                    if (diffMinutes > 10) {
-                        setError('Esta invitación ha expirado porque superó el límite de 10 minutos. Solicita una nueva invitación al administrador.');
+                    if (diffMinutes > 1440) {
+                        setError('Esta invitación ha expirado porque superó el límite de 24 horas. Solicita una nueva invitación al administrador.');
                         setHasSession(false);
                         setCheckingSession(false);
                         return;
@@ -140,8 +140,8 @@ export default function SetPasswordPage() {
                 const invitedTime = new Date(session.user.invited_at).getTime();
                 const currentTime = new Date().getTime();
                 const diffMinutes = (currentTime - invitedTime) / (1000 * 60);
-                if (diffMinutes > 10) {
-                    throw new Error('Esta invitación ha expirado porque superó el límite de 10 minutos. Por favor, solicita al administrador que te envíe una nueva invitación.');
+                if (diffMinutes > 1440) {
+                    throw new Error('Esta invitación ha expirado porque superó el límite de 24 horas. Por favor, solicita al administrador que te envíe una nueva invitación.');
                 }
             }
 
