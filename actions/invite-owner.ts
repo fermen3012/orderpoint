@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/lib/supabase/types';
 import { requireSuperAdmin } from '@/lib/auth/guards';
+import { headers } from 'next/headers';
 
 export async function inviteRestaurantOwner(email: string, restaurantId: string, locale: string) {
     try {
@@ -22,7 +23,12 @@ export async function inviteRestaurantOwner(email: string, restaurantId: string,
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        const siteUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+        
+        // Dynamically resolve the site URL based on request headers
+        const headersList = await headers();
+        const host = headersList.get('host') || 'localhost:3000';
+        const protocol = host.includes('localhost') ? 'http' : 'https';
+        const siteUrl = `${protocol}://${host}`;
 
         if (!supabaseUrl || !supabaseServiceKey) {
             return { error: 'Missing environment variables' };

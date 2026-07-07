@@ -26,6 +26,7 @@ export default function SetPasswordPage() {
     const [checkingSession, setCheckingSession] = useState(true);
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [showTerms, setShowTerms] = useState(false);
+    const [termsLanguage, setTermsLanguage] = useState<'es' | 'en'>(locale === 'en' ? 'en' : 'es');
 
     useEffect(() => {
         let isMounted = true;
@@ -365,34 +366,87 @@ export default function SetPasswordPage() {
                             >
                                 <X className="w-6 h-6 text-slate-400" />
                             </button>
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 bg-primary-50 rounded-2xl">
-                                    <ScrollText className="w-6 h-6 text-primary-600" />
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pr-12">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-primary-50 rounded-2xl">
+                                        <ScrollText className="w-6 h-6 text-primary-600" />
+                                    </div>
+                                    <h2 className="text-2xl font-black text-slate-900 leading-tight">
+                                        {termsLanguage === 'es' ? 'Términos y Condiciones' : 'Terms & Conditions'}
+                                    </h2>
                                 </div>
-                                <h2 className="text-2xl font-black text-slate-900 leading-tight">
-                                    Términos y Condiciones
-                                </h2>
+                                
+                                {/* Language Toggle Switch */}
+                                <div className="flex items-center bg-slate-100 p-1 rounded-xl shrink-0 self-start sm:self-auto">
+                                    <button
+                                        type="button"
+                                        onClick={() => setTermsLanguage('es')}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${termsLanguage === 'es' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                                    >
+                                        ES
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setTermsLanguage('en')}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${termsLanguage === 'en' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                                    >
+                                        EN
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         <div className="p-8 overflow-y-auto grow text-slate-600 space-y-4">
-                            <p className="font-medium">
-                                Bienvenido a OrderPoint. Al aceptar esta invitación y usar nuestros servicios, aceptas estos términos.
-                            </p>
-                            <h3 className="font-bold text-slate-900 pt-2">1. Uso del Servicio</h3>
-                            <p className="text-sm leading-relaxed">
-                                El usuario se compromete a utilizar la plataforma de acuerdo con la ley, la moral y el orden público. Toda la información proporcionada debe ser veraz.
-                            </p>
-                            <h3 className="font-bold text-slate-900 pt-2">2. Privacidad y Datos</h3>
-                            <p className="text-sm leading-relaxed">
-                                Nos tomamos muy en serio tu privacidad. Lee nuestra política de privacidad completa para entender cómo manejamos tus datos. No compartimos tu información con terceros sin consentimiento.
-                            </p>
-                            <h3 className="font-bold text-slate-900 pt-2">3. Responsabilidad</h3>
-                            <p className="text-sm leading-relaxed">
-                                OrderPoint provee la infraestructura tecnológica, pero el negocio es responsable del manejo de sus operaciones, menú, cobros e impuestos aplicables.
-                            </p>
-                            <div className="mt-6 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-500 uppercase tracking-widest text-center">
-                                Versión v1.0 - Última actualización: Marzo 2026
-                            </div>
+                            {termsLanguage === 'es' ? (
+                                <>
+                                    <p className="font-medium text-slate-800">
+                                        Bienvenido a OrderPoint. Al aceptar esta invitación y usar nuestros servicios, aceptas estos términos y condiciones.
+                                    </p>
+                                    <h3 className="font-bold text-slate-900 pt-2">1. Uso del Servicio</h3>
+                                    <p className="text-sm leading-relaxed">
+                                        El usuario se compromete a utilizar la plataforma de acuerdo con la ley, la moral y el orden público. Toda la información proporcionada debe ser veraz y mantenerse actualizada.
+                                    </p>
+                                    <h3 className="font-bold text-slate-900 pt-2">2. Pasarela de Pagos y Suscripciones (Stripe)</h3>
+                                    <p className="text-sm leading-relaxed">
+                                        Para procesar pagos, gestionar suscripciones y emitir facturas mensuales automáticas, OrderPoint utiliza la infraestructura de Stripe. Al aceptar estos términos, autorizas el procesamiento de cobros automáticos basados en la cantidad de licencias contratadas.
+                                    </p>
+                                    <h3 className="font-bold text-slate-900 pt-2">3. Procesamiento con Inteligencia Artificial (IA)</h3>
+                                    <p className="text-sm leading-relaxed">
+                                        OrderPoint utiliza servicios de inteligencia artificial (como Gemini API) para asistir y automatizar el soporte técnico y de atención al cliente. Tus interacciones con el bot de soporte pueden ser procesadas para mejorar la calidad del servicio.
+                                    </p>
+                                    <h3 className="font-bold text-slate-900 pt-2">4. Responsabilidad</h3>
+                                    <p className="text-sm leading-relaxed">
+                                        OrderPoint provee la infraestructura tecnológica, pero cada restaurante es responsable del manejo de sus operaciones, menú, pedidos y cumplimiento fiscal aplicable.
+                                    </p>
+                                    <div className="mt-6 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-500 uppercase tracking-widest text-center">
+                                        Versión v1.1 - Última actualización: Julio 2026
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="font-medium text-slate-800">
+                                        Welcome to OrderPoint. By accepting this invitation and using our services, you agree to these terms and conditions.
+                                    </p>
+                                    <h3 className="font-bold text-slate-900 pt-2">1. Service Usage</h3>
+                                    <p className="text-sm leading-relaxed">
+                                        The user agrees to use the platform in accordance with the law, moral principles, and public order. All information provided must be accurate and kept up to date.
+                                    </p>
+                                    <h3 className="font-bold text-slate-900 pt-2">2. Payment Gateway and Subscriptions (Stripe)</h3>
+                                    <p className="text-sm leading-relaxed">
+                                        To process payments, manage subscriptions, and issue automatic monthly invoices, OrderPoint uses Stripe's infrastructure. By accepting these terms, you authorize automatic billing based on your contracted licenses.
+                                    </p>
+                                    <h3 className="font-bold text-slate-900 pt-2">3. Artificial Intelligence (AI) Processing</h3>
+                                    <p className="text-sm leading-relaxed">
+                                        OrderPoint utilizes artificial intelligence services (such as Gemini API) to assist and automate customer service and technical support. Your interactions with the support bot may be processed to improve service quality.
+                                    </p>
+                                    <h3 className="font-bold text-slate-900 pt-2">4. Liability</h3>
+                                    <p className="text-sm leading-relaxed">
+                                        OrderPoint provides the technological infrastructure, but each restaurant is solely responsible for managing its operations, menu, orders, and applicable tax compliance.
+                                    </p>
+                                    <div className="mt-6 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-500 uppercase tracking-widest text-center">
+                                        Version v1.1 - Last updated: July 2026
+                                    </div>
+                                </>
+                            )}
                         </div>
                         <div className="p-6 border-t border-slate-100 shrink-0 bg-slate-50">
                             <button
@@ -403,7 +457,7 @@ export default function SetPasswordPage() {
                                 }}
                                 className="w-full bg-primary-500 hover:bg-primary-600 text-white font-black py-4 rounded-[1.5rem] transition-all shadow-lg hover:-translate-y-0.5 tracking-widest uppercase text-sm"
                             >
-                                HE LEÍDO Y ACEPTO LOS TÉRMINOS
+                                {termsLanguage === 'es' ? 'HE LEÍDO Y ACEPTO LOS TÉRMINOS' : 'I HAVE READ AND ACCEPT THE TERMS'}
                             </button>
                         </div>
                     </div>
