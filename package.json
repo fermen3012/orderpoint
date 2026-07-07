@@ -26,6 +26,7 @@
     "lucide-react": "0.309.0",
     "next": "^15.2.0",
     "next-intl": "^3.26.0",
+    "papaparse": "^5.5.4",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-hook-form": "7.49.3",
@@ -37,6 +38,7 @@
   },
   "devDependencies": {
     "@types/node": "20",
+    "@types/papaparse": "^5.5.2",
     "@types/react": "19",
     "@types/react-dom": "19",
     "autoprefixer": "10.4.23",

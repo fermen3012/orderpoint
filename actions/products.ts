@@ -14,9 +14,8 @@ interface IngredientSelection {
 interface ProductInput {
     id?: string;
     restaurant_id: string;
-    name: string;
-    description?: string | null;
-    description_es?: string | null;
+    name: any;
+    description?: any | null;
     price: number;
     category_id?: string | null;
     image_url?: string | null;
@@ -68,7 +67,6 @@ export async function saveProduct(product: ProductInput, ingredients: Ingredient
             const updateData: Database['public']['Tables']['products']['Update'] = {
                 name: product.name,
                 description: product.description,
-                description_es: product.description_es,
                 price: product.price,
                 category_id: product.category_id,
                 image_url: product.image_url,
@@ -89,7 +87,6 @@ export async function saveProduct(product: ProductInput, ingredients: Ingredient
                 restaurant_id: product.restaurant_id,
                 name: product.name,
                 description: product.description,
-                description_es: product.description_es,
                 price: product.price,
                 category_id: product.category_id,
                 image_url: product.image_url,
@@ -216,4 +213,243 @@ export async function getMenuWithSchedule(restaurantId: string, dayOfWeek: numbe
 
     console.log(`[getMenuWithSchedule] Returning ${validProducts.length} products.`);
     return validProducts;
+}
+
+export async function createCategoryAction(name: string, restaurantId: string): Promise<any> {
+    try {
+        const profile = await requireRestaurantRole(['admin', 'owner']);
+        
+        let targetRestaurantId = restaurantId;
+        if (!profile.is_super_admin) {
+            targetRestaurantId = profile.restaurant_id!;
+        }
+
+        if (!targetRestaurantId || !targetRestaurantId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            return { error: 'ID de restaurante inválido', success: false };
+        }
+
+        const supabase = await createClient();
+        const { count } = await (supabase
+            .from('categories' as any) as any)
+            .select('*', { count: 'exact', head: true })
+            .eq('restaurant_id', targetRestaurantId);
+
+        const { data, error } = await (supabaseAdmin
+            .from('categories' as any) as any)
+            .insert({
+                name,
+                restaurant_id: targetRestaurantId,
+                sort_order: (count || 0) + 1
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return { success: true, data };
+    } catch (e: any) {
+        console.error('Error creating category action:', e);
+        return { error: e.message || 'Error al crear la categoría', success: false };
+    }
+}
+
+export async function createIngredientAction(name: string, restaurantId: string): Promise<any> {
+    try {
+        const profile = await requireRestaurantRole(['admin', 'owner']);
+        
+        let targetRestaurantId = restaurantId;
+        if (!profile.is_super_admin) {
+            targetRestaurantId = profile.restaurant_id!;
+        }
+
+        if (!targetRestaurantId || !targetRestaurantId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            return { error: 'ID de restaurante inválido', success: false };
+        }
+
+        const { data, error } = await (supabaseAdmin
+            .from('ingredients' as any) as any)
+            .insert({
+                name,
+                restaurant_id: targetRestaurantId
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return { success: true, data };
+    } catch (e: any) {
+        console.error('Error creating ingredient action:', e);
+        return { error: e.message || 'Error al crear el ingrediente', success: false };
+    }
+}
+
+export async function deleteProductAction(productId: string) {
+    try {
+        const profile = await requireRestaurantRole(['admin', 'owner']);
+        
+        if (!profile.is_super_admin) {
+            const supabase = await createClient();
+            const { data } = await (supabase
+                .from('products' as any) as any)
+                .select('restaurant_id')
+                .eq('id', productId)
+                .single();
+                
+            if (!data || (data as any).restaurant_id !== profile.restaurant_id) {
+                return { error: 'No tiene permisos para eliminar este producto', success: false };
+            }
+        }
+
+        const { error } = await (supabaseAdmin
+            .from('products' as any) as any)
+            .delete()
+            .eq('id', productId);
+
+        if (error) throw error;
+        return { success: true };
+    } catch (e: any) {
+        console.error('Error deleting product action:', e);
+        return { error: e.message || 'Error al eliminar el producto', success: false };
+    }
+}
+
+export async function toggleProductAvailabilityAction(productId: string, currentStatus: boolean) {
+    try {
+        const profile = await requireRestaurantRole(['admin', 'owner']);
+        
+        if (!profile.is_super_admin) {
+            const supabase = await createClient();
+            const { data } = await (supabase
+                .from('products' as any) as any)
+                .select('restaurant_id')
+                .eq('id', productId)
+                .single();
+                
+            if (!data || (data as any).restaurant_id !== profile.restaurant_id) {
+                return { error: 'No tiene permisos para modificar la disponibilidad', success: false };
+            }
+        }
+
+        const { error } = await (supabaseAdmin
+            .from('products' as any) as any)
+            .update({ is_available: !currentStatus })
+            .eq('id', productId);
+
+        if (error) throw error;
+        return { success: true };
+    } catch (e: any) {
+        console.error('Error toggling availability action:', e);
+        return { error: e.message || 'Error al cambiar la disponibilidad', success: false };
+    }
+}
+
+export async function bulkInsertProductsAction(
+    restaurantId: string,
+    products: {
+        name: { es: string; en: string };
+        description: { es: string; en: string };
+        price: number;
+        category: string;
+    }[]
+): Promise<any> {
+    try {
+        const profile = await requireRestaurantRole(['admin', 'owner']);
+        
+        let targetRestaurantId = restaurantId;
+        if (!profile.is_super_admin) {
+            targetRestaurantId = profile.restaurant_id!;
+        }
+
+        if (!targetRestaurantId || !targetRestaurantId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            return { error: 'ID de restaurante inválido', success: false };
+        }
+
+        const supabase = await createClient();
+
+        // 1. Get existing categories for this restaurant
+        const { data: existingCategories, error: catError } = await (supabase
+            .from('categories' as any) as any)
+            .select('id, name')
+            .eq('restaurant_id', targetRestaurantId);
+
+        if (catError) throw catError;
+
+        const categoryMap = new Map<string, string>();
+        if (existingCategories) {
+            existingCategories.forEach((c: any) => {
+                categoryMap.set(c.name.toLowerCase().trim(), c.id);
+            });
+        }
+
+        // Find unique category names from input that are NOT in existingCategories
+        const uniqueInputCategories = Array.from(
+            new Set(
+                products
+                    .map(p => (p.category || 'General').trim())
+                    .filter(c => c.length > 0)
+            )
+        );
+
+        const missingCategories = uniqueInputCategories.filter(
+            catName => !categoryMap.has(catName.toLowerCase())
+        );
+
+        // 2. Create missing categories
+        if (missingCategories.length > 0) {
+            // Find current next sort order
+            const { count } = await (supabase
+                .from('categories' as any) as any)
+                .select('*', { count: 'exact', head: true })
+                .eq('restaurant_id', targetRestaurantId);
+
+            let nextSortOrder = (count || 0) + 1;
+
+            const categoryInserts = missingCategories.map(catName => ({
+                name: catName,
+                restaurant_id: targetRestaurantId,
+                sort_order: nextSortOrder++
+            }));
+
+            const { data: newCats, error: insertCatError } = await (supabaseAdmin
+                .from('categories' as any) as any)
+                .insert(categoryInserts)
+                .select();
+
+            if (insertCatError) throw insertCatError;
+
+            if (newCats) {
+                newCats.forEach((c: any) => {
+                    categoryMap.set(c.name.toLowerCase().trim(), c.id);
+                });
+            }
+        }
+
+        // 3. Build product inserts
+        const productInserts = products.map(p => {
+            const catNameResolved = (p.category || 'General').trim();
+            const categoryId = categoryMap.get(catNameResolved.toLowerCase()) || null;
+
+            return {
+                restaurant_id: targetRestaurantId,
+                name: p.name,
+                description: p.description,
+                price: p.price || 0,
+                category_id: categoryId,
+                is_available: true
+            };
+        });
+
+        // 4. Bulk insert products
+        const { error: insertProductsError } = await (supabaseAdmin
+            .from('products' as any) as any)
+            .insert(productInserts);
+
+        if (insertProductsError) throw insertProductsError;
+
+        revalidatePath('/admin/products');
+        return { success: true, count: products.length };
+
+    } catch (e: any) {
+        console.error('Error in bulkInsertProductsAction:', e);
+        return { error: e.message || 'Error al importar los platos', success: false };
+    }
 }

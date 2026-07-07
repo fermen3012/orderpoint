@@ -194,7 +194,7 @@ export function ProductModal({
                     {product.image_url ? (
                         <Image
                             src={product.image_url}
-                            alt={product.name}
+                            alt={product.name?.es || (typeof product.name === 'string' ? product.name : '')}
                             fill
                             className="object-cover"
                         />
@@ -214,10 +214,10 @@ export function ProductModal({
 
                     <div className="absolute bottom-6 left-6 right-6 text-white">
                         <DialogTitle className="text-3xl md:text-4xl font-black tracking-tight leading-none mb-2 drop-shadow-lg">
-                            {product.name}
+                            {product.name?.[locale] || product.name?.es || (typeof product.name === 'string' ? product.name : '')}
                         </DialogTitle>
                         <p className="text-white/90 text-sm md:text-base font-medium line-clamp-2 max-w-xl drop-shadow-md">
-                            {product.description}
+                            {product.description?.[locale] || product.description?.es || (typeof product.description === 'string' ? product.description : '')}
                         </p>
                         <div className="mt-3 inline-flex bg-white/20 backdrop-blur-md px-3 py-1 rounded-lg">
                             <span className="font-bold text-lg">

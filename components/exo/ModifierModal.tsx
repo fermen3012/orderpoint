@@ -5,6 +5,8 @@ import { Product, ModifierGroup, SelectedModifier, Modifier } from '@/types';
 import { X, Check, Plus, Minus } from 'lucide-react';
 import { cn, formatPrice } from '@/lib/utils';
 
+import { useParams } from 'next/navigation';
+
 interface ModifierModalProps {
     product: Product;
     onClose: () => void;
@@ -12,6 +14,9 @@ interface ModifierModalProps {
 }
 
 export default function ModifierModal({ product, onClose, onConfirm }: ModifierModalProps) {
+    const params = useParams();
+    const locale = (params?.locale as string) || 'es';
+    const productName = product.name?.[locale] || product.name?.es || (typeof product.name === 'string' ? product.name : '');
     const [selections, setSelections] = useState<SelectedModifier[]>(
         product.modifier_groups.map(group => ({
             groupId: group.id,
@@ -67,7 +72,7 @@ export default function ModifierModal({ product, onClose, onConfirm }: ModifierM
                 <div className="p-6 bg-slate-800/50 flex items-center justify-between border-b border-slate-700">
                     <div className="flex flex-col">
                         <h3 className="text-2xl font-black italic tracking-tighter uppercase leading-none">
-                            {product.name}
+                            {productName}
                         </h3>
                         <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">
                             Personaliza tu pedido

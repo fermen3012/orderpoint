@@ -81,9 +81,8 @@ export interface Database {
                     id: string
                     restaurant_id: string
                     category_id: string | null
-                    name: string
-                    description: string | null
-                    description_es: string | null
+                    name: any
+                    description: any | null
                     price: number
                     image_url: string | null
                     is_available: boolean
@@ -93,9 +92,8 @@ export interface Database {
                     id?: string
                     restaurant_id: string
                     category_id?: string | null
-                    name: string
-                    description?: string | null
-                    description_es?: string | null
+                    name: any
+                    description?: any | null
                     price: number
                     image_url?: string | null
                     is_available?: boolean
@@ -105,9 +103,8 @@ export interface Database {
                     id?: string
                     restaurant_id?: string
                     category_id?: string | null
-                    name?: string
-                    description?: string | null
-                    description_es?: string | null
+                    name?: any
+                    description?: any | null
                     price?: number
                     image_url?: string | null
                     is_available?: boolean

@@ -16,11 +16,14 @@ import {
     Calendar,
     Upload,
     Trash2,
-    Loader2
+    Loader2,
+    ChefHat,
+    FileSpreadsheet,
+    FileText
 } from 'lucide-react';
 import InviteOwnerModal from '@/components/super-admin/InviteOwnerModal';
 import RestaurantLogoModal from '@/components/super-admin/RestaurantLogoModal';
-import { useRouter } from '@/i18n/routing';
+import { useRouter, Link } from '@/i18n/routing';
 import { createRestaurant, toggleRestaurantStatus, getRestaurants, deleteRestaurant } from './actions';
 
 export default function SuperAdminRestaurants() {
@@ -41,6 +44,7 @@ export default function SuperAdminRestaurants() {
     const [inviteModalData, setInviteModalData] = useState<{ id: string, name: string } | null>(null);
     const [deleteModalData, setDeleteModalData] = useState<{ id: string, name: string } | null>(null);
     const [deleting, setDeleting] = useState(false);
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
     const handleDeleteRestaurant = async () => {
         if (!deleteModalData) return;
@@ -64,6 +68,19 @@ export default function SuperAdminRestaurants() {
     useEffect(() => {
         loadRestaurants();
     }, []);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (openMenuId) {
+                const target = event.target as HTMLElement;
+                if (!target.closest('.kebab-container')) {
+                    setOpenMenuId(null);
+                }
+            }
+        };
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, [openMenuId]);
 
     const loadRestaurants = async () => {
         setLoading(true);
@@ -165,22 +182,22 @@ export default function SuperAdminRestaurants() {
             </div>
 
             {/* Desktop Table View */}
-            <div className="hidden lg:block bg-slate-900/40 backdrop-blur-sm rounded-[3.5rem] border border-slate-800 overflow-hidden shadow-2xl">
+            <div className="hidden lg:block bg-[#0B1120] rounded-[3.5rem] border border-slate-800 overflow-hidden shadow-2xl">
                 <div className="overflow-x-auto custom-scrollbar">
                     <table className="w-full">
                         <thead className="bg-slate-950/20 border-b border-slate-800/50">
                             <tr>
-                                <th className="px-12 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Restaurante / Tenant</th>
-                                <th className="px-12 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Identificador</th>
-                                <th className="px-12 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Estado</th>
-                                <th className="px-12 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Alta</th>
-                                <th className="px-12 py-10 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-right">Controles</th>
+                                <th className="px-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Restaurante / Tenant</th>
+                                <th className="px-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Identificador</th>
+                                <th className="px-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Estado</th>
+                                <th className="px-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Alta</th>
+                                <th className="px-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-right">Controles</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/50">
                             {filteredRestaurants.map((res, idx) => (
                                 <tr key={res.id} className="group hover:bg-slate-800/20 transition-all duration-300">
-                                    <td className="px-12 py-8">
+                                    <td className="px-6 py-4">
                                         <div className="flex items-center gap-6">
                                             <div className="w-14 h-14 rounded-[1.25rem] bg-slate-950 flex items-center justify-center border border-slate-800 group-hover:border-emerald-500/30 transition-all duration-500 shadow-xl overflow-hidden">
                                                 {res.logo_url ? (
@@ -197,13 +214,13 @@ export default function SuperAdminRestaurants() {
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-12 py-8">
+                                    <td className="px-6 py-4">
                                         <div className="flex items-center gap-2 text-slate-400 font-bold bg-slate-900 px-4 py-2 rounded-xl border border-slate-800 w-fit">
                                             <Globe className="w-4 h-4 text-emerald-500/50" />
                                             <span className="font-black text-xs uppercase tracking-widest">{res.slug || 'sin-slug'}</span>
                                         </div>
                                     </td>
-                                    <td className="px-12 py-8">
+                                    <td className="px-6 py-4">
                                         <div className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest w-fit border ${res.is_active
                                                 ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                                                 : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
@@ -212,7 +229,7 @@ export default function SuperAdminRestaurants() {
                                             {res.is_active ? 'Activo' : 'Suspendido'}
                                         </div>
                                     </td>
-                                    <td className="px-12 py-8">
+                                    <td className="px-6 py-4">
                                         <div className="flex items-center gap-2 text-slate-500 group-hover:text-slate-300 transition-colors">
                                             <Calendar className="w-4 h-4" />
                                             <span className="font-black text-xs uppercase tracking-widest">
@@ -220,39 +237,99 @@ export default function SuperAdminRestaurants() {
                                             </span>
                                         </div>
                                     </td>
-                                    <td className="px-12 py-8">
-                                        <div className="flex justify-end gap-3 translate-x-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+                                    <td className="px-6 py-4 relative kebab-container">
+                                        <div className="flex justify-end">
                                             <button
-                                                onClick={() => handleToggleActive(res.id, res.is_active)}
-                                                className={`p-4 rounded-2xl transition-all shadow-xl border ${res.is_active
-                                                        ? 'bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border-rose-500/20'
-                                                        : 'bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-slate-900 border-emerald-500/20'
-                                                    }`}
-                                                title={res.is_active ? 'Desactivar' : 'Activar'}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setOpenMenuId(openMenuId === res.id ? null : res.id);
+                                                }}
+                                                className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-900/50 hover:bg-slate-800 text-slate-400 hover:text-white transition-all duration-200 border border-slate-850"
+                                                title="Acciones"
                                             >
-                                                <Power className="w-5 h-5" />
+                                                <MoreVertical className="w-4.5 h-4.5" />
                                             </button>
-                                            <button
-                                                onClick={() => setLogoModalData({ id: res.id, name: res.name, logo: res.logo_url })}
-                                                className="p-4 bg-slate-800 hover:bg-blue-500 text-slate-400 hover:text-white rounded-2xl transition-all shadow-xl"
-                                                title="Subir Logo (PNG)"
-                                            >
-                                                <Upload className="w-5 h-5" />
-                                            </button>
-                                            <button
-                                                onClick={() => setInviteModalData({ id: res.id, name: res.name })}
-                                                className="p-4 bg-slate-800 hover:bg-emerald-500 text-slate-400 hover:text-slate-900 rounded-2xl transition-all shadow-xl"
-                                                title="Invitar Dueño"
-                                            >
-                                                <UserPlus className="w-5 h-5" />
-                                            </button>
-                                            <button
-                                                onClick={() => setDeleteModalData({ id: res.id, name: res.name })}
-                                                className="p-4 bg-slate-800 hover:bg-red-500 text-slate-400 hover:text-white rounded-2xl transition-all shadow-xl"
-                                                title="Eliminar Restaurante"
-                                            >
-                                                <Trash2 className="w-5 h-5" />
-                                            </button>
+
+                                            {openMenuId === res.id && (
+                                                <div 
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="absolute right-6 mt-10 w-52 bg-slate-950/95 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl z-50 py-2.5 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
+                                                >
+                                                    {/* Ver Menú */}
+                                                    <Link
+                                                        href={`/super-admin/restaurants/${res.id}/menu`}
+                                                        onClick={() => setOpenMenuId(null)}
+                                                        className="flex items-center gap-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-900/50 transition-colors text-xs font-bold uppercase tracking-wider"
+                                                    >
+                                                        <ChefHat className="w-4 h-4 text-emerald-500" />
+                                                        Ver Menú
+                                                    </Link>
+
+                                                    {/* Importar CSV */}
+                                                    <Link
+                                                        href={`/super-admin/restaurants/${res.id}/import`}
+                                                        onClick={() => setOpenMenuId(null)}
+                                                        className="flex items-center gap-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-900/50 transition-colors text-xs font-bold uppercase tracking-wider"
+                                                    >
+                                                        <Upload className="w-4 h-4 text-sky-400" />
+                                                        Importar CSV
+                                                    </Link>
+
+                                                    {/* Editar Restaurante (Subir Logo) */}
+                                                    <button
+                                                        onClick={() => {
+                                                            setLogoModalData({ id: res.id, name: res.name, logo: res.logo_url });
+                                                            setOpenMenuId(null);
+                                                        }}
+                                                        className="flex items-center gap-3 w-full px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-900/50 transition-colors text-left text-xs font-bold uppercase tracking-wider"
+                                                    >
+                                                        <Upload className="w-4 h-4 text-blue-400" />
+                                                        Subir Logo
+                                                    </button>
+
+                                                    {/* Asignar Dueño */}
+                                                    <button
+                                                        onClick={() => {
+                                                            setInviteModalData({ id: res.id, name: res.name });
+                                                            setOpenMenuId(null);
+                                                        }}
+                                                        className="flex items-center gap-3 w-full px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-900/50 transition-colors text-left text-xs font-bold uppercase tracking-wider"
+                                                    >
+                                                        <UserPlus className="w-4 h-4 text-indigo-400" />
+                                                        Invitar Dueño
+                                                    </button>
+
+                                                    {/* Suspender/Activar */}
+                                                    <button
+                                                        onClick={() => {
+                                                            handleToggleActive(res.id, res.is_active);
+                                                            setOpenMenuId(null);
+                                                        }}
+                                                        className={`flex items-center gap-3 w-full px-4 py-3 hover:bg-slate-900/50 transition-colors text-left text-xs font-bold uppercase tracking-wider
+                                                            ${res.is_active 
+                                                                ? 'text-yellow-500 hover:text-yellow-400' 
+                                                                : 'text-emerald-500 hover:text-emerald-400'
+                                                            }`}
+                                                    >
+                                                        <Power className="w-4 h-4" />
+                                                        {res.is_active ? 'Suspender' : 'Activar'}
+                                                    </button>
+
+                                                    <div className="h-px bg-slate-800/60 my-1"></div>
+
+                                                    {/* Eliminar (Destructivo) */}
+                                                    <button
+                                                        onClick={() => {
+                                                            setDeleteModalData({ id: res.id, name: res.name });
+                                                            setOpenMenuId(null);
+                                                        }}
+                                                        className="flex items-center gap-3 w-full px-4 py-3 text-red-500 hover:text-red-400 hover:bg-red-950/20 transition-colors text-left text-xs font-bold uppercase tracking-wider"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                        Eliminar
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -311,7 +388,14 @@ export default function SuperAdminRestaurants() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-bottom duration-300">
+                            <button
+                                onClick={() => router.push(`/super-admin/restaurants/${res.id}/menu`)}
+                                className="col-span-2 py-4 bg-slate-800 hover:bg-emerald-500 hover:text-slate-900 border border-slate-800 hover:border-emerald-500 text-white rounded-2xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-lg group"
+                            >
+                                <ChefHat className="w-4 h-4 text-emerald-500 group-hover:text-inherit" />
+                                Gestionar Menú
+                            </button>
                             <button
                                 onClick={() => handleToggleActive(res.id, res.is_active)}
                                 className={`py-4 rounded-2xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-lg border ${res.is_active

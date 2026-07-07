@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS public.system_settings (
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
 
 -- Create policies (only super admins can manage system settings)
+DROP POLICY IF EXISTS "Super Admins can manage system settings" ON public.system_settings;
 CREATE POLICY "Super Admins can manage system settings" 
 ON public.system_settings
 FOR ALL 

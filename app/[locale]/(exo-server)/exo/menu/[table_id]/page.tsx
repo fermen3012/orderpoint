@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, use } from 'react';
+import { useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/browser';
 import QuickOrderMenu from '@/components/exo/QuickOrderMenu';
 import { useExoCartStore } from '@/store/exo-cart-store';
@@ -12,6 +13,8 @@ import { formatPrice } from '@/lib/utils';
 export default function MenuPage({ params }: { params: Promise<{ table_id: string }> }) {
     const resolvedParams = use(params);
     const tableId = resolvedParams.table_id;
+    const urlParams = useParams();
+    const locale = (urlParams?.locale as string) || 'es';
     const supabase = createClient();
     const router = useRouter();
 
@@ -189,7 +192,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
             // 2. Prepare data for Supabase as requested (items as JSONB)
             const orderItems = currentCart.map(item => ({
                 product_id: item.product.id,
-                name: item.product.name,
+                name: item.product.name?.[locale] || item.product.name?.es || (typeof item.product.name === 'string' ? item.product.name : ''),
                 quantity: item.quantity,
                 unit_price: item.unitPrice,
                 total_price: item.totalPrice,

@@ -195,7 +195,7 @@ export default function SchedulePage() {
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 md:w-16 md:h-16 bg-secondary-100 rounded-2xl overflow-hidden flex-shrink-0">
                                         {product.image_url ? (
-                                            <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                                            <img src={product.image_url} alt={product.name?.es || (typeof product.name === 'string' ? product.name : '')} className="w-full h-full object-cover" />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-secondary-300">
                                                 <Calendar className="w-6 h-6" />
@@ -203,7 +203,9 @@ export default function SchedulePage() {
                                         )}
                                     </div>
                                     <div>
-                                        <h3 className="font-bold text-secondary-900 text-sm md:text-base">{product.name}</h3>
+                                        <h3 className="font-bold text-secondary-900 text-sm md:text-base">
+                                            {product.name?.es || (typeof product.name === 'string' ? product.name : '')}
+                                        </h3>
                                         <p className="text-xs text-secondary-500 font-bold uppercase tracking-wider">{product.categories?.name}</p>
                                     </div>
                                 </div>

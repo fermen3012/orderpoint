@@ -26,6 +26,12 @@ import { createSecureOrder } from '@/actions/secure-orders';
 type DBProduct = Database['public']['Tables']['products']['Row'];
 type Category = Database['public']['Tables']['categories']['Row'];
 
+const getLocalizedValue = (field: any, currentLang: string): string => {
+    if (!field) return '';
+    if (typeof field === 'string') return field;
+    return field[currentLang] || field['es'] || '';
+};
+
 export default function MenuPage({ params }: { params: Promise<{ locale: string }> }) {
     const resolvedParams = use(params);
     const locale = resolvedParams.locale;
@@ -268,7 +274,7 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                 total_amount: order.total_amount, // Precio real calculado por el servidor
                 type: 'DINE_IN' as const,
                 items: items.map(item => ({
-                    name: item.product.name,
+                    name: getLocalizedValue(item.product.name, locale),
                     quantity: item.quantity,
                     price: item.unitPrice,
                     modifiers: [
@@ -363,7 +369,7 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                                         {product.image_url ? (
                                             <Image
                                                 src={product.image_url}
-                                                alt={product.name}
+                                                alt={getLocalizedValue(product.name, locale)}
                                                 fill
                                                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                                                 className="object-cover transition-transform duration-700 group-hover:scale-110"
@@ -391,10 +397,10 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                                     </div>
                                     <div className="flex-1 flex flex-col">
                                         <h3 className="text-xl font-black text-slate-900 leading-tight mb-2 line-clamp-2 uppercase italic tracking-tight group-hover:text-primary-500 transition-colors">
-                                            {product.name}
+                                            {getLocalizedValue(product.name, locale)}
                                         </h3>
                                         <p className="text-sm text-slate-500 font-medium leading-relaxed mb-4 line-clamp-2 flex-1">
-                                            {product.description}
+                                            {getLocalizedValue(product.description, locale)}
                                         </p>
                                         <div className="flex items-end justify-between mt-auto pt-4 border-t border-slate-50">
                                             <span className="text-2xl font-black text-slate-900 tracking-tight">

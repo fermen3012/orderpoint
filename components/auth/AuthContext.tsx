@@ -34,7 +34,8 @@ export function AuthProvider({
 export function useAuth() {
     const context = useContext(AuthContext);
     if (context === undefined) {
-        throw new Error('useAuth must be used within an AuthProvider');
+        // Fallback for pages outside an AuthProvider (e.g. Superadmin view)
+        return { userProfile: null, restaurantId: null };
     }
     return context;
 }

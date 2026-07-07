@@ -6,13 +6,38 @@ interface TranslationResult {
     es: string;
 }
 
+import { createClient } from '@supabase/supabase-js';
+
 export async function generateDualTranslation(inputText: string): Promise<TranslationResult | null> {
-    const apiKey = process.env.GOOGLE_GEMINI_API_KEY; // Usamos tu variable de entorno correcta
     if (!inputText) return null;
+
+    let apiKey = process.env.GOOGLE_GEMINI_API_KEY;
+
+    // Load key from database settings dynamically using service role key
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (supabaseUrl && supabaseServiceKey) {
+        try {
+            const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+            const { data } = await adminClient
+                .from('system_settings')
+                .select('value')
+                .eq('key', 'gemini_api_key')
+                .maybeSingle();
+
+            if (data?.value) {
+                apiKey = data.value;
+                console.log('[Gemini Translation] Loaded gemini_api_key from system_settings.');
+            }
+        } catch (dbErr) {
+            console.warn('[Gemini Translation] Failed to load key from settings table:', dbErr);
+        }
+    }
 
     if (!apiKey) {
         console.error('❌ Google Gemini API Key is missing.');
-        throw new Error('Server misconfiguration: Missing API Key');
+        throw new Error('Server misconfiguration: Missing API Key (Gemini API Key). Configúrala en la página de Configuraciones del Super Admin.');
     }
 
     const prompt = `
@@ -41,9 +66,12 @@ export async function generateDualTranslation(inputText: string): Promise<Transl
 
     // Lista de modelos optimizada para estabilidad y velocidad
     // gemini-1.5-flash es el estándar actual de producción (rápido y con buena cuota)
+    // gemini-1.5-pro es un modelo más potente con servidores e instancias independientes
     const models = [
         'gemini-1.5-flash',
+        'gemini-1.5-pro',
         'gemini-1.5-flash-latest',
+        'gemini-1.5-pro-latest',
         'gemini-flash-latest' // Fallback final
     ];
 

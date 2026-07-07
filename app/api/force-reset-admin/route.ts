@@ -42,7 +42,8 @@ export async function GET() {
                 .upsert({
                     id: adminUser.id,
                     role: 'admin',
-                    full_name: 'Admin Sistema'
+                    full_name: 'Admin Sistema',
+                    is_super_admin: true
                 } as any);
 
             if (profileError) {

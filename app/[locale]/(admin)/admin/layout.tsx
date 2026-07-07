@@ -22,7 +22,8 @@ import {
     X,
     ChevronLeft,
     ChevronRight,
-    Sparkles
+    Sparkles,
+    AlertTriangle
 } from 'lucide-react';
 import { SidebarLink } from '@/components/admin/SidebarLink';
 import AdminLanguageSwitcher from '@/components/admin/AdminLanguageSwitcher';
@@ -80,6 +81,8 @@ export default function ProtectedAdminLayout({
         checkAuth();
     }, [router, supabase]);
 
+    const [isRestaurantActive, setIsRestaurantActive] = useState<boolean>(true);
+
     useEffect(() => {
         const fetchRestaurant = async () => {
             if (!authData?.restaurantId) return;
@@ -87,13 +90,14 @@ export default function ProtectedAdminLayout({
             try {
                 const { data, error } = await supabase
                     .from('restaurants')
-                    .select('name, logo_url')
+                    .select('name, logo_url, is_active')
                     .eq('id', authData.restaurantId)
                     .single() as { data: any, error: any };
 
                 if (data && !error) {
                     setRestaurantName(data.name);
                     setRestaurantLogo(data.logo_url);
+                    setIsRestaurantActive(data.is_active !== false);
                 }
             } catch (err) {
                 console.error(err);
@@ -270,6 +274,17 @@ export default function ProtectedAdminLayout({
 
                     <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-950 custom-scrollbar">
                         <div className="p-6 lg:p-10 max-w-7xl mx-auto w-full">
+                            {!isRestaurantActive && (
+                                <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-[2rem] flex items-start gap-4 mb-6 shadow-2xl animate-in slide-in-from-top-2 duration-300">
+                                    <AlertTriangle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                        <h4 className="text-sm font-black text-white uppercase tracking-widest mb-1">Restaurante Suspendido</h4>
+                                        <p className="text-slate-400 font-medium text-xs leading-relaxed font-sans">
+                                            Tu cuenta de restaurante ha sido temporalmente suspendida por el administrador del sistema. Los clientes no podrán acceder al Kiosco de autoservicio ni realizar pedidos mientras la suspensión esté activa. Comunícate con el soporte para más información.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
                             {children}
                         </div>
                     </main>

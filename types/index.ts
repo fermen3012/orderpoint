@@ -20,8 +20,8 @@ export interface Product {
     id: string;
     restaurant_id: string;
     category_id: string | null;
-    name: string;
-    description: string | null;
+    name: any;
+    description: any | null;
     price: number;
     image_url: string | null;
     is_available: boolean;

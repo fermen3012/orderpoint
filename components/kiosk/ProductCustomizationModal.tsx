@@ -180,7 +180,7 @@ export function ProductCustomizationModal({
                     {product.image_url ? (
                         <Image
                             src={product.image_url}
-                            alt={product.name}
+                            alt={product.name?.es || (typeof product.name === 'string' ? product.name : '')}
                             fill
                             className="object-cover transition-transform duration-700 hover:scale-110"
                         />
@@ -193,11 +193,11 @@ export function ProductCustomizationModal({
 
                     <div className="absolute bottom-6 left-8 right-8">
                         <DialogTitle className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-2">
-                            {product.name}
+                            {product.name?.[locale] || product.name?.es || (typeof product.name === 'string' ? product.name : '')}
                         </DialogTitle>
-                        {product.description && (
+                        {(product.description?.es || typeof product.description === 'string') && (
                             <p className="text-white/80 text-sm sm:text-base font-medium line-clamp-2 max-w-lg">
-                                {product.description}
+                                {product.description?.[locale] || product.description?.es || (typeof product.description === 'string' ? product.description : '')}
                             </p>
                         )}
                         <p className="text-white font-bold text-xl mt-2">
@@ -216,7 +216,7 @@ export function ProductCustomizationModal({
                                     {t('customizeTitle')}
                                 </h3>
                                 <p className="text-xs font-bold text-secondary-400 uppercase tracking-widest mt-1">
-                                    {t('customizeDesc', { product: product.name })}
+                                    {t('customizeDesc', { product: product.name?.[locale] || product.name?.es || (typeof product.name === 'string' ? product.name : '') })}
                                 </p>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {ingredients.map((ing) => {

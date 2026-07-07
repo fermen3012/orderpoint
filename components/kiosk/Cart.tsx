@@ -68,7 +68,7 @@ export function Cart({ locale, onCheckout }: CartProps) {
                                 <div className="relative w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 bg-secondary-50 border border-secondary-100">
                                     <Image
                                         src={item.product.image_url}
-                                        alt={item.product.name}
+                                        alt={item.product.name?.es || (typeof item.product.name === 'string' ? item.product.name : '')}
                                         fill
                                         className="object-cover group-hover:scale-110 transition-transform duration-300"
                                         sizes="80px"
@@ -80,7 +80,7 @@ export function Cart({ locale, onCheckout }: CartProps) {
                                 <div>
                                     {/* Item Name */}
                                     <h3 className="font-bold text-secondary-900 truncate leading-tight">
-                                        {item.product.name}
+                                        {item.product.name?.[locale] || item.product.name?.es || (typeof item.product.name === 'string' ? item.product.name : '')}
                                     </h3>
 
                                     {/* Modifiers */}
