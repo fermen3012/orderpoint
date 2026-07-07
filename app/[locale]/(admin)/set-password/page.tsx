@@ -329,7 +329,15 @@ export default function SetPasswordPage() {
                             className="mt-1"
                         />
                         <label htmlFor="terms" className="text-sm text-slate-500 font-medium leading-tight">
-                            He leído y acepto los <button type="button" onClick={() => setShowTerms(true)} className="text-primary-600 font-bold hover:underline">Términos y Condiciones</button> y la Política de Privacidad de OrderPoint.
+                            {locale === 'en' ? (
+                                <>
+                                    I have read and accept the <button type="button" onClick={() => setShowTerms(true)} className="text-primary-600 font-bold hover:underline">Terms & Conditions</button> and Privacy Policy of OrderPoint.
+                                </>
+                            ) : (
+                                <>
+                                    He leído y acepto los <button type="button" onClick={() => setShowTerms(true)} className="text-primary-600 font-bold hover:underline">Términos y Condiciones</button> y la Política de Privacidad de OrderPoint.
+                                </>
+                            )}
                         </label>
                     </div>
 
@@ -413,7 +421,11 @@ export default function SetPasswordPage() {
                                     <p className="text-sm leading-relaxed">
                                         OrderPoint utiliza servicios de inteligencia artificial (como Gemini API) para asistir y automatizar el soporte técnico y de atención al cliente. Tus interacciones con el bot de soporte pueden ser procesadas para mejorar la calidad del servicio.
                                     </p>
-                                    <h3 className="font-bold text-slate-900 pt-2">4. Responsabilidad</h3>
+                                    <h3 className="font-bold text-slate-900 pt-2">4. Privacidad y Datos</h3>
+                                    <p className="text-sm leading-relaxed">
+                                        Nos tomamos muy en serio tu privacidad. La recopilación y el uso de tu información personal se rigen por nuestra Política de Privacidad. No compartimos tu información con terceros sin tu consentimiento.
+                                    </p>
+                                    <h3 className="font-bold text-slate-900 pt-2">5. Responsabilidad</h3>
                                     <p className="text-sm leading-relaxed">
                                         OrderPoint provee la infraestructura tecnológica, pero cada restaurante es responsable del manejo de sus operaciones, menú, pedidos y cumplimiento fiscal aplicable.
                                     </p>
@@ -438,7 +450,11 @@ export default function SetPasswordPage() {
                                     <p className="text-sm leading-relaxed">
                                         OrderPoint utilizes artificial intelligence services (such as Gemini API) to assist and automate customer service and technical support. Your interactions with the support bot may be processed to improve service quality.
                                     </p>
-                                    <h3 className="font-bold text-slate-900 pt-2">4. Liability</h3>
+                                    <h3 className="font-bold text-slate-900 pt-2">4. Privacy and Data</h3>
+                                    <p className="text-sm leading-relaxed">
+                                        We take your privacy very seriously. The collection and use of your personal information are governed by our Privacy Policy. We do not share your information with third parties without your consent.
+                                    </p>
+                                    <h3 className="font-bold text-slate-900 pt-2">5. Liability</h3>
                                     <p className="text-sm leading-relaxed">
                                         OrderPoint provides the technological infrastructure, but each restaurant is solely responsible for managing its operations, menu, orders, and applicable tax compliance.
                                     </p>

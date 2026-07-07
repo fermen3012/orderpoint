@@ -423,21 +423,56 @@ export default function ProductsPage() {
                                         {newProduct.image_url ? (
                                             <>
                                                 <img src={newProduct.image_url} alt="Preview" className="w-full h-full object-cover" />
-                                                <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-sm">
-                                                    <label className="cursor-pointer bg-emerald-500 text-slate-900 px-8 py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all text-xs">
-                                                        Cambiar Foto
-                                                        <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
-                                                    </label>
+                                                <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-4 backdrop-blur-sm p-6">
+                                                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Cambiar Fotografía</span>
+                                                    <div className="flex gap-3 w-full">
+                                                        <label className="flex-1 cursor-pointer bg-emerald-500 hover:bg-emerald-600 text-slate-900 py-3.5 px-2 rounded-xl font-black uppercase tracking-wider text-[8px] flex items-center justify-center gap-1.5 active:scale-95 transition-all text-center">
+                                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                            </svg>
+                                                            <span>Cámara</span>
+                                                            <input type="file" className="hidden" accept="image/*" capture="environment" onChange={handleImageUpload} disabled={uploadingImage} />
+                                                        </label>
+                                                        <label className="flex-1 cursor-pointer bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white py-3.5 px-2 rounded-xl font-black uppercase tracking-wider text-[8px] flex items-center justify-center gap-1.5 active:scale-95 transition-all text-center">
+                                                            <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                            </svg>
+                                                            <span>Galería</span>
+                                                            <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
+                                                        </label>
+                                                    </div>
                                                 </div>
                                             </>
                                         ) : (
-                                            <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-slate-900 transition-colors">
-                                                <div className="w-20 h-20 bg-slate-800 rounded-3xl flex items-center justify-center mb-4 border border-slate-700">
-                                                    {uploadingImage ? <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" /> : <ImageIcon className="w-10 h-10 text-slate-600" />}
+                                            <div className="w-full h-full flex flex-col items-center justify-center p-6">
+                                                <div className="w-16 h-16 bg-slate-800 rounded-3xl flex items-center justify-center mb-6 border border-slate-700">
+                                                    {uploadingImage ? <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" /> : <ImageIcon className="w-8 h-8 text-slate-600" />}
                                                 </div>
-                                                <span className="text-xs font-black text-slate-500 uppercase tracking-widest">{uploadingImage ? 'Procesando...' : 'Subir Imagen'}</span>
-                                                <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
-                                            </label>
+                                                
+                                                {uploadingImage ? (
+                                                    <span className="text-xs font-black text-slate-500 uppercase tracking-widest animate-pulse">Procesando...</span>
+                                                ) : (
+                                                    <div className="flex flex-col sm:flex-row gap-4 w-full px-4">
+                                                        <label className="flex-1 cursor-pointer bg-slate-900 hover:bg-slate-800 border border-slate-850 hover:border-emerald-500 text-white py-3.5 px-4 rounded-2xl font-black uppercase tracking-widest text-[9px] flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg text-center">
+                                                            <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                            </svg>
+                                                            <span>Tomar Foto</span>
+                                                            <input type="file" className="hidden" accept="image/*" capture="environment" onChange={handleImageUpload} disabled={uploadingImage} />
+                                                        </label>
+
+                                                        <label className="flex-1 cursor-pointer bg-slate-900 hover:bg-slate-800 border border-slate-850 hover:border-emerald-500 text-white py-3.5 px-4 rounded-2xl font-black uppercase tracking-widest text-[9px] flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg text-center">
+                                                            <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                            </svg>
+                                                            <span>Galería</span>
+                                                            <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
+                                                        </label>
+                                                    </div>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
                                     <p className="text-[10px] text-slate-600 font-bold text-center px-6 italic">Tamaño recomendado: 1024x1024px. Máx 2MB.</p>
