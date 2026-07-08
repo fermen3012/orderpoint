@@ -153,21 +153,23 @@ export default function SetPasswordPage() {
 
             if (authError) throw authError;
 
-            // 2. Actualizar el nombre completo en el perfil público
+            // 2. Actualizar o crear el perfil público
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 const { error: profileError } = await (supabase as any)
                     .from('profiles')
-                    .update({
+                    .upsert({
+                        id: user.id,
+                        restaurant_id: user.user_metadata?.restaurant_id,
+                        role: user.user_metadata?.role || 'owner',
                         full_name: fullName,
                         terms_accepted: true,
                         terms_accepted_at: new Date().toISOString(),
                         terms_version: 'v1.0'
-                    })
-                    .eq('id', user.id);
+                    });
 
                 if (profileError) {
-                    console.error('Error updating profile name:', profileError);
+                    console.error('Error upserting profile:', profileError);
                     // No bloqueamos el flujo principal si solo falló el nombre
                 }
             }

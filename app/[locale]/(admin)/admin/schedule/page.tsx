@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { adminSupabase } from '@/lib/supabase/admin-client';
 import { useAuth } from '@/components/auth/AuthContext';
 import { getProductSchedule, toggleProductAvailability, applyScheduleToAllDays } from '@/actions/schedule';
 import { Calendar, Check, X, Copy, Loader2, Save } from 'lucide-react';
+import { parseLocalizedField } from '@/components/admin/ProductsPageContent';
 
 const DAYS = [
     { id: 0, label: 'Domingo' },
@@ -19,6 +20,7 @@ const DAYS = [
 
 export default function SchedulePage() {
     const t = useTranslations('admin');
+    const locale = useLocale();
     const { restaurantId } = useAuth();
     const [loading, setLoading] = useState(true);
     const [products, setProducts] = useState<any[]>([]);
@@ -152,10 +154,14 @@ export default function SchedulePage() {
 
     return (
         <div className="p-4 md:p-8 lg:p-10 pb-32">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
                 <div>
-                    <h1 className="text-3xl md:text-4xl font-black text-secondary-900 tracking-tight">Programación Semanal</h1>
-                    <p className="text-secondary-500 font-bold mt-1 text-sm md:text-base">Gestiona la disponibilidad de tus productos por día.</p>
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="w-8 h-1 bg-emerald-500 rounded-full"></span>
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Planificación</span>
+                    </div>
+                    <h1 className="text-4xl lg:text-5xl font-black text-white italic tracking-tighter uppercase leading-none">Programación Semanal</h1>
+                    <p className="text-slate-400 font-bold mt-3 text-[10px] uppercase tracking-widest">Gestiona la disponibilidad de tus productos por día.</p>
                 </div>
             </header>
 
@@ -195,7 +201,7 @@ export default function SchedulePage() {
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 md:w-16 md:h-16 bg-secondary-100 rounded-2xl overflow-hidden flex-shrink-0">
                                         {product.image_url ? (
-                                            <img src={product.image_url} alt={product.name?.es || (typeof product.name === 'string' ? product.name : '')} className="w-full h-full object-cover" />
+                                            <img src={product.image_url} alt={parseLocalizedField(product.name)[locale as 'es' | 'en'] || parseLocalizedField(product.name).es} className="w-full h-full object-cover" />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-secondary-300">
                                                 <Calendar className="w-6 h-6" />
@@ -204,7 +210,7 @@ export default function SchedulePage() {
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-secondary-900 text-sm md:text-base">
-                                            {product.name?.es || (typeof product.name === 'string' ? product.name : '')}
+                                            {parseLocalizedField(product.name)[locale as 'es' | 'en'] || parseLocalizedField(product.name).es}
                                         </h3>
                                         <p className="text-xs text-secondary-500 font-bold uppercase tracking-wider">{product.categories?.name}</p>
                                     </div>

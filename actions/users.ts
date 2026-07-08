@@ -38,7 +38,8 @@ export async function getAllUsersWithRestaurants() {
             const profile = profilesData.find(p => p.id === authUser.id);
             
             const role = profile?.role || authUser.user_metadata?.role || 'user';
-            const fullName = profile?.full_name || authUser.user_metadata?.full_name || 'N/A';
+            const isPending = authUser.invited_at && !authUser.email_confirmed_at;
+            const fullName = profile?.full_name || authUser.user_metadata?.full_name || (isPending ? 'Invitación Pendiente' : 'N/A');
             const restaurantName = profile?.restaurants?.name || 
                                    (authUser.user_metadata?.restaurant_id 
                                        ? (profilesData.find(p => p.restaurant_id === authUser.user_metadata.restaurant_id)?.restaurants?.name || 'Restaurante Vinculado') 
@@ -50,7 +51,8 @@ export async function getAllUsersWithRestaurants() {
                 role: role,
                 created_at: authUser.created_at || profile?.created_at || new Date().toISOString(),
                 email: authUser.email || 'N/A',
-                restaurant_name: restaurantName
+                restaurant_name: restaurantName,
+                is_pending: isPending
             };
         });
 
@@ -83,6 +85,32 @@ export async function resetUserPassword(userId: string, newPassword: string) {
 
         if (error) {
             console.error('Error resetting password:', error);
+            return { success: false, error: error.message };
+        }
+
+        revalidatePath('/[locale]/(super-admin)/super-admin/users', 'page');
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message || 'Unauthorized' };
+    }
+}
+
+export async function deleteUserAction(userId: string) {
+    try {
+        await requireSuperAdmin();
+
+        // Validate inputs
+        if (!userId || !userId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            return { success: false, error: 'ID de usuario inválido' };
+        }
+
+        const admin = getAdminClient();
+
+        // Delete user from Supabase Auth (cascades to public.profiles)
+        const { error } = await admin.auth.admin.deleteUser(userId);
+
+        if (error) {
+            console.error('Error deleting user:', error);
             return { success: false, error: error.message };
         }
 

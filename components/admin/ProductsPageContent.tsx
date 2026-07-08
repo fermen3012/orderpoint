@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { createClient } from '@/lib/supabase/browser';
 import { adminSupabase } from '@/lib/supabase/admin-client';
 import { useRouter } from '@/i18n/routing';
@@ -92,7 +92,13 @@ export const parseLocalizedField = (value: any): { es: string; en: string } => {
 
 export default function ProductsPageContent({ restaurantId: propRestaurantId }: { restaurantId?: string }) {
     const t = useTranslations('admin');
+    const locale = useLocale();
     const router = useRouter();
+
+    const getLocalized = (field: any) => {
+        const parsed = parseLocalizedField(field);
+        return parsed[locale as 'es' | 'en'] || parsed.es || '';
+    };
     const { restaurantId: authRestaurantId } = useAuth();
     const restaurantId = propRestaurantId || authRestaurantId;
     const [loading, setLoading] = useState(true);
@@ -408,7 +414,7 @@ export default function ProductsPageContent({ restaurantId: propRestaurantId }: 
     };
 
     const filteredProducts = products.filter(p =>
-        (parseLocalizedField(p.name).es).toLowerCase().includes(searchQuery.toLowerCase()) ||
+        getLocalized(p.name).toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.categories?.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -500,7 +506,7 @@ export default function ProductsPageContent({ restaurantId: propRestaurantId }: 
                                 {product.image_url ? (
                                     <img
                                         src={product.image_url}
-                                        alt={parseLocalizedField(product.name).es}
+                                        alt={getLocalized(product.name)}
                                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                                     />
                                 ) : (
@@ -515,14 +521,14 @@ export default function ProductsPageContent({ restaurantId: propRestaurantId }: 
                             <div className="p-8 flex-1 flex flex-col">
                                 <div className="flex justify-between items-start mb-4 gap-4">
                                     <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase leading-tight line-clamp-1">
-                                        {parseLocalizedField(product.name).es || 'Sin nombre'}
+                                        {getLocalized(product.name) || 'Sin nombre'}
                                     </h3>
                                     <span className="text-xl font-black text-emerald-500 italic tracking-tighter truncate">
                                         {formatPrice(product.price, 'es-SV')}
                                     </span>
                                 </div>
                                 <p className="text-slate-500 font-bold text-xs line-clamp-2 mb-8 flex-1">
-                                    {parseLocalizedField(product.description).es || 'Sin descripción disponible.'}
+                                    {getLocalized(product.description) || 'Sin descripción disponible.'}
                                 </p>
 
                                 <div className="flex gap-3">

@@ -19,8 +19,12 @@ import {
     Loader2,
     X as CloseIcon,
     ChefHat,
-    Store
+    Store,
+    MoreVertical,
+    AlertCircle,
+    CheckCircle2
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { SidebarLink } from '@/components/admin/SidebarLink';
 import { getStaffUsers, createStaffUser, deleteStaffUser, updateStaffUser } from '@/lib/actions/users';
 
@@ -37,7 +41,24 @@ export default function UsersPage() {
     const [users, setUsers] = useState<any[]>([]);
     const [restaurants, setRestaurants] = useState<any[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [deleteUserProfile, setDeleteUserProfile] = useState<any | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteStatus, setDeleteStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
     const supabase = createClient();
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (openMenuId) {
+                const target = event.target as HTMLElement;
+                if (!target.closest('.kebab-container')) {
+                    setOpenMenuId(null);
+                }
+            }
+        };
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, [openMenuId]);
 
     useEffect(() => {
         if (userProfile) {
@@ -99,11 +120,23 @@ export default function UsersPage() {
         setError(null);
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm(t('deleteUserConfirm'))) return;
-        const result = await deleteStaffUser(id);
+    const handleConfirmDelete = async () => {
+        if (!deleteUserProfile) return;
+        setIsDeleting(true);
+        setDeleteStatus(null);
+        
+        const result = await deleteStaffUser(deleteUserProfile.id);
+        setIsDeleting(false);
+
         if (!result.error) {
+            setDeleteStatus({ type: 'success', message: t('userDeletedSuccessfully') || 'Miembro eliminado correctamente.' });
             loadData();
+            setTimeout(() => {
+                setDeleteUserProfile(null);
+                setDeleteStatus(null);
+            }, 2000);
+        } else {
+            setDeleteStatus({ type: 'error', message: result.error || 'Error al eliminar miembro.' });
         }
     };
 
@@ -168,8 +201,13 @@ export default function UsersPage() {
                                             <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center font-black text-emerald-500 border border-slate-700">
                                                 {profile.full_name?.charAt(0) || 'U'}
                                             </div>
-                                            <span className="font-black text-white text-lg italic tracking-tighter uppercase">
+                                            <span className="font-black text-white text-lg italic tracking-tighter uppercase flex items-center gap-2">
                                                 {profile.full_name}
+                                                {profile.is_pending && (
+                                                    <span className="bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider not-italic">
+                                                        Pendiente
+                                                    </span>
+                                                )}
                                             </span>
                                         </div>
                                     </td>
@@ -194,20 +232,54 @@ export default function UsersPage() {
                                             {profile.restaurant?.name || t('centralSystem')}
                                         </div>
                                     </td>
-                                    <td className="px-10 py-8">
-                                        <div className="flex justify-end gap-3 translate-x-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+                                    <td className="px-10 py-8 relative kebab-container">
+                                        <div className="flex justify-end">
                                             <button
-                                                onClick={() => handleEdit(profile)}
-                                                className="p-4 bg-slate-800 hover:bg-emerald-500 text-slate-400 hover:text-slate-900 rounded-2xl transition-all shadow-xl"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setOpenMenuId(openMenuId === profile.id ? null : profile.id);
+                                                }}
+                                                className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-900/50 hover:bg-slate-800 text-slate-400 hover:text-white transition-all duration-200 border border-slate-850"
+                                                title="Acciones"
                                             >
-                                                <Edit2 className="w-5 h-5" />
+                                                <MoreVertical className="w-4.5 h-4.5" />
                                             </button>
-                                            <button
-                                                onClick={() => handleDelete(profile.id)}
-                                                className="p-4 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl transition-all border border-red-500/20 shadow-xl"
-                                            >
-                                                <Trash2 className="w-5 h-5" />
-                                            </button>
+
+                                            {openMenuId === profile.id && (
+                                                <div 
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="absolute right-10 mt-10 w-52 bg-slate-950/95 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl z-50 py-2.5 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 text-left"
+                                                >
+                                                    {/* Editar miembro */}
+                                                    <button
+                                                        onClick={() => {
+                                                            handleEdit(profile);
+                                                            setOpenMenuId(null);
+                                                        }}
+                                                        className="flex items-center gap-3 w-full px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-900/50 transition-colors text-left text-xs font-bold uppercase tracking-wider"
+                                                    >
+                                                        <Edit2 className="w-4 h-4 text-emerald-500" />
+                                                        {t('edit') || 'Editar'}
+                                                    </button>
+
+                                                    {userProfile?.id !== profile.id && (
+                                                        <>
+                                                            <div className="h-px bg-slate-800/60 my-1"></div>
+                                                            {/* Eliminar (Destructivo) */}
+                                                            <button
+                                                                onClick={() => {
+                                                                    setDeleteUserProfile(profile);
+                                                                    setOpenMenuId(null);
+                                                                }}
+                                                                className="flex items-center gap-3 w-full px-4 py-3 text-red-500 hover:text-red-400 hover:bg-red-950/20 transition-colors text-left text-xs font-bold uppercase tracking-wider"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                                {t('remove') || 'Eliminar'}
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -236,8 +308,13 @@ export default function UsersPage() {
                                 {profile.full_name?.charAt(0) || 'U'}
                             </div>
                             <div>
-                                <h3 className="font-black text-white text-xl italic tracking-tighter uppercase leading-tight">
+                                <h3 className="font-black text-white text-xl italic tracking-tighter uppercase leading-tight flex items-center gap-2">
                                     {profile.full_name}
+                                    {profile.is_pending && (
+                                        <span className="bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider not-italic">
+                                            Pendiente
+                                        </span>
+                                    )}
                                 </h3>
                                 <div className="flex items-center gap-1.5 mt-1 text-slate-500">
                                     <Mail className="w-3 h-3" />
@@ -263,7 +340,7 @@ export default function UsersPage() {
                                 {t('adjust')}
                             </button>
                             <button
-                                onClick={() => handleDelete(profile.id)}
+                                onClick={() => setDeleteUserProfile(profile)}
                                 className="flex-1 py-4 bg-red-500/10 text-red-500 rounded-2xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
                             >
                                 <Trash2 className="w-4 h-4" />
@@ -403,6 +480,78 @@ export default function UsersPage() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+            {/* Delete Confirmation Modal */}
+            {deleteUserProfile && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-2xl animate-in fade-in duration-500">
+                    <div className="bg-slate-900 w-full max-w-xl rounded-[3rem] border border-slate-800 shadow-2xl relative animate-in zoom-in-95 duration-300 overflow-hidden">
+                        
+                        <div className="bg-slate-900 p-10 md:p-12 relative flex items-end border-b border-slate-800/50">
+                            <div className="absolute top-0 right-0 p-8 opacity-5">
+                                <Trash2 className="w-32 h-32 text-rose-500" />
+                            </div>
+                            <div className="relative z-10 w-full">
+                                <h2 className="text-3xl md:text-4xl font-black tracking-tighter uppercase italic text-white flex items-center gap-3">
+                                    <Trash2 className="w-8 h-8 text-rose-500" />
+                                    Eliminar Miembro
+                                </h2>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Confirmación de Acción Destructiva</p>
+                            </div>
+                            <button
+                                onClick={() => setDeleteUserProfile(null)}
+                                className="absolute top-6 right-6 p-4 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-2xl transition-all"
+                            >
+                                <CloseIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-10 md:p-12 space-y-6">
+                            <p className="text-slate-350 font-black text-[10px] uppercase tracking-widest leading-relaxed">
+                                ¿Estás seguro de que deseas eliminar permanentemente a este miembro del equipo? Esta acción removerá sus credenciales de acceso y su perfil.
+                            </p>
+
+                            <div className="p-6 bg-slate-950 rounded-[2rem] border border-slate-800 flex items-center gap-4">
+                                <div className="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center font-black text-emerald-500 border border-slate-850 shrink-0">
+                                    {deleteUserProfile.full_name?.charAt(0) || 'U'}
+                                </div>
+                                <div>
+                                    <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest mb-1">Miembro a Eliminar</p>
+                                    <p className="font-black text-white text-lg italic uppercase tracking-tighter leading-none">{deleteUserProfile.full_name || 'Sin Nombre'}</p>
+                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">{deleteUserProfile.email}</p>
+                                </div>
+                            </div>
+
+                            {deleteStatus && (
+                                <div className={cn(
+                                    "p-6 rounded-2xl flex items-center gap-4 animate-in slide-in-from-top-2 duration-300 font-black text-[10px] uppercase tracking-widest border",
+                                    deleteStatus.type === 'success'
+                                        ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                                        : "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                                )}>
+                                    {deleteStatus.type === 'success' ? <CheckCircle2 className="w-6 h-6" /> : <AlertCircle className="w-6 h-6" />}
+                                    <p>{deleteStatus.message}</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-10 md:p-12 bg-slate-900/50 flex flex-col sm:flex-row gap-6 border-t border-slate-800/50">
+                            <button
+                                className="flex-1 py-6 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-[2rem] font-black uppercase tracking-widest transition-all active:scale-95 text-xs shadow-xl"
+                                onClick={() => setDeleteUserProfile(null)}
+                                disabled={isDeleting}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                className="flex-[2] py-6 bg-rose-600 text-white hover:bg-rose-500 rounded-[2rem] font-black uppercase tracking-widest shadow-[0_10px_40px_rgba(244,63,94,0.3)] hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 text-xs text-center"
+                                onClick={handleConfirmDelete}
+                                disabled={isDeleting}
+                            >
+                                {isDeleting ? 'Eliminando...' : 'Confirmar y Eliminar'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

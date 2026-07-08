@@ -133,8 +133,12 @@ export default function TablesPage() {
         <div className="p-4 md:p-8 lg:p-10 pb-24 md:pb-10">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
                 <div>
-                    <h1 className="text-3xl md:text-4xl font-black text-secondary-900 tracking-tight">Mesas</h1>
-                    <p className="text-secondary-500 font-bold mt-1 text-sm md:text-base">Gestiona el salón y la asignación de personal.</p>
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="w-8 h-1 bg-emerald-500 rounded-full"></span>
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Distribución</span>
+                    </div>
+                    <h1 className="text-4xl lg:text-5xl font-black text-white italic tracking-tighter uppercase leading-none">Mesas</h1>
+                    <p className="text-slate-400 font-bold mt-3 text-[10px] uppercase tracking-widest">Gestiona el salón y la asignación de personal.</p>
                 </div>
                 <button
                     onClick={() => {

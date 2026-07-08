@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Search,
     KeyRound,
@@ -10,10 +10,12 @@ import {
     AlertCircle,
     CheckCircle2,
     X,
-    MoreVertical
+    MoreVertical,
+    Trash2
 } from 'lucide-react';
-import { resetUserPassword } from '@/actions/users';
+import { resetUserPassword, deleteUserAction } from '@/actions/users';
 import { cn } from '@/lib/utils';
+import { useRouter } from '@/i18n/routing';
 
 interface GlobalUser {
     id: string;
@@ -21,14 +23,32 @@ interface GlobalUser {
     email: string;
     role: string;
     restaurant_name: string;
+    is_pending?: boolean;
 }
 
 export default function UsersClient({ initialUsers }: { initialUsers: GlobalUser[] }) {
+    const router = useRouter();
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedUser, setSelectedUser] = useState<GlobalUser | null>(null);
+    const [deleteUser, setDeleteUser] = useState<GlobalUser | null>(null);
     const [newPassword, setNewPassword] = useState('');
     const [isResetting, setIsResetting] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (openMenuId) {
+                const target = event.target as HTMLElement;
+                if (!target.closest('.kebab-container')) {
+                    setOpenMenuId(null);
+                }
+            }
+        };
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, [openMenuId]);
 
     const filteredUsers = initialUsers.filter(user =>
         user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -52,6 +72,26 @@ export default function UsersClient({ initialUsers }: { initialUsers: GlobalUser
             }, 2000);
         } else {
             setStatus({ type: 'error', message: result.error || 'Error al restaurar contraseña.' });
+        }
+    };
+
+    const handleDeleteUser = async () => {
+        if (!deleteUser) return;
+
+        setIsDeleting(true);
+        setStatus(null);
+        const result = await deleteUserAction(deleteUser.id);
+        setIsDeleting(false);
+
+        if (result.success) {
+            setStatus({ type: 'success', message: 'Usuario eliminado correctamente.' });
+            router.refresh();
+            setTimeout(() => {
+                setDeleteUser(null);
+                setStatus(null);
+            }, 2000);
+        } else {
+            setStatus({ type: 'error', message: result.error || 'Error al eliminar usuario.' });
         }
     };
 
@@ -97,9 +137,16 @@ export default function UsersClient({ initialUsers }: { initialUsers: GlobalUser
                                                 <User className="w-6 h-6 text-slate-600 group-hover:text-emerald-500 transition-colors" />
                                             </div>
                                             <div>
-                                                <p className="font-black text-white text-xl italic tracking-tighter uppercase group-hover:text-emerald-500 transition-colors leading-none">
-                                                    {user.full_name || 'Sin Nombre'}
-                                                </p>
+                                                <div className="flex items-center gap-2">
+                                                    <p className="font-black text-white text-xl italic tracking-tighter uppercase group-hover:text-emerald-500 transition-colors leading-none">
+                                                        {user.full_name || 'Sin Nombre'}
+                                                    </p>
+                                                    {user.is_pending && (
+                                                        <span className="bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2.5 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider">
+                                                            Pendiente
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">
                                                     {user.email}
                                                 </p>
@@ -123,15 +170,51 @@ export default function UsersClient({ initialUsers }: { initialUsers: GlobalUser
                                             <span className="font-black text-xs uppercase tracking-widest text-slate-300">{user.restaurant_name}</span>
                                         </div>
                                     </td>
-                                    <td className="px-12 py-8 text-right">
+                                    <td className="px-12 py-8 relative kebab-container">
                                         <div className="flex justify-end">
                                             <button
-                                                onClick={() => setSelectedUser(user)}
-                                                className="group relative flex items-center justify-center gap-2 px-6 py-4 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-slate-900 rounded-2xl font-black uppercase tracking-widest border border-emerald-500/20 hover:border-emerald-500 transition-all active:scale-95 whitespace-nowrap"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setOpenMenuId(openMenuId === user.id ? null : user.id);
+                                                }}
+                                                className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-900/50 hover:bg-slate-800 text-slate-400 hover:text-white transition-all duration-200 border border-slate-850"
+                                                title="Acciones"
                                             >
-                                                <KeyRound className="w-4 h-4" />
-                                                <span className="text-[10px]">Restablecer</span>
+                                                <MoreVertical className="w-4.5 h-4.5" />
                                             </button>
+
+                                            {openMenuId === user.id && (
+                                                <div 
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="absolute right-12 mt-10 w-52 bg-slate-950/95 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl z-50 py-2.5 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 text-left"
+                                                >
+                                                    {/* Restablecer Acceso */}
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedUser(user);
+                                                            setOpenMenuId(null);
+                                                        }}
+                                                        className="flex items-center gap-3 w-full px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-900/50 transition-colors text-left text-xs font-bold uppercase tracking-wider"
+                                                    >
+                                                        <KeyRound className="w-4 h-4 text-emerald-500" />
+                                                        Restablecer
+                                                    </button>
+
+                                                    <div className="h-px bg-slate-800/60 my-1"></div>
+
+                                                    {/* Eliminar (Destructivo) */}
+                                                    <button
+                                                        onClick={() => {
+                                                            setDeleteUser(user);
+                                                            setOpenMenuId(null);
+                                                        }}
+                                                        className="flex items-center gap-3 w-full px-4 py-3 text-red-500 hover:text-red-400 hover:bg-red-950/20 transition-colors text-left text-xs font-bold uppercase tracking-wider"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                        Eliminar
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -226,6 +309,78 @@ export default function UsersClient({ initialUsers }: { initialUsers: GlobalUser
                                 disabled={!newPassword || isResetting}
                             >
                                 {isResetting ? 'Aplicando Cambios...' : 'Guardar Nueva Contraseña'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Delete Confirmation Modal */}
+            {deleteUser && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-2xl animate-in fade-in duration-500">
+                    <div className="bg-slate-900 w-full max-w-xl rounded-[3rem] border border-slate-800 shadow-2xl relative animate-in zoom-in-95 duration-300 overflow-hidden">
+                        
+                        <div className="bg-slate-900 p-10 md:p-12 relative flex items-end border-b border-slate-800/50">
+                            <div className="absolute top-0 right-0 p-8 opacity-5">
+                                <Trash2 className="w-32 h-32 text-rose-500" />
+                            </div>
+                            <div className="relative z-10 w-full">
+                                <h2 className="text-3xl md:text-4xl font-black tracking-tighter uppercase italic text-white flex items-center gap-3">
+                                    <Trash2 className="w-8 h-8 text-rose-500" />
+                                    Eliminar Usuario
+                                </h2>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Confirmación de Acción Destructiva</p>
+                            </div>
+                            <button
+                                onClick={() => setDeleteUser(null)}
+                                className="absolute top-6 right-6 p-4 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-2xl transition-all"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-10 md:p-12 space-y-6">
+                            <p className="text-slate-350 font-black text-[10px] uppercase tracking-widest leading-relaxed">
+                                ¿Estás seguro de que deseas eliminar permanentemente a este usuario? Esta acción es irreversible y removerá tanto su cuenta de acceso como su perfil en el sistema.
+                            </p>
+
+                            <div className="p-6 bg-slate-950 rounded-[2rem] border border-slate-800 flex items-center gap-4">
+                                <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center border border-slate-800 shrink-0">
+                                    <User className="w-5 h-5 text-slate-500" />
+                                </div>
+                                <div>
+                                    <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest mb-1">Usuario a Eliminar</p>
+                                    <p className="font-black text-white text-lg italic uppercase tracking-tighter leading-none">{deleteUser.full_name || 'Sin Nombre'}</p>
+                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">{deleteUser.email}</p>
+                                </div>
+                            </div>
+
+                            {status && (
+                                <div className={cn(
+                                    "p-6 rounded-2xl flex items-center gap-4 animate-in slide-in-from-top-2 duration-300 font-black text-[10px] uppercase tracking-widest border",
+                                    status.type === 'success'
+                                        ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                                        : "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                                )}>
+                                    {status.type === 'success' ? <CheckCircle2 className="w-6 h-6" /> : <AlertCircle className="w-6 h-6" />}
+                                    <p>{status.message}</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-10 md:p-12 bg-slate-900/50 flex flex-col sm:flex-row gap-6 border-t border-slate-800/50">
+                            <button
+                                className="flex-1 py-6 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-[2rem] font-black uppercase tracking-widest transition-all active:scale-95 text-xs shadow-xl"
+                                onClick={() => setDeleteUser(null)}
+                                disabled={isDeleting}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                className="flex-[2] py-6 bg-rose-600 text-white hover:bg-rose-500 rounded-[2rem] font-black uppercase tracking-widest shadow-[0_10px_40px_rgba(244,63,94,0.3)] hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 text-xs text-center"
+                                onClick={handleDeleteUser}
+                                disabled={isDeleting}
+                            >
+                                {isDeleting ? 'Eliminando...' : 'Confirmar y Eliminar'}
                             </button>
                         </div>
                     </div>

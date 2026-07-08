@@ -59,14 +59,43 @@ export async function getStaffUsers() {
         return profilesData; // Fallback to profiles without emails if auth list fails
     }
 
-    // 3. Merge profile data with auth emails
-    return profilesData.map(profile => {
-        const authUser = authUsers.find(u => u.id === profile.id);
-        return {
+    // 3. Merge profile data with auth emails and include pending invitations
+    const allUsersMap = new Map();
+    
+    // Add existing database profiles
+    profilesData.forEach(profile => {
+        const authUser = authUsers?.find(u => u.id === profile.id);
+        allUsersMap.set(profile.id, {
             ...profile,
-            email: authUser?.email || '—'
-        };
+            email: authUser?.email || '—',
+            is_pending: authUser?.invited_at && !authUser?.email_confirmed_at
+        });
     });
+
+    // Add auth users who are pending invitation and don't have a profile yet
+    authUsers?.forEach((authUser: any) => {
+        const isPending = authUser.invited_at && !authUser.email_confirmed_at;
+        if (isPending) {
+            const userRestId = authUser.user_metadata?.restaurant_id;
+            const matchesRestaurant = userRestId === profile.restaurant_id || profile.is_super_admin;
+            
+            if (matchesRestaurant && !allUsersMap.has(authUser.id)) {
+                allUsersMap.set(authUser.id, {
+                    id: authUser.id,
+                    full_name: authUser.user_metadata?.full_name || 'Invitación Pendiente',
+                    email: authUser.email || '—',
+                    role: authUser.user_metadata?.role || 'kitchen',
+                    restaurant_id: userRestId,
+                    created_at: authUser.created_at,
+                    is_pending: true
+                });
+            }
+        }
+    });
+
+    const mergedList = Array.from(allUsersMap.values());
+    mergedList.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return mergedList;
 }
 
 export async function createStaffUser(formData: FormData) {

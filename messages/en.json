@@ -74,7 +74,7 @@
     },
     "admin": {
         "dashboard": "Dashboard",
-        "products": "Products",
+        "products": "Menu",
         "categories": "Categories",
         "orders": "Orders",
         "settings": "Settings",
@@ -145,6 +145,7 @@
         "adjust": "Adjust",
         "remove": "Remove",
         "noTeamRegistered": "No Team Registered",
+        "userDeletedSuccessfully": "Member successfully deleted.",
         "startBuildingTeam": "Start building your team today.",
         "member": "Member",
         "credentialsAndSecurity": "Credentials and Security",

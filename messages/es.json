@@ -74,7 +74,7 @@
     },
     "admin": {
         "dashboard": "Panel de Control",
-        "products": "Productos",
+        "products": "Menú",
         "categories": "Categorías",
         "orders": "Pedidos",
         "settings": "Configuración",
@@ -145,6 +145,7 @@
         "adjust": "Ajustar",
         "remove": "Remover",
         "noTeamRegistered": "Sin Equipo Registrado",
+        "userDeletedSuccessfully": "Miembro eliminado correctamente.",
         "startBuildingTeam": "Comienza a construir tu equipo de trabajo hoy mismo.",
         "member": "Miembro",
         "credentialsAndSecurity": "Credenciales y Seguridad",
