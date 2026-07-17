@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { createClient } from '@/lib/supabase/browser';
 import { useRouter } from '@/i18n/routing';
 import {
@@ -23,8 +23,52 @@ import { useAuth } from '@/components/auth/AuthContext';
 
 export default function DashboardPage() {
     const t = useTranslations('admin');
+    const locale = useLocale();
     const router = useRouter();
     const { restaurantId } = useAuth();
+    
+    const parseLocalizedField = (field: any): { es: string; en: string } => {
+        if (!field) return { es: '', en: '' };
+        let current = field;
+        for (let i = 0; i < 5; i++) {
+            if (typeof current === 'string') {
+                const trimmed = current.trim();
+                if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                    try {
+                        const parsed = JSON.parse(trimmed);
+                        if (parsed !== null && parsed !== undefined) {
+                            current = parsed;
+                            continue;
+                        }
+                    } catch (e) {
+                        try {
+                            const fixed = trimmed.replace(/""/g, '"');
+                            const parsed = JSON.parse(fixed);
+                            if (parsed !== null && parsed !== undefined) {
+                                current = parsed;
+                                continue;
+                            }
+                        } catch (err) {}
+                    }
+                }
+                break;
+            } else {
+                break;
+            }
+        }
+        
+        if (current && typeof current === 'object') {
+            const es = current.es || current.ES || current.Es || '';
+            const en = current.en || current.EN || current.En || es || '';
+            return {
+                es: typeof es === 'string' ? es : String(es),
+                en: typeof en === 'string' ? en : String(en)
+            };
+        }
+        
+        const val = typeof current === 'string' ? current : String(current);
+        return { es: val, en: val };
+    };
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
         totalSales: 0,
@@ -198,7 +242,7 @@ export default function DashboardPage() {
                                             </span>
                                         </div>
                                         <p className="text-slate-400 font-bold text-sm">
-                                            {order.order_items?.[0]?.products?.name} {order.order_items?.length > 1 ? `+${order.order_items.length - 1} más` : ''}
+                                            {parseLocalizedField(order.order_items?.[0]?.products?.name)[locale as 'es' | 'en'] || parseLocalizedField(order.order_items?.[0]?.products?.name).es} {order.order_items?.length > 1 ? `+${order.order_items.length - 1} más` : ''}
                                         </p>
                                     </div>
                                 </div>
@@ -301,7 +345,9 @@ export default function DashboardPage() {
                                     </div>
                                     <div className="flex-1">
                                         <div className="flex justify-between items-start mb-2">
-                                            <h3 className="text-lg font-black text-white uppercase italic tracking-tighter">{item.products?.name}</h3>
+                                            <h3 className="text-lg font-black text-white uppercase italic tracking-tighter">
+                                                {parseLocalizedField(item.products?.name)[locale as 'es' | 'en'] || parseLocalizedField(item.products?.name).es}
+                                            </h3>
                                             <span className="font-black text-emerald-500 text-lg">
                                                 {formatPrice(Number(item.unit_price) * item.quantity, 'es-SV')}
                                             </span>

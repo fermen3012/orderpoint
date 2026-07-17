@@ -130,7 +130,7 @@ export default function ProtectedAdminLayout({
 
     const navigation = [
         { icon: <LayoutDashboard className="w-5 h-5" />, label: t('dashboard'), href: '/admin/dashboard' },
-        { icon: <ShoppingBag className="w-5 h-5" />, label: t('orders'), href: '#' },
+        { icon: <ShoppingBag className="w-5 h-5" />, label: t('orders'), href: '/admin/orders' },
         { icon: <Package className="w-5 h-5" />, label: t('products'), href: '/admin/products' },
         { icon: <List className="w-5 h-5" />, label: t('categories'), href: '/admin/categories' },
         { icon: <Calendar className="w-5 h-5" />, label: t('schedule'), href: '/admin/schedule' },

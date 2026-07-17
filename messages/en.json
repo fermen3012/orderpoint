@@ -12,6 +12,8 @@
         "orderPlaced": "Order placed!",
         "orderSuccessMessage": "Your order has been successfully sent to the kitchen.",
         "orderNumber": "Order number",
+        "ticket": "Ticket",
+        "orderSummary": "Order Summary",
         "orderError": "Error creating order",
         "selectModifiers": "Select your options",
         "required": "Required",

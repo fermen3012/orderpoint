@@ -90,6 +90,7 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
     const [customizingProduct, setCustomizingProduct] = useState<UIProduct | null>(null);
     const [restaurantName, setRestaurantName] = useState<string | null>(null);
     const [orderToPrint, setOrderToPrint] = useState<any | null>(null);
+    const [lastPlacedOrder, setLastPlacedOrder] = useState<any | null>(null);
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
@@ -327,6 +328,7 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
             };
 
             setOrderToPrint(ticketData);
+            setLastPlacedOrder(ticketData);
             clearCart();
             setIsCartOpen(false);
             setIsSuccessModalOpen(true);
@@ -503,37 +505,98 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
             {/* Success Modal */}
             {isSuccessModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-500">
-                    <div className="bg-white w-full max-w-md rounded-[3rem] border border-primary-500/20 shadow-[0_0_80px_rgba(16,185,129,0.15)] overflow-hidden animate-in zoom-in-95 duration-500">
-                        <div className="p-12 text-center relative overflow-hidden">
+                    <div className="bg-white w-full max-w-lg rounded-[3rem] border border-primary-500/20 shadow-[0_0_80px_rgba(16,185,129,0.15)] overflow-hidden animate-in zoom-in-95 duration-500 flex flex-col max-h-[90vh]">
+                        <div className="p-8 text-center relative overflow-hidden flex-none">
                             {/* Animated Background Decoration */}
                             <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-primary-500/5 to-transparent pointer-events-none" />
                             <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary-500/5 rounded-full blur-3xl opacity-50" />
                             <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-primary-500/5 rounded-full blur-3xl opacity-50" />
 
                             <div className="relative z-10 flex flex-col items-center">
-                                <div className="w-28 h-28 bg-primary-500 rounded-[2.5rem] flex items-center justify-center mb-8 shadow-[0_25px_50px_rgba(16,185,129,0.4)] rotate-3 animate-in zoom-in-50 duration-500">
-                                    <CheckCircle2 className="w-14 h-14 text-white" />
+                                <div className="w-20 h-20 bg-primary-500 rounded-[2rem] flex items-center justify-center mb-6 shadow-[0_20px_40px_rgba(16,185,129,0.3)] rotate-3 animate-in zoom-in-50 duration-500">
+                                    <CheckCircle2 className="w-10 h-10 text-white" />
                                 </div>
 
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-center gap-3">
-                                        <Sparkles className="w-6 h-6 text-primary-500 animate-pulse" />
-                                        <h3 className="text-4xl font-black text-slate-900 italic tracking-tighter uppercase">{t('orderPlaced')}</h3>
-                                        <Sparkles className="w-6 h-6 text-primary-500 animate-pulse" />
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-center gap-2">
+                                        <Sparkles className="w-5 h-5 text-primary-500 animate-pulse" />
+                                        <h3 className="text-3xl font-black text-slate-900 italic tracking-tighter uppercase">{t('orderPlaced')}</h3>
+                                        <Sparkles className="w-5 h-5 text-primary-500 animate-pulse" />
                                     </div>
-                                    <p className="text-slate-500 font-bold text-lg leading-tight px-4">
+                                    <p className="text-slate-500 font-bold text-sm leading-tight px-4">
                                         {t('orderSuccessMessage')}
                                     </p>
                                 </div>
                             </div>
                         </div>
-                        <div className="p-8 bg-slate-50 border-t border-slate-100">
+
+                        {/* Ticket & Order Summary */}
+                        {lastPlacedOrder && (
+                            <div className="px-8 pb-4 flex-1 overflow-y-auto min-h-0 space-y-6 scrollbar-hide">
+                                {/* Ticket Number Box */}
+                                <div className="bg-slate-50 border border-slate-100 rounded-[2rem] p-6 text-center shadow-inner">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('ticket')}</span>
+                                    <h4 className="text-6xl font-black text-primary-500 tracking-tighter mt-1">
+                                        #{lastPlacedOrder.order_number}
+                                    </h4>
+                                </div>
+
+                                {/* Order Items Breakdown */}
+                                <div className="space-y-4">
+                                    <h5 className="text-xs font-black text-slate-400 uppercase tracking-[0.15em] border-b border-slate-100 pb-2">
+                                        {t('orderSummary')}
+                                    </h5>
+                                    
+                                    <div className="divide-y divide-slate-100 pr-2 space-y-3">
+                                        {lastPlacedOrder.items.map((item: any, idx: number) => (
+                                            <div key={idx} className="flex justify-between items-start pt-3 first:pt-0">
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="bg-slate-100 text-slate-700 text-xs font-black px-2 py-0.5 rounded-md">
+                                                            x{item.quantity}
+                                                        </span>
+                                                        <span className="font-bold text-slate-800 text-sm">
+                                                            {item.name}
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    {/* Modifiers and Removals */}
+                                                    {item.modifiers && item.modifiers.length > 0 && (
+                                                        <div className="pl-8 space-y-0.5">
+                                                            {item.modifiers.map((mod: any, mIdx: number) => (
+                                                                <p key={mIdx} className="text-xs text-slate-400 font-medium">
+                                                                    {mod.type === 'extra' ? `+ ${mod.name}` : `- ${mod.name}`}
+                                                                </p>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <span className="font-bold text-slate-900 text-sm">
+                                                    ${(Number(item.price) * item.quantity).toFixed(2)}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Total Box */}
+                                    <div className="flex justify-between items-center border-t-2 border-dashed border-slate-100 pt-4 mt-2">
+                                        <span className="text-sm font-black text-slate-800 uppercase tracking-wider">{t('total')}</span>
+                                        <span className="text-2xl font-black text-slate-900">
+                                            ${Number(lastPlacedOrder.total_amount).toFixed(2)}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="p-8 bg-slate-50 border-t border-slate-100 flex-none">
                             <button
                                 onClick={() => {
                                     setIsSuccessModalOpen(false);
+                                    setLastPlacedOrder(null);
                                     router.push('/categories');
                                 }}
-                                className="w-full py-6 bg-primary-500 hover:bg-primary-600 text-white rounded-[2rem] font-black uppercase tracking-widest text-xl transition-all active:scale-95 shadow-[0_15px_30px_rgba(16,185,129,0.3)]"
+                                className="w-full py-5 bg-primary-500 hover:bg-primary-600 text-white rounded-[2rem] font-black uppercase tracking-widest text-lg transition-all active:scale-95 shadow-[0_15px_30px_rgba(16,185,129,0.3)]"
                             >
                                 {t('continue')}
                             </button>

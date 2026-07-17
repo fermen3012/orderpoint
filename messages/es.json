@@ -12,6 +12,8 @@
         "orderPlaced": "¡Pedido realizado!",
         "orderSuccessMessage": "Tu pedido ha sido enviado con éxito a la cocina.",
         "orderNumber": "Número de orden",
+        "ticket": "Ticket",
+        "orderSummary": "Resumen del Pedido",
         "orderError": "Error al crear el pedido",
         "selectModifiers": "Selecciona tus opciones",
         "required": "Requerido",
