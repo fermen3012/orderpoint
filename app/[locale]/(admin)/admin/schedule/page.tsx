@@ -9,13 +9,13 @@ import { Calendar, Check, X, Copy, Loader2, Save } from 'lucide-react';
 import { parseLocalizedField } from '@/components/admin/ProductsPageContent';
 
 const DAYS = [
-    { id: 0, label: 'Domingo' },
-    { id: 1, label: 'Lunes' },
-    { id: 2, label: 'Martes' },
-    { id: 3, label: 'Miércoles' },
-    { id: 4, label: 'Jueves' },
-    { id: 5, label: 'Viernes' },
-    { id: 6, label: 'Sábado' }
+    { id: 0, key: 'sunday' },
+    { id: 1, key: 'monday' },
+    { id: 2, key: 'tuesday' },
+    { id: 3, key: 'wednesday' },
+    { id: 4, key: 'thursday' },
+    { id: 5, key: 'friday' },
+    { id: 6, key: 'saturday' }
 ];
 
 export default function SchedulePage() {
@@ -29,8 +29,6 @@ export default function SchedulePage() {
     const [selectedDay, setSelectedDay] = useState<number>(new Date().getDay());
 
     // Map: productId -> { day -> isActive }
-    // But since we fetch all schedule data, maybe simpler structure?
-    // Let's store: schedules: Record<string, Record<number, boolean>>
     const [schedules, setSchedules] = useState<Record<string, Record<number, boolean>>>({});
     const [toggling, setToggling] = useState<string | null>(null);
 
@@ -73,19 +71,10 @@ export default function SchedulePage() {
 
             // Overlay actual database records
             if (availabilityData) {
-                // If a product has ANY record, we must trust the records.
-                // But wait, our rule is: "If NO records, available". "If RECORDS, check specific".
-                // So if a product has records, any missing day is implicitly FALSE? Or we enforce explicit records?
-                // Plan said: "If product HAS records, SOLO mostrar si existe entrada".
-                // So implies: If has records, missing days are HIDDEN.
-
-                // Let's flag products that have at least one record
                 const productsWithRecords = new Set(availabilityData.map((a: any) => a.product_id));
 
                 productsData.forEach((p: any) => {
                     if (productsWithRecords.has(p.id)) {
-                        // Product has some restrictions. Initialize all to FALSE first for this product?
-                        // Or just follow: if record exists -> use value. If not -> False.
                         DAYS.forEach(d => {
                             newSchedules[p.id][d.id] = false;
                         });
@@ -124,12 +113,10 @@ export default function SchedulePage() {
 
     const handleApplyAll = async (productId: string) => {
         if (!restaurantId) return;
-        if (!confirm('¿Aplicar esta configuración a todos los días de la semana? Esto habilitará el producto para todos los días.')) return;
+        if (!confirm(t('confirmApplyAll'))) return;
 
         setToggling(`${productId}-all`);
 
-        // Optimistic: Set all days to TRUE
-        // Ideally we'd ask "Apply what to all?". Usually "Make Available All Week".
         const newState = true;
 
         setSchedules(prev => {
@@ -140,7 +127,6 @@ export default function SchedulePage() {
 
         await applyScheduleToAllDays(productId, restaurantId, newState);
         setToggling(null);
-        // Reload to be sure of DB state (constraints etc)
         loadData();
     };
 
@@ -158,10 +144,10 @@ export default function SchedulePage() {
                 <div>
                     <div className="flex items-center gap-2 mb-2">
                         <span className="w-8 h-1 bg-emerald-500 rounded-full"></span>
-                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Planificación</span>
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">{t('planning')}</span>
                     </div>
-                    <h1 className="text-4xl lg:text-5xl font-black text-white italic tracking-tighter uppercase leading-none">Programación Semanal</h1>
-                    <p className="text-slate-400 font-bold mt-3 text-[10px] uppercase tracking-widest">Gestiona la disponibilidad de tus productos por día.</p>
+                    <h1 className="text-4xl lg:text-5xl font-black text-white italic tracking-tighter uppercase leading-none">{t('weeklySchedule')}</h1>
+                    <p className="text-slate-400 font-bold mt-3 text-[10px] uppercase tracking-widest">{t('weeklyScheduleDesc')}</p>
                 </div>
             </header>
 
@@ -178,8 +164,8 @@ export default function SchedulePage() {
                                 : 'bg-white text-secondary-500 border border-secondary-100 hover:bg-secondary-50'}
                         `}
                     >
-                        {day.label}
-                        {day.id === new Date().getDay() && <span className="ml-2 text-[10px] opacity-70">(Hoy)</span>}
+                        {t(day.key as any)}
+                        {day.id === new Date().getDay() && <span className="ml-2 text-[10px] opacity-70">{t('todaySuffix')}</span>}
                     </button>
                 ))}
             </div>
@@ -187,8 +173,8 @@ export default function SchedulePage() {
             {/* Product List for Selected Day */}
             <div className="bg-white rounded-[2.5rem] shadow-xl shadow-secondary-900/5 border border-secondary-100 overflow-hidden">
                 <div className="p-6 md:p-8 border-b border-secondary-50 flex justify-between items-center bg-secondary-50/30">
-                    <h2 className="text-xl font-black text-secondary-900">Menú del {DAYS[selectedDay].label}</h2>
-                    <span className="text-xs font-bold text-secondary-400 uppercase tracking-wider">{products.length} Productos</span>
+                    <h2 className="text-xl font-black text-secondary-900">{t('menuOfDay', { day: t(DAYS[selectedDay].key as any) })}</h2>
+                    <span className="text-xs font-bold text-secondary-400 uppercase tracking-wider">{t('productsCount', { count: products.length })}</span>
                 </div>
 
                 <div className="divide-y divide-secondary-50">
@@ -233,12 +219,12 @@ export default function SchedulePage() {
                                         `} />
                                     </button>
 
-                                    {/* Copy to All Button (Only visible if active?) Or always? */}
+                                    {/* Copy to All Button */}
                                     <button
                                         onClick={() => handleApplyAll(product.id)}
                                         disabled={toggling === `${product.id}-all`}
                                         className="p-2 text-secondary-400 hover:text-primary-500 hover:bg-primary-50 rounded-xl transition-colors hidden sm:block"
-                                        title="Habilitar todos los días"
+                                        title={t('enableAllDays')}
                                     >
                                         {toggling === `${product.id}-all` ? <Loader2 className="w-5 h-5 animate-spin" /> : <Copy className="w-5 h-5" />}
                                     </button>

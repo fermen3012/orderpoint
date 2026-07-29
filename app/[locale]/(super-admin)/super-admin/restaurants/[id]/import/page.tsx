@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import Papa from 'papaparse';
 import { bulkInsertProductsAction } from '@/actions/products';
+import { useTranslations } from 'next-intl';
 
 interface ManageImportPageProps {
     params: Promise<{
@@ -37,6 +38,7 @@ export default function ManageImportPage({ params }: ManageImportPageProps) {
     const resolvedParams = use(params);
     const restaurantId = resolvedParams.id;
     const router = useRouter();
+    const t = useTranslations('admin');
     
     const [file, setFile] = useState<File | null>(null);
     const [parsedProducts, setParsedProducts] = useState<ParsedProduct[]>([]);
@@ -81,7 +83,7 @@ export default function ManageImportPage({ params }: ManageImportPageProps) {
                 const missingHeaders = expectedHeaders.filter(h => !fileHeaders.includes(h));
 
                 if (missingHeaders.length > 0) {
-                    setErrorMsg(`El archivo CSV carece de las siguientes columnas requeridas: ${missingHeaders.join(', ')}`);
+                    setErrorMsg(t('errorMissingHeaders', { missing: missingHeaders.join(', ') }));
                     setFile(null);
                     setParsedProducts([]);
                     return;
@@ -98,15 +100,15 @@ export default function ManageImportPage({ params }: ManageImportPageProps) {
                     const errors: string[] = [];
 
                     if (!nombre_es) {
-                        errors.push('Falta el nombre en español.');
+                        errors.push(t('errorNameEs'));
                     }
                     if (!precio) {
-                        errors.push('Falta el precio.');
+                        errors.push(t('errorPriceMissing'));
                     } else if (isNaN(Number(precio)) || Number(precio) < 0) {
-                        errors.push('El precio debe ser un número válido mayor o igual a 0.');
+                        errors.push(t('errorPriceInvalid'));
                     }
                     if (!categoria) {
-                        errors.push('Falta la categoría del plato.');
+                        errors.push(t('errorCategoryMissing'));
                     }
 
                     return {
@@ -125,7 +127,7 @@ export default function ManageImportPage({ params }: ManageImportPageProps) {
             },
             error: (err) => {
                 console.error('Error parsing CSV:', err);
-                setErrorMsg('Error al analizar el archivo CSV. Asegúrate de que el formato sea correcto.');
+                setErrorMsg(t('errorParsingCsv'));
             }
         });
     };
@@ -157,7 +159,7 @@ export default function ManageImportPage({ params }: ManageImportPageProps) {
             if (droppedFile.name.endsWith('.csv')) {
                 processFile(droppedFile);
             } else {
-                setErrorMsg('Solo se permiten archivos con extensión .csv');
+                setErrorMsg(t('onlyCsvAllowed'));
             }
         }
     };
@@ -177,7 +179,7 @@ export default function ManageImportPage({ params }: ManageImportPageProps) {
         
         const invalidCount = parsedProducts.filter(p => !p.isValid).length;
         if (invalidCount > 0) {
-            if (!confirm(`Hay ${invalidCount} filas con errores en el CSV que no se podrán importar. ¿Deseas ignorarlas y continuar con los platos válidos?`)) {
+            if (!confirm(t('confirmIgnoreErrorsDishes', { count: invalidCount }))) {
                 return;
             }
         }
@@ -198,7 +200,7 @@ export default function ManageImportPage({ params }: ManageImportPageProps) {
             }));
 
         if (validProducts.length === 0) {
-            alert('No hay platos válidos para importar.');
+            alert(t('noValidDishes'));
             return;
         }
 
@@ -218,11 +220,11 @@ export default function ManageImportPage({ params }: ManageImportPageProps) {
                     router.push(`/super-admin/restaurants/${restaurantId}/menu`);
                 }, 2000);
             } else {
-                setErrorMsg(result.error || 'Error al procesar la importación masiva.');
+                setErrorMsg(result.error || t('errorBulkImport'));
             }
         } catch (err: any) {
             console.error('Bulk upload error:', err);
-            setErrorMsg(err.message || 'Ocurrió un error inesperado al enviar los datos.');
+            setErrorMsg(err.message || t('errorBulkImport'));
         } finally {
             setImporting(false);
         }
@@ -240,7 +242,7 @@ export default function ManageImportPage({ params }: ManageImportPageProps) {
                     className="group flex items-center gap-3 px-6 py-3.5 bg-slate-900/50 backdrop-blur-sm border border-slate-800 text-slate-400 hover:text-white rounded-2xl transition-all font-black uppercase tracking-widest text-[10px]"
                 >
                     <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-                    Volver a Tenants
+                    {t('backToTenants')}
                 </button>
 
                 <button
@@ -248,7 +250,7 @@ export default function ManageImportPage({ params }: ManageImportPageProps) {
                     className="group flex items-center gap-3 px-6 py-3.5 bg-slate-900/50 hover:bg-emerald-500/10 border border-slate-800 hover:border-emerald-500/20 text-slate-300 hover:text-emerald-400 rounded-2xl transition-all font-black uppercase tracking-widest text-[10px]"
                 >
                     <Download className="w-4 h-4 text-emerald-500" />
-                    Descargar CSV de Muestra
+                    {t('downloadSample')}
                 </button>
             </div>
 
@@ -256,13 +258,13 @@ export default function ManageImportPage({ params }: ManageImportPageProps) {
             <div>
                 <div className="flex items-center gap-2 mb-2">
                     <span className="w-8 h-1 bg-emerald-500 rounded-full"></span>
-                    <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Importador Masivo</span>
+                    <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">{t('bulkImporter')}</span>
                 </div>
                 <h1 className="text-4xl lg:text-5xl font-black text-white italic tracking-tighter uppercase leading-none">
-                    Carga Masiva de Platos
+                    {t('bulkImportDishesTitle')}
                 </h1>
                 <p className="text-slate-500 font-bold text-xs mt-3 max-w-2xl">
-                    Importa todo el catálogo de platos de este restaurante en lote. El sistema se encargará de resolver y crear de forma automática las categorías ingresadas en el archivo CSV.
+                    {t('bulkImportDishesDesc')}
                 </p>
             </div>
 
@@ -271,7 +273,7 @@ export default function ManageImportPage({ params }: ManageImportPageProps) {
                 <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-[2rem] flex items-start gap-4">
                     <AlertTriangle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
                     <div>
-                        <h4 className="text-sm font-black text-white uppercase tracking-widest mb-1">Error en la validación</h4>
+                        <h4 className="text-sm font-black text-white uppercase tracking-widest mb-1">{t('validationError')}</h4>
                         <p className="text-slate-400 font-medium text-xs leading-relaxed">{errorMsg}</p>
                     </div>
                 </div>
@@ -283,8 +285,8 @@ export default function ManageImportPage({ params }: ManageImportPageProps) {
                         <Check className="w-6 h-6 text-slate-900 stroke-[3]" />
                     </div>
                     <div>
-                        <h4 className="text-base font-black text-white uppercase tracking-widest">¡Importación Exitosa!</h4>
-                        <p className="text-slate-400 font-bold text-xs mt-1">Se han insertado {successCount} platos correctamente en el menú. Redirigiendo...</p>
+                        <h4 className="text-base font-black text-white uppercase tracking-widest">{t('importSuccess')}</h4>
+                        <p className="text-slate-400 font-bold text-xs mt-1">{t('dishesImportedSuccess', { count: successCount })}</p>
                     </div>
                 </div>
             )}
@@ -315,9 +317,9 @@ export default function ManageImportPage({ params }: ManageImportPageProps) {
                         <Upload className="w-8 h-8 text-slate-600 group-hover:text-emerald-500 transition-colors" />
                     </div>
 
-                    <h3 className="text-xl font-black text-white italic tracking-tighter uppercase mb-2">Arrastra tu archivo CSV aquí</h3>
-                    <p className="text-slate-500 font-bold text-xs">o haz clic para explorar en tu ordenador</p>
-                    <p className="text-[10px] text-slate-600 font-bold uppercase tracking-widest mt-6 bg-slate-950 px-4 py-2 rounded-xl border border-slate-900">Archivos .CSV Delimitados por comas</p>
+                    <h3 className="text-xl font-black text-white italic tracking-tighter uppercase mb-2">{t('dragCsvHere')}</h3>
+                    <p className="text-slate-500 font-bold text-xs">{t('clickToBrowse')}</p>
+                    <p className="text-[10px] text-slate-600 font-bold uppercase tracking-widest mt-6 bg-slate-950 px-4 py-2 rounded-xl border border-slate-900">{t('csvFileLimit')}</p>
                 </div>
             )}
 
@@ -339,12 +341,12 @@ export default function ManageImportPage({ params }: ManageImportPageProps) {
                             <div className="flex gap-4">
                                 <div className="text-center px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
                                     <span className="block text-lg font-black text-emerald-500 leading-none">{validCount}</span>
-                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Válidos</span>
+                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{t('valid')}</span>
                                 </div>
                                 {invalidCount > 0 && (
                                     <div className="text-center px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl">
                                         <span className="block text-lg font-black text-red-500 leading-none">{invalidCount}</span>
-                                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Con Error</span>
+                                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{t('withError')}</span>
                                     </div>
                                 )}
                             </div>
@@ -352,7 +354,7 @@ export default function ManageImportPage({ params }: ManageImportPageProps) {
                             <button
                                 onClick={removeFile}
                                 className="p-3 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl transition-all border border-red-500/25 active:scale-95"
-                                title="Eliminar archivo"
+                                title={t('deleteFile')}
                                 disabled={importing}
                             >
                                 <Trash2 className="w-5 h-5" />
@@ -363,19 +365,19 @@ export default function ManageImportPage({ params }: ManageImportPageProps) {
                     {/* Pre-visualization Data Table */}
                     <div className="bg-slate-900/30 backdrop-blur-sm rounded-[3rem] border border-slate-850 overflow-hidden shadow-2xl">
                         <div className="p-8 border-b border-slate-850 bg-slate-900/10">
-                            <h3 className="text-lg font-black text-white italic tracking-tighter uppercase leading-none">Pre-visualización de Datos Mapeados</h3>
-                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">Revisa que los campos coincidan antes de procesar</p>
+                            <h3 className="text-lg font-black text-white italic tracking-tighter uppercase leading-none">{t('mappedPreview')}</h3>
+                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">{t('reviewBeforeProcessing')}</p>
                         </div>
 
                         <div className="overflow-x-auto custom-scrollbar max-h-[50vh]">
                             <table className="w-full text-left">
                                 <thead className="bg-slate-950/20 border-b border-slate-850/80 sticky top-0 backdrop-blur-md z-10">
                                     <tr>
-                                        <th className="px-8 py-5 text-[9px] font-black text-slate-500 uppercase tracking-widest">Estado</th>
-                                        <th className="px-8 py-5 text-[9px] font-black text-slate-500 uppercase tracking-widest">Nombre (ES / EN)</th>
-                                        <th className="px-8 py-5 text-[9px] font-black text-slate-500 uppercase tracking-widest">Descripción (ES / EN)</th>
-                                        <th className="px-8 py-5 text-[9px] font-black text-slate-500 uppercase tracking-widest">Precio</th>
-                                        <th className="px-8 py-5 text-[9px] font-black text-slate-500 uppercase tracking-widest">Categoría</th>
+                                        <th className="px-8 py-5 text-[9px] font-black text-slate-500 uppercase tracking-widest">{t('status')}</th>
+                                        <th className="px-8 py-5 text-[9px] font-black text-slate-500 uppercase tracking-widest">{t('nameEsEn')}</th>
+                                        <th className="px-8 py-5 text-[9px] font-black text-slate-500 uppercase tracking-widest">{t('descEsEn')}</th>
+                                        <th className="px-8 py-5 text-[9px] font-black text-slate-500 uppercase tracking-widest">{t('price')}</th>
+                                        <th className="px-8 py-5 text-[9px] font-black text-slate-500 uppercase tracking-widest">{t('category')}</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-850/50">
@@ -392,13 +394,13 @@ export default function ManageImportPage({ params }: ManageImportPageProps) {
                                                 {p.isValid ? (
                                                     <span className="flex items-center gap-1.5 text-xs text-emerald-500 font-bold">
                                                         <CheckCircle2 className="w-4 h-4" />
-                                                        Listo
+                                                        {t('ready')}
                                                     </span>
                                                 ) : (
                                                     <div className="space-y-1 max-w-[200px]">
                                                         <span className="flex items-center gap-1.5 text-xs text-red-500 font-black uppercase tracking-wider">
                                                             <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                                                            Inválido
+                                                            {t('invalid')}
                                                         </span>
                                                         {p.errors.map((err, errIdx) => (
                                                             <span key={errIdx} className="block text-[9px] text-red-400/80 leading-normal font-bold">
@@ -444,7 +446,7 @@ export default function ManageImportPage({ params }: ManageImportPageProps) {
                             className="px-8 py-4 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-2xl transition-all font-black uppercase tracking-widest text-[10px] active:scale-95"
                             disabled={importing}
                         >
-                            Cancelar
+                            {t('cancel')}
                         </button>
                         <button
                             onClick={handleImportSubmit}
@@ -454,12 +456,12 @@ export default function ManageImportPage({ params }: ManageImportPageProps) {
                             {importing ? (
                                 <>
                                     <Loader2 className="w-5 h-5 animate-spin" />
-                                    <span>Importando...</span>
+                                    <span>{t('importing')}</span>
                                 </>
                             ) : (
                                 <>
                                     <CheckCircle2 className="w-5 h-5" />
-                                    <span>Procesar {validCount} Platos</span>
+                                    <span>{t('processDishes', { count: validCount })}</span>
                                 </>
                             )}
                         </button>

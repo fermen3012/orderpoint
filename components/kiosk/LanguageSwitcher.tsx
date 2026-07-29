@@ -1,13 +1,14 @@
 'use client';
 
 import { useRouter, usePathname } from '@/i18n/routing';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Globe } from 'lucide-react';
 
 export default function LanguageSwitcher({ className }: { className?: string }) {
     const router = useRouter();
     const pathname = usePathname();
     const locale = useLocale();
+    const t = useTranslations('kiosk');
 
     const toggleLanguage = () => {
         const nextLocale = locale === 'es' ? 'en' : 'es';
@@ -25,7 +26,7 @@ export default function LanguageSwitcher({ className }: { className?: string }) 
         >
             <Globe className="w-5 h-5 text-slate-500 group-hover:text-primary-500 transition-colors" />
             <span className="text-xs font-black text-slate-700 uppercase tracking-widest group-hover:text-primary-700">
-                Idioma: {locale.toUpperCase()}
+                {t('language', { lang: locale.toUpperCase() })}
             </span>
         </button>
     );

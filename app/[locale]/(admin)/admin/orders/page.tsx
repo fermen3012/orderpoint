@@ -232,27 +232,27 @@ export default function OrdersPage() {
             case 'pending':
                 return {
                     bg: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
-                    label: 'Pendiente'
+                    label: t('statusPending')
                 };
             case 'preparing':
                 return {
                     bg: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-                    label: 'Preparando'
+                    label: t('statusPreparing')
                 };
             case 'ready':
                 return {
                     bg: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
-                    label: 'Listo'
+                    label: t('statusReady')
                 };
             case 'completed':
                 return {
                     bg: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
-                    label: 'Completado'
+                    label: t('statusCompleted')
                 };
             case 'cancelled':
                 return {
                     bg: 'bg-red-500/10 text-red-500 border-red-500/20',
-                    label: 'Cancelado'
+                    label: t('statusCancelled')
                 };
         }
     };
@@ -262,11 +262,11 @@ export default function OrdersPage() {
         const end = order.ready_at || order.completed_at;
 
         if (order.status === 'pending') {
-            return 'En espera';
+            return t('prepStatusWaiting');
         }
         
         if (order.status === 'cancelled') {
-            return 'Cancelado';
+            return t('prepStatusCancelled');
         }
 
         if (end && start) {
@@ -280,7 +280,7 @@ export default function OrdersPage() {
             const diff = now.getTime() - new Date(start).getTime();
             const minutes = Math.floor(diff / 60000);
             const seconds = Math.floor((diff % 60000) / 1000);
-            return `Preparando (${minutes}m ${seconds}s)`;
+            return t('prepStatusPreparing', { time: `${minutes}m ${seconds}s` });
         }
 
         return '—';
@@ -298,15 +298,15 @@ export default function OrdersPage() {
         // Subtitle: Report Name
         doc.setFontSize(12);
         doc.setTextColor(71, 85, 105); // Slate-600
-        doc.text('REPORTE DE PEDIDOS / ORDERS REPORT', 15, 28);
+        doc.text(locale === 'es' ? 'REPORTE DE PEDIDOS / ORDERS REPORT' : 'ORDERS REPORT', 15, 28);
         
         // Subtitle/Metadata
         doc.setFontSize(8.5);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(100, 116, 139); // Slate-500
-        doc.text(`Generado el: ${new Date().toLocaleString()}`, 15, 36);
-        doc.text(`Filtro: ${statusFilter.toUpperCase()} | ${typeFilter.toUpperCase()} | ${dateFilter === 'today' ? 'HOY' : 'HISTORIAL'}`, 15, 42);
-        doc.text(`Pedidos en lista: ${filteredOrders.length}`, 195, 36, { align: 'right' });
+        doc.text(`${locale === 'es' ? 'Generado el' : 'Generated on'}: ${new Date().toLocaleString()}`, 15, 36);
+        doc.text(`${locale === 'es' ? 'Filtro' : 'Filter'}: ${statusFilter.toUpperCase()} | ${typeFilter.toUpperCase()} | ${dateFilter === 'today' ? (locale === 'es' ? 'HOY' : 'TODAY') : (locale === 'es' ? 'HISTORIAL' : 'HISTORY')}`, 15, 42);
+        doc.text(`${locale === 'es' ? 'Pedidos en lista' : 'Orders in list'}: ${filteredOrders.length}`, 195, 36, { align: 'right' });
         
         // Horizontal line separator
         doc.setDrawColor(226, 232, 240); // Slate-200
@@ -317,7 +317,7 @@ export default function OrdersPage() {
         const tableBody = filteredOrders.map(order => {
             const statusInfo = getStatusStyles(order.status);
             return [
-                `ORDEN #${order.order_number}\n(${order.order_type === 'dine_in' ? 'Kiosco' : 'Llevar'})`,
+                `${locale === 'es' ? 'ORDEN' : 'ORDER'} #${order.order_number}\n(${order.order_type === 'dine_in' ? (locale === 'es' ? 'Kiosco' : 'Kiosk') : (locale === 'es' ? 'Llevar' : 'Takeout')})`,
                 order.order_items.map(item => `x${item.quantity} ${getLocalizedValue(item.products?.name, locale)}`).join('\n'),
                 formatPrice(order.total_amount, locale === 'es' ? 'es-SV' : 'en-US'),
                 getPreparationTime(order),
@@ -328,7 +328,13 @@ export default function OrdersPage() {
         autoTable(doc, {
             startY: 52,
             margin: { left: 15, right: 15 },
-            head: [['Pedido', 'Productos', 'Total', 'Tiempo Prep.', 'Estado']],
+            head: [[
+                locale === 'es' ? 'Pedido' : 'Order',
+                locale === 'es' ? 'Productos' : 'Products',
+                locale === 'es' ? 'Total' : 'Total',
+                locale === 'es' ? 'Tiempo Prep.' : 'Prep. Time',
+                locale === 'es' ? 'Estado' : 'Status'
+            ]],
             body: tableBody,
             theme: 'grid',
             headStyles: { 
@@ -361,13 +367,13 @@ export default function OrdersPage() {
                 <div>
                     <div className="flex items-center gap-2 mb-2">
                         <span className="w-8 h-1 bg-emerald-500 rounded-full"></span>
-                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Operaciones</span>
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">{t('operations')}</span>
                     </div>
                     <h1 className="text-4xl lg:text-5xl font-black text-white italic tracking-tighter uppercase leading-none">
-                        Pedidos / Orders
+                        {t('orders')}
                     </h1>
                     <p className="text-slate-400 font-bold mt-3 text-[10px] uppercase tracking-widest">
-                        Historial y tiempos de preparación de los pedidos en tiempo real.
+                        {t('ordersHistoryDesc')}
                     </p>
                 </div>
 
@@ -378,7 +384,7 @@ export default function OrdersPage() {
                         className="flex items-center justify-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:hover:bg-emerald-500 text-slate-950 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-[0_10px_20px_rgba(16,185,129,0.15)]"
                     >
                         <Download className="w-4 h-4" />
-                        <span>Descargar PDF</span>
+                        <span>{t('downloadPdf')}</span>
                     </button>
 
                     <button
@@ -387,7 +393,7 @@ export default function OrdersPage() {
                         className="flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 border border-slate-800 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:text-white transition-colors"
                     >
                         <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                        <span>Actualizar</span>
+                        <span>{t('update')}</span>
                     </button>
                 </div>
             </header>
@@ -400,10 +406,10 @@ export default function OrdersPage() {
                         <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-emerald-500 transition-colors" />
                         <input
                             type="text"
-                            placeholder="BUSCAR ORDEN #..."
+                            placeholder={t('searchOrderPlaceholder')}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-12 pr-4 py-4 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-widest"
+                            className="w-full pl-12 pr-4 py-4 bg-slate-955 border border-slate-800 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-widest"
                         />
                     </div>
 
@@ -412,14 +418,14 @@ export default function OrdersPage() {
                         <select
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
-                            className="w-full px-5 py-4 bg-slate-950 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-widest cursor-pointer"
+                            className="w-full px-5 py-4 bg-slate-955 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-widest cursor-pointer"
                         >
-                            <option value="all">TODOS LOS ESTADOS</option>
-                            <option value="pending">PENDIENTES</option>
-                            <option value="preparing">PREPARANDO</option>
-                            <option value="ready">LISTOS</option>
-                            <option value="completed">COMPLETADOS</option>
-                            <option value="cancelled">CANCELADOS</option>
+                            <option value="all">{t('allStatuses')}</option>
+                            <option value="pending">{locale === 'es' ? 'PENDIENTES' : 'PENDING'}</option>
+                            <option value="preparing">{locale === 'es' ? 'PREPARANDO' : 'PREPARING'}</option>
+                            <option value="ready">{locale === 'es' ? 'LISTOS' : 'READY'}</option>
+                            <option value="completed">{locale === 'es' ? 'COMPLETADOS' : 'COMPLETED'}</option>
+                            <option value="cancelled">{locale === 'es' ? 'CANCELADOS' : 'CANCELLED'}</option>
                         </select>
                     </div>
 
@@ -428,16 +434,16 @@ export default function OrdersPage() {
                         <select
                             value={typeFilter}
                             onChange={(e) => setTypeFilter(e.target.value)}
-                            className="w-full px-5 py-4 bg-slate-950 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-widest cursor-pointer"
+                            className="w-full px-5 py-4 bg-slate-955 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-widest cursor-pointer"
                         >
-                            <option value="all">TODOS LOS TIPOS</option>
-                            <option value="dine_in">KIOSCO (DINE-IN)</option>
-                            <option value="takeout">LLEVAR (TAKEOUT)</option>
+                            <option value="all">{t('allTypes')}</option>
+                            <option value="dine_in">{t('kioskOption')}</option>
+                            <option value="takeout">{t('takeoutOption')}</option>
                         </select>
                     </div>
 
                     {/* Date Toggle */}
-                    <div className="flex bg-slate-950 border border-slate-800 p-1.5 rounded-2xl">
+                    <div className="flex bg-slate-955 border border-slate-800 p-1.5 rounded-2xl">
                         <button
                             onClick={() => setDateFilter('today')}
                             className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${
@@ -446,7 +452,7 @@ export default function OrdersPage() {
                                     : 'text-slate-400 hover:text-white'
                             }`}
                         >
-                            Hoy / Today
+                            {t('todayOption')}
                         </button>
                         <button
                             onClick={() => setDateFilter('all')}
@@ -456,7 +462,7 @@ export default function OrdersPage() {
                                     : 'text-slate-400 hover:text-white'
                             }`}
                         >
-                            Historial
+                            {t('historyOption')}
                         </button>
                     </div>
                 </div>
@@ -465,12 +471,12 @@ export default function OrdersPage() {
             {loading ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-4">
                     <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
-                    <p className="text-slate-500 font-black uppercase tracking-[0.2em] text-[10px]">Cargando Pedidos...</p>
+                    <p className="text-slate-500 font-black uppercase tracking-[0.2em] text-[10px]">{t('loadingData')}</p>
                 </div>
             ) : filteredOrders.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24 bg-slate-900/20 border border-slate-800/50 rounded-[3rem] text-slate-500 gap-4">
                     <ShoppingBag className="w-12 h-12 text-slate-700" />
-                    <p className="font-black uppercase tracking-widest text-[10px]">No se encontraron pedidos con los filtros actuales.</p>
+                    <p className="font-black uppercase tracking-widest text-[10px]">{t('noOrdersFound')}</p>
                 </div>
             ) : (
                 <>
@@ -478,14 +484,14 @@ export default function OrdersPage() {
                     <div className="hidden lg:block bg-slate-900/40 backdrop-blur-sm rounded-[3rem] border border-slate-800 overflow-hidden shadow-lg">
                         <div className="overflow-x-auto custom-scrollbar">
                             <table className="w-full text-left">
-                                <thead className="bg-slate-950/20 border-b border-slate-800/50">
+                                <thead className="bg-slate-955/20 border-b border-slate-800/50">
                                     <tr>
-                                        <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">Pedido</th>
-                                        <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">Productos</th>
-                                        <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">Total</th>
-                                        <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">Tiempo Prep.</th>
-                                        <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">Estado</th>
-                                        <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Acciones</th>
+                                        <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">{t('tableColOrder')}</th>
+                                        <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">{t('tableColProducts')}</th>
+                                        <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">{t('tableColTotal')}</th>
+                                        <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">{t('tableColPrepTime')}</th>
+                                        <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">{t('tableColStatus')}</th>
+                                        <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">{t('tableColActions')}</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-800/50">
@@ -497,10 +503,10 @@ export default function OrdersPage() {
                                                 <td className="px-10 py-8">
                                                     <div>
                                                         <span className="font-black text-white text-lg italic tracking-tighter uppercase leading-none block">
-                                                            ORDEN #{order.order_number}
+                                                            {locale === 'es' ? 'ORDEN' : 'ORDER'} #{order.order_number}
                                                         </span>
                                                         <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-1 block">
-                                                            {order.order_type === 'dine_in' ? 'Kiosco' : 'Llevar'} • {new Date(order.created_at).toLocaleTimeString(locale === 'es' ? 'es-SV' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                                                            {order.order_type === 'dine_in' ? (locale === 'es' ? 'Kiosco' : 'Kiosk') : (locale === 'es' ? 'Llevar' : 'Takeout')} • {new Date(order.created_at).toLocaleTimeString(locale === 'es' ? 'es-SV' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                                                         </span>
                                                     </div>
                                                 </td>
@@ -539,10 +545,10 @@ export default function OrdersPage() {
                                                 <td className="px-10 py-8 text-right">
                                                     <button
                                                         onClick={() => setSelectedOrder(order)}
-                                                        className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-slate-950 border border-slate-800 text-slate-400 rounded-xl font-black text-[9px] uppercase tracking-wider hover:text-white transition-colors"
+                                                        className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-slate-955 border border-slate-800 text-slate-400 rounded-xl font-black text-[9px] uppercase tracking-wider hover:text-white transition-colors"
                                                     >
                                                         <Eye className="w-3.5 h-3.5" />
-                                                        <span>Ver Detalle</span>
+                                                        <span>{t('viewDetail')}</span>
                                                     </button>
                                                 </td>
                                             </tr>
@@ -566,7 +572,7 @@ export default function OrdersPage() {
                                         <div>
                                             <div className="flex items-center gap-3 mb-2">
                                                 <span className="font-black text-2xl text-white italic tracking-tighter">
-                                                    ORDEN #{order.order_number}
+                                                    {locale === 'es' ? 'ORDEN' : 'ORDER'} #{order.order_number}
                                                 </span>
                                                 <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border ${statusInfo.bg}`}>
                                                     {statusInfo.label}
@@ -582,13 +588,13 @@ export default function OrdersPage() {
                                                 </span>
                                                 <span className="text-slate-700">•</span>
                                                 <span className="text-slate-400">
-                                                    {order.order_type === 'dine_in' ? 'Kiosco' : 'Llevar'}
+                                                    {order.order_type === 'dine_in' ? (locale === 'es' ? 'Kiosco' : 'Kiosk') : (locale === 'es' ? 'Llevar' : 'Takeout')}
                                                 </span>
                                             </div>
                                         </div>
 
                                         <div className="text-right">
-                                            <p className="text-slate-500 text-[8px] font-black uppercase tracking-wider mb-1">Total</p>
+                                            <p className="text-slate-500 text-[8px] font-black uppercase tracking-wider mb-1">{t('tableColTotal')}</p>
                                             <span className="text-2xl font-black text-emerald-500 italic tracking-tighter">
                                                 {formatPrice(order.total_amount, locale === 'es' ? 'es-SV' : 'en-US')}
                                             </span>
@@ -617,7 +623,7 @@ export default function OrdersPage() {
                                     {/* Preparation Time and View Button */}
                                     <div className="flex items-center justify-between mt-4">
                                         <div className="flex items-center gap-2">
-                                            <span className="text-slate-500 text-[8px] font-black uppercase tracking-wider">Tiempo de Prep:</span>
+                                            <span className="text-slate-500 text-[8px] font-black uppercase tracking-wider">{t('tableColPrepTime')}:</span>
                                             <span className={`text-xs font-black uppercase tracking-wider ${
                                                 order.status === 'preparing' ? 'text-blue-400 animate-pulse' : 'text-slate-300'
                                             }`}>
@@ -630,7 +636,7 @@ export default function OrdersPage() {
                                             className="flex items-center gap-2 px-5 py-3 bg-slate-955 border border-slate-800 text-slate-400 rounded-xl font-black text-[9px] uppercase tracking-wider hover:text-white transition-colors"
                                         >
                                             <Eye className="w-3.5 h-3.5" />
-                                            <span>Ver Detalle</span>
+                                            <span>{t('viewDetail')}</span>
                                         </button>
                                     </div>
                                 </div>
@@ -642,18 +648,21 @@ export default function OrdersPage() {
 
             {/* Modal Order Details */}
             {selectedOrder && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-955/80 backdrop-blur-md animate-in fade-in duration-300">
                     <div className="bg-slate-900 w-full max-w-2xl rounded-[3rem] border border-slate-800 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
                         <div className="p-8 flex justify-between items-start border-b border-slate-800/50">
                             <div className="flex items-center gap-6">
                                 <div className="w-16 h-16 bg-emerald-500 rounded-3xl flex flex-col items-center justify-center shadow-[0_10px_30px_rgba(16,185,129,0.3)]">
-                                    <span className="text-[10px] font-black text-slate-900 uppercase">Orden</span>
+                                    <span className="text-[10px] font-black text-slate-900 uppercase">{t('tableColOrder')}</span>
                                     <span className="text-2xl font-black text-slate-900 tracking-tighter">#{selectedOrder.order_number}</span>
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-1">Detalles del Pedido</h2>
+                                    <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-1">{t('orderDetails')}</h2>
                                     <p className="text-slate-500 font-bold text-sm">
-                                        Procesado el {new Date(selectedOrder.created_at).toLocaleDateString()} a las {new Date(selectedOrder.created_at).toLocaleTimeString()}
+                                        {t('processedOn', {
+                                            date: new Date(selectedOrder.created_at).toLocaleDateString(locale === 'es' ? 'es-SV' : 'en-US'),
+                                            time: new Date(selectedOrder.created_at).toLocaleTimeString(locale === 'es' ? 'es-SV' : 'en-US', { hour: '2-digit', minute: '2-digit' })
+                                        })}
                                     </p>
                                 </div>
                             </div>
@@ -667,7 +676,7 @@ export default function OrdersPage() {
 
                         <div className="p-8 max-h-[50vh] overflow-y-auto custom-scrollbar space-y-4">
                             {selectedOrder.order_items.map((item) => (
-                                <div key={item.id} className="flex gap-6 p-6 bg-slate-950/50 rounded-[2rem] border border-slate-800/50">
+                                <div key={item.id} className="flex gap-6 p-6 bg-slate-955/50 rounded-[2rem] border border-slate-800/50">
                                     <div className="w-12 h-12 bg-slate-800 text-white rounded-2xl flex items-center justify-center font-black text-xl border border-slate-700">
                                         {item.quantity}
                                     </div>
@@ -695,7 +704,7 @@ export default function OrdersPage() {
                                         {/* Removed ingredients */}
                                         {item.removed_ingredients && item.removed_ingredients.length > 0 && (
                                             <div className="text-[9px] font-black text-red-500 uppercase tracking-widest mt-1">
-                                                Sin: {item.removed_ingredients.map((ri: any) => ri.name || ri).join(', ')}
+                                                {locale === 'es' ? 'Sin' : 'No'}: {item.removed_ingredients.map((ri: any) => ri.name || ri).join(', ')}
                                             </div>
                                         )}
                                     </div>
@@ -703,16 +712,16 @@ export default function OrdersPage() {
                             ))}
                         </div>
 
-                        <div className="p-8 bg-slate-950/50 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-8">
+                        <div className="p-8 bg-slate-955/50 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-8">
                             <div className="flex flex-col">
-                                <span className="text-slate-500 text-[10px] font-black uppercase tracking-wider">Tiempo de Preparación</span>
+                                <span className="text-slate-500 text-[10px] font-black uppercase tracking-wider">{t('tableColPrepTime')}</span>
                                 <span className="text-lg font-black text-white tracking-widest uppercase">
                                     {getPreparationTime(selectedOrder)}
                                 </span>
                             </div>
                             
                             <div>
-                                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Monto Total</p>
+                                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">{t('totalAmount')}</p>
                                 <p className="text-4xl font-black text-white italic tracking-tighter">
                                     {formatPrice(Number(selectedOrder.total_amount), locale === 'es' ? 'es-SV' : 'en-US')}
                                 </p>

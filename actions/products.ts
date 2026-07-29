@@ -453,3 +453,76 @@ export async function bulkInsertProductsAction(
         return { error: e.message || 'Error al importar los platos', success: false };
     }
 }
+
+export async function bulkInsertIngredientsAction(
+    restaurantId: string,
+    ingredients: string[]
+): Promise<any> {
+    try {
+        const profile = await requireRestaurantRole(['admin', 'owner']);
+        
+        let targetRestaurantId = restaurantId;
+        if (!profile.is_super_admin) {
+            targetRestaurantId = profile.restaurant_id!;
+        }
+
+        if (!targetRestaurantId || !targetRestaurantId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            return { error: 'ID de restaurante inválido', success: false };
+        }
+
+        const supabase = await createClient();
+
+        // 1. Get existing ingredients for this restaurant
+        const { data: existingIngredients, error: ingError } = await (supabase
+            .from('ingredients' as any) as any)
+            .select('name')
+            .eq('restaurant_id', targetRestaurantId);
+
+        if (ingError) throw ingError;
+
+        const existingNames = new Set<string>();
+        if (existingIngredients) {
+            existingIngredients.forEach((ing: any) => {
+                existingNames.add(ing.name.toLowerCase().trim());
+            });
+        }
+
+        // 2. Filter out duplicates from input and those that already exist in database
+        const uniqueInputIngredients = Array.from(
+            new Set(
+                ingredients
+                    .map(name => name.trim())
+                    .filter(name => name.length > 0)
+            )
+        );
+
+        const newIngredients = uniqueInputIngredients.filter(
+            name => !existingNames.has(name.toLowerCase())
+        );
+
+        if (newIngredients.length === 0) {
+            return { success: true, count: 0, message: 'Todos los ingredientes ya existen o el archivo está vacío.' };
+        }
+
+        // 3. Build ingredient inserts
+        const ingredientInserts = newIngredients.map(name => ({
+            restaurant_id: targetRestaurantId,
+            name: name
+        }));
+
+        // 4. Bulk insert ingredients
+        const { error: insertError } = await (supabaseAdmin
+            .from('ingredients' as any) as any)
+            .insert(ingredientInserts);
+
+        if (insertError) throw insertError;
+
+        revalidatePath('/admin/ingredients');
+        return { success: true, count: newIngredients.length };
+
+    } catch (e: any) {
+        console.error('Error in bulkInsertIngredientsAction:', e);
+        return { error: e.message || 'Error al importar los ingredientes', success: false };
+    }
+}
+

@@ -4,6 +4,7 @@ import React, { useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import { Printer, CheckCircle2 } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 interface TicketModifier {
     name: string;
@@ -31,6 +32,7 @@ interface OrderTicketProps {
 
 export const OrderTicket = React.forwardRef<HTMLDivElement, OrderTicketProps>(
     ({ order }, ref) => {
+        const t = useTranslations('kiosk');
         const date = new Date(order.created_at).toLocaleString();
 
         return (
@@ -53,13 +55,13 @@ export const OrderTicket = React.forwardRef<HTMLDivElement, OrderTicketProps>(
                 {/* Order Type Badge */}
                 <div className="flex justify-center my-3">
                     <div className="bg-black text-white px-4 py-1 font-bold text-sm tracking-widest">
-                        {order.type === 'DINE_IN' ? 'PARA COMER AQUÍ' : 'PARA LLEVAR'}
+                        {order.type === 'DINE_IN' ? t('dineIn').toUpperCase() : t('takeout').toUpperCase()}
                     </div>
                 </div>
 
                 {/* Big Order Number */}
                 <div className="text-center py-4 border-y-2 border-black my-2">
-                    <span className="text-sm font-bold block uppercase">Orden</span>
+                    <span className="text-sm font-bold block uppercase">{t('order')}</span>
                     <span className="text-6xl font-black">
                         #{String(order.order_number).padStart(3, '0')}
                     </span>
@@ -68,8 +70,8 @@ export const OrderTicket = React.forwardRef<HTMLDivElement, OrderTicketProps>(
                 {/* Items List */}
                 <div className="space-y-3 my-4">
                     <div className="flex justify-between font-bold text-[10px] border-b border-black pb-1 uppercase">
-                        <span>Cant x Producto</span>
-                        <span>Subtotal</span>
+                        <span>{t('qtyProduct')}</span>
+                        <span>{t('subtotal')}</span>
                     </div>
                     {order.items.map((item, idx) => (
                         <div key={idx} className="space-y-1">
@@ -90,7 +92,7 @@ export const OrderTicket = React.forwardRef<HTMLDivElement, OrderTicketProps>(
                                             <span>
                                                 {mod.type === 'removal' ? (
                                                     <span className="uppercase text-black">
-                                                        NO {mod.name}
+                                                        {t('no')} {mod.name}
                                                     </span>
                                                 ) : (
                                                     <span>+ {mod.name}</span>
@@ -110,7 +112,7 @@ export const OrderTicket = React.forwardRef<HTMLDivElement, OrderTicketProps>(
                 {/* Totals */}
                 <div className="border-t-2 border-black pt-2 space-y-1">
                     <div className="flex justify-between text-lg font-black uppercase">
-                        <span>Total Pagado</span>
+                        <span>{t('totalPaid')}</span>
                         <span>{formatPrice(order.total_amount)}</span>
                     </div>
                 </div>
@@ -118,7 +120,7 @@ export const OrderTicket = React.forwardRef<HTMLDivElement, OrderTicketProps>(
                 {/* Footer */}
                 <div className="text-center mt-8 space-y-2">
                     <p className="text-[10px] font-bold uppercase tracking-widest">
-                        *** GRACIAS POR SU COMPRA ***
+                        {t('thanksForPurchase')}
                     </p>
                     <div className="flex justify-center opacity-20">
                         {/* Placeholder for QR code if needed later */}
@@ -138,6 +140,7 @@ OrderTicket.displayName = 'OrderTicket';
 
 // Example Wrapper for Component with Print Logic
 export default function OrderTicketContainer({ order }: { order: any }) {
+    const t = useTranslations('kiosk');
     const componentRef = useRef<HTMLDivElement>(null);
 
     const handlePrint = useReactToPrint({
@@ -158,7 +161,7 @@ export default function OrderTicketContainer({ order }: { order: any }) {
                 className="flex items-center gap-2 px-4 py-2 bg-secondary-900 text-white rounded-xl font-bold hover:bg-black transition-all active:scale-95 shadow-lg"
             >
                 <Printer className="w-4 h-4" />
-                <span>Imprimir Ticket</span>
+                <span>{t('printTicket')}</span>
             </button>
         </div>
     );

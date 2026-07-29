@@ -145,7 +145,7 @@ export default function DashboardPage() {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
                 <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
-                <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Cargando Datos...</p>
+                <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">{t('loadingData')}</p>
             </div>
         );
     }
@@ -157,7 +157,7 @@ export default function DashboardPage() {
                 <div>
                     <div className="flex items-center gap-2 mb-2">
                         <span className="w-8 h-1 bg-emerald-500 rounded-full"></span>
-                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Resumen General</span>
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">{t('overview')}</span>
                     </div>
                     <h1 className="text-4xl lg:text-5xl font-black text-white italic tracking-tighter uppercase leading-none">
                         {t('dashboard')}
@@ -167,7 +167,7 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-4 bg-slate-900/50 backdrop-blur-md p-2 rounded-[2rem] border border-slate-800">
                     <div className="flex items-center gap-3 px-6 py-3 bg-emerald-500/10 rounded-[1.5rem] border border-emerald-500/20">
                         <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
-                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest leading-none">Status: En Línea</span>
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest leading-none">{t('statusOnline')}</span>
                     </div>
                 </div>
             </div>
@@ -176,15 +176,15 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
                     icon={<TrendingUp className="w-6 h-6" />}
-                    label="Ventas Totales"
-                    value={formatPrice(stats.totalSales, 'es-SV')}
+                    label={t('totalSales')}
+                    value={formatPrice(stats.totalSales, locale === 'es' ? 'es-SV' : 'en-US')}
                     trend="+12.5%"
                     color="emerald"
                     delay="delay-[100ms]"
                 />
                 <StatCard
                     icon={<ShoppingBag className="w-6 h-6" />}
-                    label="Pedidos Totales"
+                    label={t('totalOrders')}
                     value={stats.totalOrders.toString()}
                     trend="+5.2%"
                     color="amber"
@@ -192,14 +192,14 @@ export default function DashboardPage() {
                 />
                 <StatCard
                     icon={<Package className="w-6 h-6" />}
-                    label="Productos"
+                    label={t('products')}
                     value={stats.activeProducts.toString()}
                     color="blue"
                     delay="delay-[300ms]"
                 />
                 <StatCard
                     icon={<Users className="w-6 h-6" />}
-                    label="Categorías"
+                    label={t('categories')}
                     value={stats.categories.toString()}
                     color="purple"
                     delay="delay-[400ms]"
@@ -211,9 +211,9 @@ export default function DashboardPage() {
                 {/* Recent Orders List */}
                 <div className="xl:col-span-2 space-y-6">
                     <div className="flex justify-between items-center">
-                        <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase">Pedidos Recientes</h2>
+                        <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase">{t('recentOrders')}</h2>
                         <button className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl border border-slate-800 transition-all font-black text-[10px] uppercase tracking-widest">
-                            Ver Todo
+                            {t('viewAll')}
                         </button>
                     </div>
 
@@ -235,23 +235,23 @@ export default function DashboardPage() {
                                                 order.status === 'pending' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
                                                     'bg-blue-500/10 text-blue-500 border border-blue-500/20'
                                                 }`}>
-                                                {order.status}
+                                                {t(`status${order.status.charAt(0).toUpperCase() + order.status.slice(1)}` as any) || order.status}
                                             </span>
                                             <span className="text-[10px] font-bold text-slate-500">
-                                                {mounted ? new Date(order.created_at).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' }) : ''}
+                                                {mounted ? new Date(order.created_at).toLocaleTimeString(locale === 'es' ? 'es-SV' : 'en-US', { hour: '2-digit', minute: '2-digit' }) : ''}
                                             </span>
                                         </div>
                                         <p className="text-slate-400 font-bold text-sm">
-                                            {parseLocalizedField(order.order_items?.[0]?.products?.name)[locale as 'es' | 'en'] || parseLocalizedField(order.order_items?.[0]?.products?.name).es} {order.order_items?.length > 1 ? `+${order.order_items.length - 1} más` : ''}
+                                            {parseLocalizedField(order.order_items?.[0]?.products?.name)[locale as 'es' | 'en'] || parseLocalizedField(order.order_items?.[0]?.products?.name).es} {order.order_items?.length > 1 ? `+${order.order_items.length - 1} ${locale === 'es' ? 'más' : 'more'}` : ''}
                                         </p>
                                     </div>
                                 </div>
 
                                 <div className="flex items-center justify-between md:justify-end gap-10">
                                     <div className="flex flex-col items-end">
-                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total</span>
+                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{t('tableColTotal')}</span>
                                         <span className="text-2xl font-black text-white italic tracking-tighter">
-                                            {formatPrice(Number(order.total_amount), 'es-SV')}
+                                            {formatPrice(Number(order.total_amount), locale === 'es' ? 'es-SV' : 'en-US')}
                                         </span>
                                     </div>
                                     <button className="p-4 bg-slate-800 hover:bg-emerald-500 text-slate-400 hover:text-slate-900 rounded-2xl transition-all">
@@ -264,7 +264,7 @@ export default function DashboardPage() {
                         {recentOrders.length === 0 && (
                             <div className="p-20 text-center bg-slate-900/30 rounded-[3rem] border border-dashed border-slate-800">
                                 <ShoppingBag className="w-12 h-12 text-slate-700 mx-auto mb-4" />
-                                <p className="text-slate-500 font-black uppercase tracking-widest text-xs">Sin actividad reciente</p>
+                                <p className="text-slate-500 font-black uppercase tracking-widest text-xs">{t('noActivity')}</p>
                             </div>
                         )}
                     </div>
@@ -273,12 +273,12 @@ export default function DashboardPage() {
                 {/* Right Column - Quick Stats / Activity */}
                 <div className="space-y-8">
                     <div className="bg-slate-900/50 backdrop-blur-xl p-8 rounded-[3rem] border border-slate-800 h-full">
-                        <h3 className="text-xl font-black text-white italic tracking-tighter uppercase mb-8">Rendimiento</h3>
+                        <h3 className="text-xl font-black text-white italic tracking-tighter uppercase mb-8">{t('performance')}</h3>
 
                         <div className="space-y-8">
                             <div className="space-y-3">
                                 <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                                    <span className="text-slate-500">Capacidad de Cocina</span>
+                                    <span className="text-slate-500">{t('kitchenCapacity')}</span>
                                     <span className="text-emerald-500">85%</span>
                                 </div>
                                 <div className="h-3 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50 p-0.5">
@@ -288,7 +288,7 @@ export default function DashboardPage() {
 
                             <div className="space-y-3">
                                 <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                                    <span className="text-slate-500">Eficiencia de Mesas</span>
+                                    <span className="text-slate-500">{t('tableEfficiency')}</span>
                                     <span className="text-amber-500">62%</span>
                                 </div>
                                 <div className="h-3 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50 p-0.5">
@@ -303,9 +303,9 @@ export default function DashboardPage() {
                                     <Sparkles className="w-6 h-6 text-slate-900" />
                                 </div>
                                 <div>
-                                    <p className="text-emerald-500 font-black uppercase tracking-widest text-[10px]">Tip del día</p>
+                                    <p className="text-emerald-500 font-black uppercase tracking-widest text-[10px]">{t('tipOfTheDay')}</p>
                                     <p className="text-slate-300 text-xs font-bold leading-tight mt-1">
-                                        Agrega fotos a tus platos estrella para aumentar las ventas en un 20%.
+                                        {t('tipMessage')}
                                     </p>
                                 </div>
                             </div>
@@ -321,12 +321,17 @@ export default function DashboardPage() {
                         <div className="p-8 flex justify-between items-start border-b border-slate-800/50">
                             <div className="flex items-center gap-6">
                                 <div className="w-16 h-16 bg-emerald-500 rounded-3xl flex flex-col items-center justify-center shadow-[0_10px_30px_rgba(16,185,129,0.3)]">
-                                    <span className="text-[10px] font-black text-slate-900 uppercase">Orden</span>
+                                    <span className="text-[10px] font-black text-slate-900 uppercase">{t('tableColOrder') || 'Orden'}</span>
                                     <span className="text-2xl font-black text-slate-900 tracking-tighter">{selectedOrder.order_number}</span>
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-1">Detalles de la Orden</h2>
-                                    <p className="text-slate-500 font-bold text-sm">Procesado el {mounted ? new Date(selectedOrder.created_at).toLocaleDateString() : ''}</p>
+                                    <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-1">{t('orderDetails')}</h2>
+                                    <p className="text-slate-500 font-bold text-sm">
+                                        {t('processedOn', {
+                                            date: mounted ? new Date(selectedOrder.created_at).toLocaleDateString(locale === 'es' ? 'es-SV' : 'en-US') : '',
+                                            time: mounted ? new Date(selectedOrder.created_at).toLocaleTimeString(locale === 'es' ? 'es-SV' : 'en-US', { hour: '2-digit', minute: '2-digit' }) : ''
+                                        })}
+                                    </p>
                                 </div>
                             </div>
                             <button
@@ -349,7 +354,7 @@ export default function DashboardPage() {
                                                 {parseLocalizedField(item.products?.name)[locale as 'es' | 'en'] || parseLocalizedField(item.products?.name).es}
                                             </h3>
                                             <span className="font-black text-emerald-500 text-lg">
-                                                {formatPrice(Number(item.unit_price) * item.quantity, 'es-SV')}
+                                                {formatPrice(Number(item.unit_price) * item.quantity, locale === 'es' ? 'es-SV' : 'en-US')}
                                             </span>
                                         </div>
                                         {item.modifiers_json && (
@@ -368,14 +373,14 @@ export default function DashboardPage() {
 
                         <div className="p-8 bg-slate-950/50 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-8">
                             <div className="text-center md:text-left">
-                                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Total Final</p>
-                                <p className="text-4xl font-black text-white italic tracking-tighter">{formatPrice(Number(selectedOrder.total_amount), 'es-SV')}</p>
+                                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">{t('finalTotal')}</p>
+                                <p className="text-4xl font-black text-white italic tracking-tighter">{formatPrice(Number(selectedOrder.total_amount), locale === 'es' ? 'es-SV' : 'en-US')}</p>
                             </div>
                             <button
                                 onClick={() => setSelectedOrder(null)}
                                 className="w-full md:w-auto px-12 py-5 bg-emerald-500 hover:bg-emerald-400 text-slate-900 rounded-[2rem] font-black uppercase tracking-widest transition-all active:scale-95 shadow-[0_10px_30px_rgba(16,185,129,0.3)]"
                             >
-                                Entendido
+                                {t('gotIt')}
                             </button>
                         </div>
                     </div>

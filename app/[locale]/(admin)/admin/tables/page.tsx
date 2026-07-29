@@ -96,7 +96,7 @@ export default function TablesPage() {
         } catch (error: any) {
             const errorMsg = error.message || 'Error desconocido';
             console.error('Error saving table:', error);
-            alert('Error al guardar: ' + errorMsg);
+            alert(t('errorSave', { error: errorMsg }));
         } finally {
             setSaving(false);
         }
@@ -113,7 +113,7 @@ export default function TablesPage() {
     };
 
     const handleDeleteTable = async (id: string) => {
-        if (confirm('¿Estás seguro de eliminar esta mesa?')) {
+        if (confirm(t('confirmDeleteTable'))) {
             const { error } = await (supabase.from('tables') as any)
                 .delete()
                 .eq('id', id);
@@ -135,10 +135,10 @@ export default function TablesPage() {
                 <div>
                     <div className="flex items-center gap-2 mb-2">
                         <span className="w-8 h-1 bg-emerald-500 rounded-full"></span>
-                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Distribución</span>
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">{t('distribution')}</span>
                     </div>
-                    <h1 className="text-4xl lg:text-5xl font-black text-white italic tracking-tighter uppercase leading-none">Mesas</h1>
-                    <p className="text-slate-400 font-bold mt-3 text-[10px] uppercase tracking-widest">Gestiona el salón y la asignación de personal.</p>
+                    <h1 className="text-4xl lg:text-5xl font-black text-white italic tracking-tighter uppercase leading-none">{t('salonTables')}</h1>
+                    <p className="text-slate-400 font-bold mt-3 text-[10px] uppercase tracking-widest">{t('manageSalonDesc')}</p>
                 </div>
                 <button
                     onClick={() => {
@@ -149,7 +149,7 @@ export default function TablesPage() {
                     className="w-full md:w-auto flex items-center justify-center gap-3 bg-primary-500 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:-translate-y-1 transition-all active:scale-95"
                 >
                     <Plus className="w-5 h-5" />
-                    <span>Nueva Mesa</span>
+                    <span>{t('newTable')}</span>
                 </button>
             </header>
 
@@ -188,12 +188,12 @@ export default function TablesPage() {
                             <div className="space-y-2 mt-4">
                                 <div className="flex items-center gap-2 text-secondary-500 font-bold text-sm">
                                     <Users className="w-4 h-4 text-secondary-300" />
-                                    <span>Capacidad: {table.capacity}</span>
+                                    <span>{t('capacity', { count: table.capacity })}</span>
                                 </div>
                                 <div className="flex items-center gap-2 text-secondary-500 font-bold text-sm">
                                     <UserCircle className="w-4 h-4 text-secondary-300" />
                                     <span className={table.profiles?.full_name ? 'text-primary-600' : 'text-slate-400'}>
-                                        {table.profiles?.full_name || 'Sin asignar'}
+                                        {table.profiles?.full_name || t('unassigned')}
                                     </span>
                                 </div>
                             </div>
@@ -206,8 +206,8 @@ export default function TablesPage() {
                         <div className="w-20 h-20 bg-secondary-50 rounded-3xl flex items-center justify-center mb-4">
                             <Utensils className="w-10 h-10 text-secondary-200" />
                         </div>
-                        <h3 className="text-xl font-black text-secondary-900 mb-2">No hay mesas configuradas</h3>
-                        <p className="text-secondary-400 font-bold max-w-xs">Comienza agregando las mesas de tu salón para que el personal pueda tomar pedidos.</p>
+                        <h3 className="text-xl font-black text-secondary-900 mb-2">{t('noTablesConfigured')}</h3>
+                        <p className="text-secondary-400 font-bold max-w-xs">{t('noTablesDesc')}</p>
                     </div>
                 )}
             </div>
@@ -218,7 +218,7 @@ export default function TablesPage() {
                     <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-in">
                         <div className="p-8 border-b border-secondary-50 flex justify-between items-center bg-secondary-50/30">
                             <h2 className="text-2xl font-black text-secondary-900 tracking-tight">
-                                {editingTable ? 'Editar Mesa' : 'Nueva Mesa'}
+                                {editingTable ? t('editTable') : t('newTable')}
                             </h2>
                             <button
                                 onClick={() => setIsModalOpen(false)}
@@ -230,20 +230,20 @@ export default function TablesPage() {
 
                         <form onSubmit={handleSaveTable} className="p-8 space-y-6">
                             <div>
-                                <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-2 px-2">Número / Nombre de Mesa</label>
+                                <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-2 px-2">{t('tableNameOrNumber')}</label>
                                 <input
                                     type="text"
                                     required
                                     value={newTable.number}
                                     onChange={(e) => setNewTable({ ...newTable, number: e.target.value })}
                                     className="w-full px-6 py-4 bg-secondary-50 border border-secondary-100 rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all font-bold text-secondary-900"
-                                    placeholder="Ej: 1 o VIP-01"
+                                    placeholder={t('placeholderTableName')}
                                 />
                             </div>
 
                             <div className="grid grid-cols-1 gap-4">
                                 <div>
-                                    <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-2 px-2">Capacidad</label>
+                                    <label className="block text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-2 px-2">{t('capacityLabel')}</label>
                                     <input
                                         type="number"
                                         required
@@ -263,7 +263,7 @@ export default function TablesPage() {
                                 disabled={saving}
                                 className="w-full py-5 bg-primary-500 text-white rounded-[2rem] font-black uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0"
                             >
-                                {saving ? 'Guardando...' : (editingTable ? 'Guardar Cambios' : 'Crear Mesa')}
+                                {saving ? t('saving') : (editingTable ? t('confirmChanges') : t('newTable'))}
                             </button>
                         </form>
                     </div>

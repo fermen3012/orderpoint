@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/utils';
 import { ChefHat, Pizza, Beer, IceCream, UtensilsCrossed } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface Category {
     id: string;
@@ -25,6 +26,7 @@ const getCategoryIcon = (name: string) => {
 };
 
 export function CategorySidebar({ categories, activeCategory, onSelect }: CategorySidebarProps) {
+    const t = useTranslations('kiosk');
     return (
         <aside className="w-full md:w-64 h-auto md:h-full bg-white border-b md:border-b-0 md:border-r border-secondary-100 flex flex-col overflow-hidden z-20">
             {/* Logo/Branding spot can go here */}
@@ -46,7 +48,7 @@ export function CategorySidebar({ categories, activeCategory, onSelect }: Catego
                     )}
                 >
                     <UtensilsCrossed className={cn("w-8 h-8 mb-2", activeCategory === null ? "text-white" : "text-secondary-300")} />
-                    <span className="text-xs font-black uppercase tracking-widest">Todos</span>
+                    <span className="text-xs font-black uppercase tracking-widest">{t('all')}</span>
                 </button>
 
                 {categories.map((category) => (
