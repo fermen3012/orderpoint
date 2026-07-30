@@ -23,7 +23,8 @@ import {
     ChevronLeft,
     ChevronRight,
     Sparkles,
-    AlertTriangle
+    AlertTriangle,
+    QrCode
 } from 'lucide-react';
 import { SidebarLink } from '@/components/admin/SidebarLink';
 import AdminLanguageSwitcher from '@/components/admin/AdminLanguageSwitcher';
@@ -136,6 +137,7 @@ export default function ProtectedAdminLayout({
         { icon: <Calendar className="w-5 h-5" />, label: t('schedule'), href: '/admin/schedule' },
         { icon: <ChefHat className="w-5 h-5" />, label: t('ingredients'), href: '/admin/ingredients' },
         { icon: <Utensils className="w-5 h-5" />, label: t('tables'), href: '/admin/tables' },
+        { icon: <QrCode className="w-5 h-5" />, label: t('qrMenu'), href: '/admin/billing' },
         { icon: <CreditCard className="w-5 h-5" />, label: t('billing'), href: '/admin/billing' },
         { icon: <Users className="w-5 h-5" />, label: t('users'), href: '/admin/users' },
     ];

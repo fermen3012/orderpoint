@@ -8,23 +8,33 @@ import {
     Calendar,
     ExternalLink,
     Download,
-    Receipt
+    Receipt,
+    QrCode,
+    Printer,
+    Copy,
+    Check
 } from 'lucide-react';
 import { getOwnerBilling, getCustomerInvoices, generatePortalLink, BillingCustomer } from '@/actions/stripe-admin';
 import { createCheckoutSession } from '@/app/actions/stripe';
 import { formatPrice } from '@/lib/utils';
 import { useAuth } from '@/components/auth/AuthContext';
+import { createClient } from '@/lib/supabase/browser';
+import { useLocale } from 'next-intl';
 
 function BillingPageContent() {
     const t = useTranslations('admin');
     const { restaurantId } = useAuth();
     const searchParams = useSearchParams();
+    const locale = useLocale();
+    const supabase = createClient();
     
     const [billingInfo, setBillingInfo] = useState<BillingCustomer | null>(null);
     const [invoices, setInvoices] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingPortal, setLoadingPortal] = useState(false);
     const [submittingCheckout, setSubmittingCheckout] = useState(false);
+    const [restaurantName, setRestaurantName] = useState<string>('');
+    const [copied, setCopied] = useState(false);
 
     const success = searchParams.get('success') === 'true';
     const canceled = searchParams.get('canceled') === 'true';
@@ -39,12 +49,23 @@ function BillingPageContent() {
         setLoading(true);
         try {
             if (!restaurantId) return;
+            
+            // Fetch billing details
             const data = await getOwnerBilling(restaurantId);
             setBillingInfo(data);
 
             if (data?.stripe_customer_id) {
                 const inv = await getCustomerInvoices();
                 setInvoices(inv);
+            }
+
+            // Fetch restaurant name for the QR code display using casting to bypass TS missing table types
+            const { data: restData } = await (supabase.from('restaurants') as any)
+                .select('name')
+                .eq('id', restaurantId)
+                .single();
+            if (restData) {
+                setRestaurantName(restData.name);
             }
         } catch (error) {
             console.error('Failed to load billing data', error);
@@ -83,6 +104,87 @@ function BillingPageContent() {
             alert('Error al iniciar el proceso de pago. Por favor, intente de nuevo.');
         } finally {
             setSubmittingCheckout(false);
+        }
+    };
+
+    const menuUrl = typeof window !== 'undefined' && restaurantId
+        ? `${window.location.origin}/${locale}/menu/${restaurantId}`
+        : '';
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(menuUrl)}`;
+
+    const handleCopyLink = () => {
+        if (!menuUrl) return;
+        navigator.clipboard.writeText(menuUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handlePrintQR = () => {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Imprimir QR - ${restaurantName || 'Menú'}</title>
+                    <style>
+                        body {
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            height: 90vh;
+                            margin: 0;
+                            font-family: system-ui, -apple-system, sans-serif;
+                            background-color: white;
+                            color: black;
+                            text-align: center;
+                        }
+                        .qr-container {
+                            border: 4px solid black;
+                            padding: 20px;
+                            border-radius: 24px;
+                            background: white;
+                            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+                        }
+                        img {
+                            width: 320px;
+                            height: 320px;
+                            display: block;
+                        }
+                        h1 {
+                            margin-top: 25px;
+                            font-size: 28px;
+                            font-weight: 900;
+                            text-transform: uppercase;
+                            letter-spacing: -1px;
+                            font-style: italic;
+                        }
+                        p {
+                            font-size: 14px;
+                            font-weight: 700;
+                            color: #666;
+                            margin-top: 5px;
+                            text-transform: uppercase;
+                            letter-spacing: 1px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="qr-container">
+                        <img src="${qrImageUrl}" />
+                    </div>
+                    <h1>${restaurantName || 'Menú Digital'}</h1>
+                    <p>Escanea para ver nuestro menú</p>
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                            setTimeout(function() { window.close(); }, 500);
+                        };
+                    </script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
         }
     };
 
@@ -145,6 +247,79 @@ function BillingPageContent() {
                     </button>
                 )}
             </div>
+
+            {/* QR Menu Card Section */}
+            {restaurantId && (
+                <div className="bg-slate-900/40 backdrop-blur-sm rounded-[3rem] p-10 border border-slate-800 shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-10 animate-in fade-in duration-500">
+                    {/* Background glows */}
+                    <div className="absolute -top-24 -left-24 w-48 h-48 bg-orange-500/5 rounded-full blur-3xl pointer-events-none" />
+                    <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-orange-500/5 rounded-full blur-3xl pointer-events-none" />
+
+                    <div className="flex-1 space-y-4 text-center md:text-left w-full">
+                        <div className="flex items-center gap-2 justify-center md:justify-start">
+                            <span className="w-8 h-1 bg-orange-500 rounded-full"></span>
+                            <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.3em]">Acceso Comensales</span>
+                        </div>
+                        <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">
+                            Menú QR Digital
+                        </h2>
+                        <p className="text-slate-400 font-medium text-sm leading-relaxed max-w-xl">
+                            Descarga e imprime el código QR para colocarlo en las mesas de tu restaurante. Tus comensales podrán escanearlo para visualizar el menú digital de forma instantánea y Mobile-First en sus teléfonos, sin necesidad de registro o descargas.
+                        </p>
+
+                        <div className="mt-6 flex flex-col sm:flex-row gap-3 max-w-xl w-full pt-2">
+                            <div className="flex-1 bg-slate-950 px-4 py-3.5 rounded-2xl border border-slate-800/80 font-mono text-xs text-slate-400 select-all truncate flex items-center justify-start">
+                                {menuUrl}
+                            </div>
+                            <button
+                                onClick={handleCopyLink}
+                                className="px-6 py-3.5 bg-slate-800 hover:bg-slate-750 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border border-slate-700/50"
+                            >
+                                {copied ? (
+                                    <>
+                                        <Check className="w-4 h-4 text-emerald-500 animate-in zoom-in-50" />
+                                        <span className="text-emerald-500">Copiado</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Copy className="w-4 h-4 text-slate-400" />
+                                        <span>Copiar Link</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+
+                        <div className="mt-6 flex flex-wrap gap-4 pt-2 justify-center md:justify-start">
+                            <button
+                                onClick={handlePrintQR}
+                                className="flex items-center gap-2.5 px-8 py-4 bg-orange-500 hover:bg-orange-400 text-slate-950 rounded-2xl font-black uppercase tracking-widest text-xs shadow-[0_10px_20px_rgba(249,115,22,0.2)] hover:-translate-y-0.5 transition-all active:scale-95"
+                            >
+                                <Printer className="w-4 h-4 text-slate-950" />
+                                <span>Imprimir Código QR</span>
+                            </button>
+                            <a
+                                href={menuUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2.5 px-8 py-4 bg-slate-950 hover:bg-slate-900 text-slate-300 rounded-2xl font-black uppercase tracking-widest text-xs hover:-translate-y-0.5 transition-all active:scale-95 border border-slate-800"
+                            >
+                                <ExternalLink className="w-4 h-4 text-slate-400" />
+                                <span>Ver Menú Público</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div className="flex-shrink-0 flex flex-col items-center gap-3 w-full md:w-auto">
+                        <div className="relative p-6 bg-white rounded-[2rem] border-4 border-slate-800 shadow-xl flex items-center justify-center animate-in zoom-in-95 duration-500">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={qrImageUrl} alt="QR Menu" className="w-44 h-44 object-contain" />
+                        </div>
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">
+                            Código de Mesa General
+                        </span>
+                    </div>
+                </div>
+            )}
 
             {hasActiveSubscription ? (
                 <>
