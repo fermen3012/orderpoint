@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useRouter, usePathname } from '@/i18n/routing';
 import { Globe, Utensils, Award } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
+import { useLocale } from 'next-intl';
 
 // Helper function to extract translated text from name/description objects
 const getLocalizedValue = (field: any, currentLang: string): string => {
@@ -81,9 +82,10 @@ interface PublicMenuClientProps {
     locale: 'es' | 'en';
 }
 
-export default function PublicMenuClient({ restaurant, categories, products, locale }: PublicMenuClientProps) {
+export default function PublicMenuClient({ restaurant, categories, products }: Omit<PublicMenuClientProps, 'locale'>) {
     const router = useRouter();
     const pathname = usePathname();
+    const activeLocale = useLocale() as 'es' | 'en';
     const [activeCategoryId, setActiveCategoryId] = useState<string>('');
     const categoryRefs = useRef<{ [key: string]: HTMLElement | null }>({});
     const isScrollingRef = useRef(false);
@@ -153,7 +155,7 @@ export default function PublicMenuClient({ restaurant, categories, products, loc
     };
 
     const toggleLanguage = () => {
-        const nextLocale = locale === 'es' ? 'en' : 'es';
+        const nextLocale = activeLocale === 'es' ? 'en' : 'es';
         router.replace(pathname, { locale: nextLocale });
     };
 
@@ -173,7 +175,7 @@ export default function PublicMenuClient({ restaurant, categories, products, loc
             backToTop: 'Back to top',
             language: 'ESPAÑOL'
         }
-    }[locale];
+    }[activeLocale];
 
     return (
         <div className="max-w-md mx-auto min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans antialiased selection:bg-orange-500/30">
@@ -227,7 +229,7 @@ export default function PublicMenuClient({ restaurant, categories, products, loc
                                         : 'bg-slate-900 text-slate-400 border border-slate-800/80 hover:text-white'
                                 }`}
                             >
-                                {getLocalizedValue(group.category.name, locale)}
+                                {getLocalizedValue(group.category.name, activeLocale)}
                             </button>
                         );
                     })}
@@ -254,13 +256,13 @@ export default function PublicMenuClient({ restaurant, categories, products, loc
                             className="space-y-4 scroll-mt-36"
                         >
                             <h2 className="text-lg font-black italic tracking-tighter uppercase text-slate-100 flex items-center gap-2 border-l-4 border-orange-500 pl-3">
-                                {getLocalizedValue(group.category.name, locale)}
+                                {getLocalizedValue(group.category.name, activeLocale)}
                             </h2>
                             
                             <div className="grid grid-cols-1 gap-3.5">
                                 {group.products.map(product => {
-                                    const productName = getLocalizedValue(product.name, locale);
-                                    const productDesc = getLocalizedValue(product.description, locale);
+                                    const productName = getLocalizedValue(product.name, activeLocale);
+                                    const productDesc = getLocalizedValue(product.description, activeLocale);
                                     
                                     return (
                                         <div 

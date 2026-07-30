@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase/client';
 import PublicMenuClient from '@/components/menu/PublicMenuClient';
 import { Utensils, AlertTriangle } from 'lucide-react';
+import { getLocale } from 'next-intl/server';
 
 export const revalidate = 60; // Incremental Static Regeneration every 60 seconds
 
@@ -13,8 +14,9 @@ interface PageProps {
 
 export default async function PublicMenuPage({ params }: PageProps) {
     const resolvedParams = await params;
-    const { locale, tenant_id } = resolvedParams;
-    const activeLocale = (locale === 'en' || locale === 'es') ? locale : 'es';
+    const { tenant_id } = resolvedParams;
+    const resolvedLocale = await getLocale();
+    const activeLocale = (resolvedLocale === 'en' || resolvedLocale === 'es') ? resolvedLocale : 'es';
 
     // UI Translations for the error views
     const i18n = {
@@ -91,7 +93,6 @@ export default async function PublicMenuPage({ params }: PageProps) {
                 restaurant={restaurant} 
                 categories={categories} 
                 products={products} 
-                locale={activeLocale} 
             />
         );
 

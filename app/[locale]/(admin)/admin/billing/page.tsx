@@ -173,8 +173,8 @@ function BillingPageContent() {
                     <div class="qr-container">
                         <img src="${qrImageUrl}" />
                     </div>
-                    <h1>${restaurantName || 'Menú Digital'}</h1>
-                    <p>Escanea para ver nuestro menú</p>
+                    <h1>\${restaurantName || t('qrMenuTitle')}</h1>
+                    <p>\${t('qrMenuPrintInstruction')}</p>
                     <script>
                         window.onload = function() {
                             window.print();
@@ -246,9 +246,7 @@ function BillingPageContent() {
                         <span>{loadingPortal ? t('processing') : t('stripePortal')}</span>
                     </button>
                 )}
-            </div>
-
-            {/* QR Menu Card Section */}
+            </div>            {/* QR Menu Card Section */}
             {restaurantId && (
                 <div className="bg-slate-900/40 backdrop-blur-sm rounded-[3rem] p-10 border border-slate-800 shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-10 animate-in fade-in duration-500">
                     {/* Background glows */}
@@ -258,13 +256,13 @@ function BillingPageContent() {
                     <div className="flex-1 space-y-4 text-center md:text-left w-full">
                         <div className="flex items-center gap-2 justify-center md:justify-start">
                             <span className="w-8 h-1 bg-orange-500 rounded-full"></span>
-                            <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.3em]">Acceso Comensales</span>
+                            <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.3em]">{t('qrMenuSubtitle')}</span>
                         </div>
                         <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">
-                            Menú QR Digital
+                            {t('qrMenuTitle')}
                         </h2>
                         <p className="text-slate-400 font-medium text-sm leading-relaxed max-w-xl">
-                            Descarga e imprime el código QR para colocarlo en las mesas de tu restaurante. Tus comensales podrán escanearlo para visualizar el menú digital de forma instantánea y Mobile-First en sus teléfonos, sin necesidad de registro o descargas.
+                            {t('qrMenuDesc')}
                         </p>
 
                         <div className="mt-6 flex flex-col sm:flex-row gap-3 max-w-xl w-full pt-2">
@@ -278,12 +276,12 @@ function BillingPageContent() {
                                 {copied ? (
                                     <>
                                         <Check className="w-4 h-4 text-emerald-500 animate-in zoom-in-50" />
-                                        <span className="text-emerald-500">Copiado</span>
+                                        <span className="text-emerald-500">{t('qrMenuCopied')}</span>
                                     </>
                                 ) : (
                                     <>
                                         <Copy className="w-4 h-4 text-slate-400" />
-                                        <span>Copiar Link</span>
+                                        <span>{t('qrMenuCopy')}</span>
                                     </>
                                 )}
                             </button>
@@ -295,7 +293,7 @@ function BillingPageContent() {
                                 className="flex items-center gap-2.5 px-8 py-4 bg-orange-500 hover:bg-orange-400 text-slate-950 rounded-2xl font-black uppercase tracking-widest text-xs shadow-[0_10px_20px_rgba(249,115,22,0.2)] hover:-translate-y-0.5 transition-all active:scale-95"
                             >
                                 <Printer className="w-4 h-4 text-slate-950" />
-                                <span>Imprimir Código QR</span>
+                                <span>{t('qrMenuPrint')}</span>
                             </button>
                             <a
                                 href={menuUrl}
@@ -304,7 +302,7 @@ function BillingPageContent() {
                                 className="flex items-center gap-2.5 px-8 py-4 bg-slate-950 hover:bg-slate-900 text-slate-300 rounded-2xl font-black uppercase tracking-widest text-xs hover:-translate-y-0.5 transition-all active:scale-95 border border-slate-800"
                             >
                                 <ExternalLink className="w-4 h-4 text-slate-400" />
-                                <span>Ver Menú Público</span>
+                                <span>{t('qrMenuPreview')}</span>
                             </a>
                         </div>
                     </div>
@@ -315,7 +313,7 @@ function BillingPageContent() {
                             <img src={qrImageUrl} alt="QR Menu" className="w-44 h-44 object-contain" />
                         </div>
                         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">
-                            Código de Mesa General
+                            {t('qrMenuFooter')}
                         </span>
                     </div>
                 </div>
