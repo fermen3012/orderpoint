@@ -8,12 +8,12 @@ import { ProductCard } from '@/components/kiosk/ProductCard';
 import { Cart } from '@/components/kiosk/Cart';
 import CartFloatingBar from '@/components/kiosk/CartFloatingBar';
 import { ProductModal } from '@/components/kiosk/ProductModal';
-import { OrderTicket } from '@/components/kiosk/OrderTicket';
-import { useReactToPrint } from 'react-to-print';
+import { useBluetoothPrinter } from '@/hooks/useBluetoothPrinter';
+import { buildEscPosReceipt, KioskReceiptData } from '@/lib/escpos';
 import { getModifiersByProduct } from '@/actions/modifiers';
 import { getMenuWithSchedule } from '@/actions/products';
 import LanguageSwitcher from '@/components/kiosk/LanguageSwitcher';
-import { Globe, ShoppingBag, ArrowLeft, Utensils, Search, CheckCircle2, Sparkles } from 'lucide-react';
+import { Globe, ShoppingBag, ArrowLeft, Utensils, Search, CheckCircle2, Sparkles, Printer } from 'lucide-react';
 import { useRouter, usePathname } from '@/i18n/routing';
 import { useSearchParams } from 'next/navigation';
 import type { Database } from '@/lib/supabase/types';
@@ -89,29 +89,17 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
     const [loading, setLoading] = useState(true);
     const [customizingProduct, setCustomizingProduct] = useState<UIProduct | null>(null);
     const [restaurantName, setRestaurantName] = useState<string | null>(null);
-    const [orderToPrint, setOrderToPrint] = useState<any | null>(null);
     const [lastPlacedOrder, setLastPlacedOrder] = useState<any | null>(null);
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
-    const ticketRef = useRef<HTMLDivElement>(null);
-
-    const handlePrint = useReactToPrint({
-        contentRef: ticketRef,
-        onAfterPrint: () => setOrderToPrint(null),
-    });
-
-    useEffect(() => {
-        if (orderToPrint) {
-            // Give it a tiny bit of time to ensure the ref is populated and DOM is stable
-            const timer = setTimeout(() => {
-                if (ticketRef.current) {
-                    handlePrint();
-                }
-            }, 100);
-            return () => clearTimeout(timer);
-        }
-    }, [orderToPrint, handlePrint]);
+    // Custom Hook para Impresión Térmica Web Bluetooth Silenciosa (Zero-Dialog)
+    const {
+        status: printerStatus,
+        deviceName: printerDeviceName,
+        connectPrinter,
+        printBuffer,
+    } = useBluetoothPrinter();
 
     // Handle category selection from URL
     useEffect(() => {
@@ -312,7 +300,7 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                 order_number: order.order_number,
                 created_at: order.created_at,
                 total_amount: order.total_amount, // Precio real calculado por el servidor
-                type: 'DINE_IN' as const,
+                type: orderType as string,
                 items: items.map(item => ({
                     name: getLocalizedValue(item.product.name, locale),
                     quantity: item.quantity,
@@ -327,7 +315,29 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                 }))
             };
 
-            setOrderToPrint(ticketData);
+            // Construir buffer ESC/POS e imprimir directamente al servidor GATT de la impresora Bluetooth (Sin window.print)
+            const receiptData: KioskReceiptData = {
+                restaurantName: restaurantName || 'ORDERPOINT POS',
+                orderNumber: order.order_number,
+                orderType: orderType,
+                createdAt: order.created_at,
+                totalAmount: Number(order.total_amount),
+                items: items.map(item => ({
+                    name: getLocalizedValue(item.product.name, locale),
+                    quantity: item.quantity,
+                    price: item.unitPrice,
+                    modifiers: [
+                        ...item.selectedModifiers.flatMap(group => group.options.map(opt => ({ name: opt.name, priceExtra: Number(opt.price), type: 'extra' as const }))),
+                        ...(item.removedIngredients || []).map(ri => ({ name: ri.name, type: 'removal' as const }))
+                    ]
+                }))
+            };
+
+            const receiptBytes = buildEscPosReceipt(receiptData, 48);
+            printBuffer(receiptBytes).catch((pErr) => {
+                console.warn('Error imprimiendo ticket por Bluetooth:', pErr);
+            });
+
             setLastPlacedOrder(ticketData);
             clearCart();
             setIsCartOpen(false);
@@ -387,6 +397,25 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                     </div>
 
                     <div className="flex items-center gap-4">
+                        {/* Indicador / Botón de Impresora Bluetooth */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (printerStatus !== 'connected') connectPrinter();
+                            }}
+                            className={cn(
+                                "p-3 rounded-2xl flex items-center gap-2 font-bold text-xs shadow-sm border transition-all active:scale-95",
+                                printerStatus === 'connected'
+                                    ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                                    : "bg-white border-slate-200/60 text-slate-600 hover:border-orange-300"
+                            )}
+                            title={printerStatus === 'connected' ? `Impresora: ${printerDeviceName}` : "Emparejar Impresora Bluetooth"}
+                        >
+                            <Printer className="w-5 h-5 text-orange-500" />
+                            <span className="hidden md:inline">
+                                {printerStatus === 'connected' ? printerDeviceName || 'Impresora 80mm' : 'Emparejar Impresora'}
+                            </span>
+                        </button>
                         <LanguageSwitcher />
                         <button
                             onClick={() => setIsCartOpen(!isCartOpen)}
@@ -498,9 +527,6 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                 )
             }
 
-            <div className="hidden">
-                {orderToPrint && <OrderTicket ref={ticketRef} order={orderToPrint} />}
-            </div>
 
             {/* Success Modal */}
             {isSuccessModalOpen && (

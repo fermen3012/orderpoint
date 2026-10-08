@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { CartItem, Product, SelectedModifier } from '@/types';
+import { generateUUID } from '@/lib/utils';
 
 interface CartStore {
     items: CartItem[];
@@ -27,7 +28,7 @@ export const useCartStore = create<CartStore>()(
             setOrderType: (type) => set({ orderType: type }),
 
             addToCart: (product: Product, modifiers: SelectedModifier[], quantity: number, removedIngredients?: { id: string; name: string }[]) => {
-                const uniqueId = crypto.randomUUID();
+                const uniqueId = generateUUID();
 
                 // Calculate base price + modifiers
                 const basePrice = Number(product.price);

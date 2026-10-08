@@ -80,7 +80,8 @@
         "removed": "NO",
         "logout": "Logout",
         "dineIn": "DINE IN",
-        "takeout": "TAKEOUT"
+        "takeout": "TAKEOUT",
+        "table": "Table #{number}"
     },
     "admin": {
         "dashboard": "Dashboard",

@@ -1,7 +1,7 @@
 'use client';
 
 import { Product } from '@/types';
-import { Plus, Minus, Info } from 'lucide-react';
+import { Plus, Minus, Info, SlidersHorizontal } from 'lucide-react';
 import { cn, formatPrice } from '@/lib/utils';
 
 import { useParams } from 'next/navigation';
@@ -40,15 +40,13 @@ export default function ProductListItem({ product, quantity, onAdd, onRemove, on
                 <p className="text-emerald-500 font-black italic tracking-tighter text-lg">
                     {formatPrice(Number(product.price))}
                 </p>
-                {product.modifier_groups.length > 0 && (
-                    <button
-                        onClick={onOpenModifiers}
-                        className="mt-1 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-300"
-                    >
-                        <Info className="w-3 h-3" />
-                        Ver Modificadores
-                    </button>
-                )}
+                <button
+                    onClick={onOpenModifiers}
+                    className="mt-1 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-wider transition-colors active:scale-95"
+                >
+                    <SlidersHorizontal className="w-3 h-3" />
+                    <span>Personalizar</span>
+                </button>
             </div>
 
             {/* Controls */}

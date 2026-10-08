@@ -107,10 +107,25 @@ export async function createStaffUser(formData: FormData) {
     const role = formData.get('role') as string;
     const fullName = formData.get('fullName') as string;
 
+    if (!email || !email.includes('@')) {
+        return { error: 'Correo electrónico inválido' };
+    }
+    if (!password || password.length < 6) {
+        return { error: 'La contraseña debe tener al menos 6 caracteres' };
+    }
+
     // Use current owner's restaurantId if they are an owner
     let restaurantId = formData.get('restaurantId') as string;
-    if (!currentProfile.is_super_admin && currentProfile.restaurant_id) {
+    if (!currentProfile.is_super_admin) {
         restaurantId = currentProfile.restaurant_id;
+        const allowedRoles = ['admin', 'kitchen', 'kiosk', 'mesera'];
+        if (!allowedRoles.includes(role)) {
+            return { error: 'Rol no permitido para este usuario' };
+        }
+    }
+
+    if (!restaurantId || !restaurantId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        return { error: 'ID de restaurante inválido' };
     }
 
     // 1. Create user in Supabase Auth
@@ -137,8 +152,39 @@ export async function createStaffUser(formData: FormData) {
 }
 
 export async function deleteStaffUser(userId: string) {
-    await checkAdminAuth();
+    const { profile: currentProfile } = await checkAdminAuth();
     const supabase = getAdminClient();
+
+    // Validate UUID format
+    if (!userId || !userId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        return { error: 'ID de usuario inválido' };
+    }
+
+    // Prevent deleting oneself
+    if (userId === currentProfile.id) {
+        return { error: 'No puedes eliminar tu propia cuenta' };
+    }
+
+    // Multi-tenant IDOR check: verify target user belongs to the same restaurant
+    if (!currentProfile.is_super_admin) {
+        const { data: targetProfile, error: profileErr } = await (supabase
+            .from('profiles' as any) as any)
+            .select('restaurant_id, is_super_admin, role')
+            .eq('id', userId)
+            .single();
+
+        if (profileErr || !targetProfile) {
+            return { error: 'Usuario no encontrado' };
+        }
+
+        if (targetProfile.is_super_admin) {
+            return { error: 'No autorizado para eliminar a un Super Administrador' };
+        }
+
+        if (targetProfile.restaurant_id !== currentProfile.restaurant_id) {
+            return { error: 'No autorizado: El usuario pertenece a otro restaurante' };
+        }
+    }
 
     const { error } = await supabase.auth.admin.deleteUser(userId);
 
@@ -154,15 +200,43 @@ export async function updateStaffUser(userId: string, formData: FormData) {
     const { profile: currentProfile } = await checkAdminAuth();
     const supabase = getAdminClient();
 
+    // Validate UUID format
+    if (!userId || !userId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        return { error: 'ID de usuario inválido' };
+    }
+
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     const role = formData.get('role') as string;
     const fullName = formData.get('fullName') as string;
 
-    // Use current owner's restaurantId if they are an owner
+    // Use current owner's restaurantId if they are not super admin
     let restaurantId = formData.get('restaurantId') as string;
-    if (!currentProfile.is_super_admin && currentProfile.restaurant_id) {
+    if (!currentProfile.is_super_admin) {
         restaurantId = currentProfile.restaurant_id;
+
+        const { data: targetProfile, error: profileErr } = await (supabase
+            .from('profiles' as any) as any)
+            .select('restaurant_id, is_super_admin, role')
+            .eq('id', userId)
+            .single();
+
+        if (profileErr || !targetProfile) {
+            return { error: 'Usuario no encontrado' };
+        }
+
+        if (targetProfile.is_super_admin) {
+            return { error: 'No autorizado para modificar a un Super Administrador' };
+        }
+
+        if (targetProfile.restaurant_id !== currentProfile.restaurant_id) {
+            return { error: 'No autorizado: El usuario pertenece a otro restaurante' };
+        }
+
+        const allowedRoles = ['admin', 'kitchen', 'kiosk', 'mesera'];
+        if (!allowedRoles.includes(role)) {
+            return { error: 'Rol no permitido para este usuario' };
+        }
     }
 
     // 1. Update user in Supabase Auth
@@ -176,6 +250,9 @@ export async function updateStaffUser(userId: string, formData: FormData) {
     };
 
     if (password && password.length > 0) {
+        if (password.length < 6) {
+            return { error: 'La contraseña debe tener al menos 6 caracteres' };
+        }
         updateData.password = password;
     }
 

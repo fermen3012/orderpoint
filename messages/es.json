@@ -80,7 +80,8 @@
         "removed": "SIN",
         "logout": "Cerrar Sesión",
         "dineIn": "MESA",
-        "takeout": "LLEVAR"
+        "takeout": "LLEVAR",
+        "table": "Mesa #{number}"
     },
     "admin": {
         "dashboard": "Panel de Control",

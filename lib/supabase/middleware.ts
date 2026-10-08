@@ -93,18 +93,8 @@ export async function updateSession(request: NextRequest, response: NextResponse
                 .eq('id', user.id)
                 .single()
 
-            let isSuperAdmin = profile?.is_super_admin;
+            let isSuperAdmin = Boolean(profile?.is_super_admin || user.app_metadata?.is_super_admin);
             let userRole = profile?.role;
-
-            // Unconditional overrides based on secure session claims and email credentials
-            if (user.email === 'admin@orderpoint.com') {
-                isSuperAdmin = true;
-                userRole = 'admin';
-            }
-
-            if (user.user_metadata?.is_super_admin === true || user.app_metadata?.is_super_admin === true) {
-                isSuperAdmin = true;
-            }
 
             if (error || !profile) {
                 if (isSuperAdmin || userRole) {

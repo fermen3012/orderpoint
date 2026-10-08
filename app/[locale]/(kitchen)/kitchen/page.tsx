@@ -10,7 +10,11 @@ import { use } from 'react';
 import { useRouter } from '@/i18n/routing';
 import { useAuth } from '@/components/auth/AuthContext';
 
-type Order = Database['public']['Tables']['orders']['Row'] & { order_type?: 'dine_in' | 'takeout' };
+type Order = Database['public']['Tables']['orders']['Row'] & {
+    order_type?: 'dine_in' | 'takeout';
+    table?: { number: string } | null;
+    tables?: { number: string } | null;
+};
 type OrderItem = Database['public']['Tables']['order_items']['Row'];
 
 interface OrderWithItems extends Order {
@@ -76,6 +80,9 @@ export default function KitchenPage({ params }: { params: Promise<{ locale: stri
                 .from('orders') as any)
                 .select(`
           *,
+          table:tables (
+            number
+          ),
           order_items (
             *,
             products (
@@ -363,21 +370,29 @@ function OrderCard({
                         <span>{t('ago', { time: timeSinceOrder })}</span>
                     </div>
 
-                    {/* Order Type Badge */}
-                    <div className={`mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-xl text-xs font-black uppercase tracking-widest ${order.order_type === 'takeout'
-                        ? 'bg-orange-500/10 text-orange-500 border border-orange-500/20'
-                        : 'bg-primary-500/10 text-primary-500 border border-primary-500/20'
-                        }`}>
-                        {order.order_type === 'takeout' ? (
-                            <>
-                                <ShoppingBag className="w-3 h-3" />
-                                <span>{t('takeout')}</span>
-                            </>
-                        ) : (
-                            <>
-                                <Utensils className="w-3 h-3" />
-                                <span>{t('dineIn')}</span>
-                            </>
+                    {/* Order Type & Table Badges */}
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-xl text-xs font-black uppercase tracking-widest ${order.order_type === 'takeout'
+                            ? 'bg-orange-500/10 text-orange-500 border border-orange-500/20'
+                            : 'bg-primary-500/10 text-primary-500 border border-primary-500/20'
+                            }`}>
+                            {order.order_type === 'takeout' ? (
+                                <>
+                                    <ShoppingBag className="w-3 h-3" />
+                                    <span>{t('takeout')}</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Utensils className="w-3 h-3" />
+                                    <span>{t('dineIn')}</span>
+                                </>
+                            )}
+                        </div>
+
+                        {(order.table?.number || (order as any).tables?.number) && (
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                <span>{t('table', { number: order.table?.number || (order as any).tables?.number })}</span>
+                            </div>
                         )}
                     </div>
                 </div>

@@ -26,6 +26,7 @@ export interface Product {
     image_url: string | null;
     is_available: boolean;
     modifier_groups: ModifierGroup[];
+    removable_ingredients?: { id: string; name: string }[];
 }
 
 export interface SelectedModifier {

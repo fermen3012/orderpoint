@@ -1,0 +1,69 @@
+{
+  "project_invariants": {
+    "domain": {
+      "industry": "Restaurante / Gastronomía",
+      "core_system": "OrderPoint - Kiosko de Autoservicio, Kitchen Display System (KDS) y Gestión Multi-Restaurante"
+    },
+    "ui_design_freeze": {
+      "unbreakable_rule": true,
+      "rule": "INQUEBRANTABLE: Prohibido alterar o rediseñar la interfaz gráfica, estilos (Tailwind), paleta de colores, tipografías, márgenes, bordes o estructura de layout visual existente (en Kiosko, KDS, Admin, Super Admin o Exo) a menos que el usuario lo pida explícitamente. ÚNICAMENTE el especialista de interfaz gráfica (ui_design_specialist) está autorizado para intervenir el sistema visual, y de forma estrictamente condicionada a dicha solicitud expresa."
+    },
+    "token_discipline_and_graph_memory": {
+      "unbreakable_rule": true,
+      "rule": "INQUEBRANTABLE: Respetar rigurosamente la memoria de grafo (graph.json). Prohibido reescribir código existente que ya funciona o regenerar archivos completos. Todo cambio debe ser estrictamente quirúrgico (usando diffs contiguos y reemplazos puntuales), ahorrando la mayor cantidad de tokens posible y manteniendo la estabilidad del código base."
+    },
+    "system_stability": {
+      "no_unauthorized_refactor": true,
+      "description": "No cambiar la estructura de archivos, nombres de funciones ni lógica de Contexts (AuthContext, etc.) o Server Actions sin autorización explícita."
+    },
+    "multi_tenant_isolation": {
+      "critical_field": "restaurant_id",
+      "rule": "INTOUCHABLE: Aislamiento absoluto por restaurant_id en todas las consultas de Kiosko, KDS (Cocina) y Administración. Prohibido omitir el filtrado por restaurant_id o cruzar datos entre locales bajo ninguna circunstancia."
+    },
+    "cybersecurity_and_customer_data_protection": {
+      "unbreakable_rule": true,
+      "rule": "INQUEBRANTABLE: Blindaje absoluto de información de clientes (PII) y transacciones. Prohibido exponer SUPABASE_SERVICE_ROLE_KEY o secretos en bundles cliente; cero almacenamiento de datos de tarjetas de crédito (PCI-DSS delegado a Stripe); validación criptográfica obligatoria de firmas de webhooks; sanitización de entradas para prevenir XSS/SQLi; y verificación rigurosa de pertenencia de recursos para impedir ataques IDOR."
+    },
+    "kds_and_order_flow": {
+      "status_lifecycle": ["pending", "preparing", "ready", "completed"],
+      "status_colors": {
+        "pending": "bg-yellow-500 (Alerta visual para cocina)",
+        "preparing": "bg-blue-500 (En preparación)",
+        "ready": "bg-green-500 (Listo para despacho / entrega al cliente)",
+        "completed": "bg-gray-500 (Archivado / despachado)"
+      },
+      "realtime_requirement": "KDS debe mantener suscripción activa a Supabase Realtime sobre 'orders' y 'order_items' para reflejar nuevos pedidos instantáneamente sin recarga de navegador."
+    },
+    "kiosk_and_cart_integrity": {
+      "pricing_rule": "totalPrice = unit_price (precio base + suma de modificadores activos) * quantity",
+      "modifiers_and_ingredients": "Respetar validaciones de grupos de modificadores (min_selections, max_selections, is_required) e ingredientes removibles antes de emitir cualquier orden.",
+      "order_numbering": "Cada restaurante genera números correlativos visibles para el llamado de clientes."
+    },
+    "hardware_and_bluetooth_printing": {
+      "protocol": "Web Bluetooth ESC/POS (58mm / 80mm)",
+      "critical_files": [
+        "hooks/useBluetoothPrinter.ts",
+        "lib/escpos.ts",
+        "components/kiosk/BluetoothPrinterModule.tsx"
+      ],
+      "rule": "Preservar el pipeline de buffers binarios ESC/POS y compatibilidad con servicios GATT estándar (POS, ISSC, SPP). No alterar el formato del ticket térmico sin validación."
+    },
+    "visual_design_and_ux": {
+      "kiosk": {
+        "concept": "Touch-First & High Visibility",
+        "style": "Botones de gran área táctil, contrastes nítidos, soporte multi-idioma (next-intl), retroalimentación visual de confirmación instantánea."
+      },
+      "kds": {
+        "concept": "Kitchen Operations Display",
+        "style": "Diseño de alto contraste para visibilidad a distancia en línea de cocina, temporizadores en tiempo real y tarjetas de pedido con estados por color."
+      },
+      "admin": {
+        "concept": "Restaurant Management Dashboard",
+        "style": "Interfaz moderna con Tailwind CSS, modales accesibles (Radix UI) y navegación intuitiva."
+      }
+    },
+    "nextjs_runtime_stability": {
+      "rule": "Next.js 15 App Router. Respetar la frontera entre Server Actions y componentes de cliente ('use client'). Asegurar tipado TypeScript estricto en tipos de base de datos."
+    }
+  }
+}

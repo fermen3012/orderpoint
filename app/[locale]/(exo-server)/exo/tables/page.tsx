@@ -35,10 +35,10 @@ export default function TablesPage() {
                     setRestaurant(profile.restaurant_id, profile.restaurants.name);
                 }
 
-                // Fetch tables from database
+                // Fetch tables from database with waiter profile
                 const { data, error } = await supabase
                     .from('tables')
-                    .select('*')
+                    .select('*, waitress:profiles!waitress_id(full_name)')
                     .eq('restaurant_id', profile.restaurant_id)
                     .order('number');
 
@@ -52,10 +52,11 @@ export default function TablesPage() {
                     return;
                 }
 
-                // Map real status from database
+                // Map real status and waiter name from database
                 const tablesWithStatus = (data as any[]).map(t => ({
                     ...t,
-                    status: t.waitress_id ? 'occupied' : 'free'
+                    status: t.waitress_id ? 'occupied' : 'free',
+                    waitress_name: t.waitress?.full_name || null
                 }));
 
                 setTables(tablesWithStatus);

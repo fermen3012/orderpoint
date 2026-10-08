@@ -47,6 +47,8 @@ interface Order {
     ready_at?: string | null;
     completed_at?: string | null;
     order_items: OrderItem[];
+    table?: { number: string } | null;
+    tables?: { number: string } | null;
 }
 
 const getLocalizedValue = (field: any, currentLang: string): string => {
@@ -123,6 +125,9 @@ export default function OrdersPage() {
                 .from('orders') as any)
                 .select(`
                     *,
+                    table:tables (
+                        number
+                    ),
                     order_items (
                         *,
                         products (
@@ -316,8 +321,12 @@ export default function OrdersPage() {
         // Map table rows
         const tableBody = filteredOrders.map(order => {
             const statusInfo = getStatusStyles(order.status);
+            const tableNum = order.table?.number || order.tables?.number;
+            const originLabel = tableNum
+                ? (locale === 'es' ? `Mesa #${tableNum}` : `Table #${tableNum}`)
+                : (order.order_type === 'dine_in' ? (locale === 'es' ? 'Kiosco' : 'Kiosk') : (locale === 'es' ? 'Llevar' : 'Takeout'));
             return [
-                `${locale === 'es' ? 'ORDEN' : 'ORDER'} #${order.order_number}\n(${order.order_type === 'dine_in' ? (locale === 'es' ? 'Kiosco' : 'Kiosk') : (locale === 'es' ? 'Llevar' : 'Takeout')})`,
+                `${locale === 'es' ? 'ORDEN' : 'ORDER'} #${order.order_number}\n(${originLabel})`,
                 order.order_items.map(item => `x${item.quantity} ${getLocalizedValue(item.products?.name, locale)}`).join('\n'),
                 formatPrice(order.total_amount, locale === 'es' ? 'es-SV' : 'en-US'),
                 getPreparationTime(order),
@@ -506,7 +515,9 @@ export default function OrdersPage() {
                                                             {locale === 'es' ? 'ORDEN' : 'ORDER'} #{order.order_number}
                                                         </span>
                                                         <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-1 block">
-                                                            {order.order_type === 'dine_in' ? (locale === 'es' ? 'Kiosco' : 'Kiosk') : (locale === 'es' ? 'Llevar' : 'Takeout')} • {new Date(order.created_at).toLocaleTimeString(locale === 'es' ? 'es-SV' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                                                            {order.table?.number || order.tables?.number
+                                                                ? (locale === 'es' ? `Mesa #${order.table?.number || order.tables?.number}` : `Table #${order.table?.number || order.tables?.number}`)
+                                                                : (order.order_type === 'dine_in' ? (locale === 'es' ? 'Kiosco' : 'Kiosk') : (locale === 'es' ? 'Llevar' : 'Takeout'))} • {new Date(order.created_at).toLocaleTimeString(locale === 'es' ? 'es-SV' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                                                         </span>
                                                     </div>
                                                 </td>
@@ -588,7 +599,9 @@ export default function OrdersPage() {
                                                 </span>
                                                 <span className="text-slate-700">•</span>
                                                 <span className="text-slate-400">
-                                                    {order.order_type === 'dine_in' ? (locale === 'es' ? 'Kiosco' : 'Kiosk') : (locale === 'es' ? 'Llevar' : 'Takeout')}
+                                                    {order.table?.number || order.tables?.number
+                                                        ? (locale === 'es' ? `Mesa #${order.table?.number || order.tables?.number}` : `Table #${order.table?.number || order.tables?.number}`)
+                                                        : (order.order_type === 'dine_in' ? (locale === 'es' ? 'Kiosco' : 'Kiosk') : (locale === 'es' ? 'Llevar' : 'Takeout'))}
                                                 </span>
                                             </div>
                                         </div>
@@ -657,7 +670,14 @@ export default function OrdersPage() {
                                     <span className="text-2xl font-black text-slate-900 tracking-tighter">#{selectedOrder.order_number}</span>
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-1">{t('orderDetails')}</h2>
+                                    <div className="flex items-center gap-3 mb-1">
+                                        <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase">{t('orderDetails')}</h2>
+                                        {(selectedOrder.table?.number || selectedOrder.tables?.number) && (
+                                            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                                {locale === 'es' ? `Mesa #${selectedOrder.table?.number || selectedOrder.tables?.number}` : `Table #${selectedOrder.table?.number || selectedOrder.tables?.number}`}
+                                            </span>
+                                        )}
+                                    </div>
                                     <p className="text-slate-500 font-bold text-sm">
                                         {t('processedOn', {
                                             date: new Date(selectedOrder.created_at).toLocaleDateString(locale === 'es' ? 'es-SV' : 'en-US'),

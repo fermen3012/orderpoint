@@ -5,8 +5,9 @@ import { Product, ModifierGroup, SelectedModifier } from '@/types';
 import { useExoCartStore } from '@/store/exo-cart-store';
 import ProductListItem from './ProductListItem';
 import ModifierModal from './ModifierModal';
-import { cn } from '@/lib/utils';
+import { cn, getLocalizedValue } from '@/lib/utils';
 import { Search } from 'lucide-react';
+import { useParams } from 'next/navigation';
 
 interface Category {
     id: string;
@@ -19,6 +20,8 @@ interface QuickOrderMenuProps {
 }
 
 export default function QuickOrderMenu({ categories, products }: QuickOrderMenuProps) {
+    const params = useParams();
+    const locale = (params?.locale as string) || 'es';
     const [selectedCategoryId, setSelectedCategoryId] = useState<string>(categories[0]?.id || '');
     const [searchTerm, setSearchTerm] = useState('');
     const [modifierProduct, setModifierProduct] = useState<Product | null>(null);
@@ -27,7 +30,8 @@ export default function QuickOrderMenu({ categories, products }: QuickOrderMenuP
 
     const filteredProducts = products.filter(p => {
         const matchesCategory = p.category_id === selectedCategoryId || selectedCategoryId === 'all';
-        const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const productName = getLocalizedValue(p.name, locale);
+        const matchesSearch = (productName || '').toLowerCase().includes(searchTerm.toLowerCase());
         return matchesCategory && matchesSearch;
     });
 
@@ -53,9 +57,9 @@ export default function QuickOrderMenu({ categories, products }: QuickOrderMenuP
         }
     };
 
-    const onModifierConfirm = (selectedModifiers: SelectedModifier[]) => {
+    const onModifierConfirm = (selectedModifiers: SelectedModifier[], removedIngredients?: { id: string; name: string }[]) => {
         if (modifierProduct) {
-            addToCart(modifierProduct, selectedModifiers, 1);
+            addToCart(modifierProduct, selectedModifiers, 1, removedIngredients);
             setModifierProduct(null);
         }
     };

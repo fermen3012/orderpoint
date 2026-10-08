@@ -1,0 +1,285 @@
+{
+  "project": {
+    "name": "OrderPoint",
+    "version": "1.0.0",
+    "domain": "Restaurantes & Gastronomía (Kiosko Autoservicio, Kitchen Display System & POS SaaS)",
+    "stack": {
+      "framework": "Next.js 15 (App Router)",
+      "ui": "React, Tailwind CSS, Radix UI, Lucide Icons",
+      "database": "Supabase PostgreSQL with Row Level Security (RLS) & Realtime Channels",
+      "auth": "Supabase SSR Auth (Multi-tenant por restaurant_id)",
+      "hardware": "Web Bluetooth ESC/POS Thermal Printing (58mm / 80mm)",
+      "i18n": "next-intl (Soporte Multi-idioma) + Google Gemini AI Auto-translation",
+      "billing": "Stripe Subscriptions & Checkout"
+    }
+  },
+  "nodes": [
+    {
+      "id": "node_kiosk",
+      "name": "Módulo Kiosko de Autoservicio",
+      "type": "module",
+      "files": [
+        "app/[locale]/(kiosk)/menu/page.tsx",
+        "app/[locale]/(kiosk)/categories/page.tsx",
+        "components/kiosk/Cart.tsx",
+        "components/kiosk/CartFloatingBar.tsx",
+        "components/kiosk/ProductModal.tsx",
+        "components/kiosk/ProductCustomizationModal.tsx",
+        "components/kiosk/OrderTicket.tsx",
+        "components/kiosk/BluetoothPrinterModule.tsx"
+      ],
+      "responsibilities": [
+        "Navegación visual del menú por categorías para comensales",
+        "Personalización detallada con grupos de modificadores y exclusión de ingredientes",
+        "Gestión del carrito reactivo y cálculo de totales en tiempo real",
+        "Emisión de pedidos con número de llamado a pantalla de cocina",
+        "Impresión de comprobante/ticket térmico vía Bluetooth ESC/POS"
+      ]
+    },
+    {
+      "id": "node_kds",
+      "name": "Módulo Kitchen Display System (KDS / Pantalla de Cocina)",
+      "type": "module",
+      "files": [
+        "app/[locale]/(kitchen)/kitchen/page.tsx",
+        "app/[locale]/(kitchen)/layout.tsx"
+      ],
+      "responsibilities": [
+        "Visualización en tiempo real de comandas vía Supabase Realtime",
+        "Control del ciclo de vida de comandas: Pendiente -> Preparando -> Listo -> Completado",
+        "Desglose de productos, modificadores seleccionados e ingredientes removidos",
+        "Cálculo de tiempos transcurridos de espera y preparación",
+        "Aislamiento riguroso por restaurant_id"
+      ]
+    },
+    {
+      "id": "node_exo_server",
+      "name": "Módulo de Salón & Garzones (Exo Server)",
+      "type": "module",
+      "files": [
+        "app/[locale]/(exo-server)/exo/tables/page.tsx",
+        "app/[locale]/(exo-server)/exo/menu/[table_id]/page.tsx"
+      ],
+      "responsibilities": [
+        "Asignación y visualización de mesas físicas del salón",
+        "Comanda directa de órdenes por garzones asociadas a mesas"
+      ]
+    },
+    {
+      "id": "node_restaurant_admin",
+      "name": "Módulo Administración de Restaurante (Tenant Owner/Admin)",
+      "type": "module",
+      "files": [
+        "app/[locale]/(admin)/admin/dashboard/page.tsx",
+        "app/[locale]/(admin)/admin/products/page.tsx",
+        "app/[locale]/(admin)/admin/categories/page.tsx",
+        "app/[locale]/(admin)/admin/ingredients/page.tsx",
+        "app/[locale]/(admin)/admin/orders/page.tsx",
+        "app/[locale]/(admin)/admin/tables/page.tsx",
+        "app/[locale]/(admin)/admin/schedule/page.tsx",
+        "app/[locale]/(admin)/admin/billing/page.tsx",
+        "app/[locale]/(admin)/admin/users/page.tsx"
+      ],
+      "responsibilities": [
+        "Gestión completa de menú: productos, precios, fotos, categorías y disponibilidad",
+        "Configuración de grupos de modificadores e ingredientes de platos",
+        "Historial y auditoría de órdenes de venta",
+        "Configuración de mesas del restaurante y horarios semanales",
+        "Gestión de personal de restaurante (admin, kitchen, kiosk, mesera)",
+        "Suscripción a la plataforma y facturación Stripe"
+      ]
+    },
+    {
+      "id": "node_super_admin",
+      "name": "Módulo Super Administrador (Control Plane Multi-Tenant)",
+      "type": "module",
+      "files": [
+        "app/[locale]/(super-admin)/super-admin/dashboard/page.tsx",
+        "app/[locale]/(super-admin)/super-admin/restaurants/page.tsx",
+        "app/[locale]/(super-admin)/super-admin/settings/page.tsx",
+        "app/[locale]/(super-admin)/super-admin/billing/page.tsx",
+        "actions/settings.ts",
+        "actions/stripe-admin.ts"
+      ],
+      "responsibilities": [
+        "Aprovisionamiento y alta de nuevos restaurantes (Tenants)",
+        "Configuración global y segura de API Keys (Stripe, Gemini IA) en system_settings",
+        "Métricas globales de volumen, facturación y restaurantes activos",
+        "Importación masiva de productos e ingredientes"
+      ]
+    },
+    {
+      "id": "node_auth",
+      "name": "Módulo Autenticación & Aislamiento Multi-Tenant",
+      "type": "module",
+      "files": [
+        "components/auth/AuthContext.tsx",
+        "middleware.ts",
+        "lib/supabase/client.ts",
+        "actions/users.ts",
+        "app/[locale]/(admin)/login/page.tsx"
+      ],
+      "responsibilities": [
+        "Control de acceso basado en roles (super_admin, owner, admin, kitchen, kiosk, mesera)",
+        "Inyección y validación del contexto restaurant_id en toda la aplicación",
+        "Protección de rutas en middleware y sesiones seguras en cookies SSR"
+      ]
+    },
+    {
+      "id": "node_printing_hardware",
+      "name": "Módulo de Impresión Térmica ESC/POS (Hardware)",
+      "type": "hardware_integration",
+      "files": [
+        "hooks/useBluetoothPrinter.ts",
+        "lib/escpos.ts",
+        "components/kiosk/BluetoothPrinterModule.tsx"
+      ],
+      "responsibilities": [
+        "Conexión con impresoras térmicas Bluetooth mediante Web Bluetooth API",
+        "Traducción de pedidos a secuencias binarias de comandos ESC/POS",
+        "Compatibilidad con bobinas de 58mm y 80mm",
+        "Reconexión automática y corte de papel térmico"
+      ]
+    },
+    {
+      "id": "node_database_schema",
+      "name": "Base de Datos Supabase (PostgreSQL & Realtime)",
+      "type": "database",
+      "tables": [
+        "public.restaurants",
+        "public.categories",
+        "public.products",
+        "public.modifier_groups",
+        "public.modifier_options",
+        "public.product_modifiers",
+        "public.ingredients",
+        "public.product_ingredients",
+        "public.orders",
+        "public.order_items",
+        "public.profiles",
+        "public.tables",
+        "public.system_settings"
+      ],
+      "realtime_publications": [
+        "public.orders",
+        "public.order_items"
+      ]
+    },
+    {
+      "id": "node_ai_translation",
+      "name": "Módulo de Traducción con Inteligencia Artificial (Gemini)",
+      "type": "ai_service",
+      "files": [
+        "actions/translate-gemini.ts"
+      ],
+      "responsibilities": [
+        "Traducción automática de nombres y descripciones gastronómicas al inglés/español",
+        "Uso de credenciales dinámicas provistas en system_settings"
+      ]
+    },
+    {
+      "id": "node_billing_stripe",
+      "name": "Módulo de Facturación y Suscripciones (Stripe)",
+      "type": "external_service",
+      "files": [
+        "lib/stripe.ts",
+        "actions/stripe-admin.ts",
+        "app/api/webhooks/stripe/route.ts"
+      ],
+      "responsibilities": [
+        "Gestión de planes de suscripción para dueños de restaurantes",
+        "Procesamiento dinámico de checkout con Stripe",
+        "Sincronización de eventos de suscripción vía webhooks"
+      ]
+    },
+    {
+      "id": "node_security_guardian",
+      "name": "Módulo Ciberseguridad & Protección de Datos (Infosec)",
+      "type": "security_governance",
+      "files": [
+        ".agents/skills/infosec-guard/SKILL.md",
+        "actions/secure-orders.ts",
+        "middleware.ts"
+      ],
+      "responsibilities": [
+        "Auditoría preventiva de fuga de datos de clientes (PII) e historial de consumo",
+        "Blindaje de secretos de servidor (evitar exposición de service_role key en cliente)",
+        "Verificación de firmas criptográficas de webhooks de Stripe",
+        "Validación estricta de pertenencia de recursos para mitigar vulnerabilidades IDOR",
+        "Sanitización de entradas para prevenir inyecciones SQL y ataques XSS"
+      ]
+    },
+    {
+      "id": "node_backend_core",
+      "name": "Especialidad Arquitectura Backend & Lógica de Servidor",
+      "type": "engineering_subagent",
+      "files": [
+        ".agents/skills/backend-architecture/SKILL.md",
+        "actions/*",
+        "app/api/*",
+        "lib/supabase/server.ts"
+      ],
+      "responsibilities": [
+        "Desarrollo de Server Actions robustas y tipadas",
+        "Validación de esquemas Zod y cálculo seguro de órdenes",
+        "Garantía de aislamiento multi-tenant en backend",
+        "Gestión de transacciones y autenticación SSR con Supabase"
+      ]
+    },
+    {
+      "id": "node_frontend_core",
+      "name": "Especialidad Arquitectura Frontend & Lógica de Cliente",
+      "type": "engineering_subagent",
+      "files": [
+        ".agents/skills/frontend-architecture/SKILL.md",
+        "components/*",
+        "store/*",
+        "hooks/*",
+        "i18n/*"
+      ],
+      "responsibilities": [
+        "Gestión de estado global reactivo con Zustand",
+        "Internacionalización dinámica con next-intl",
+        "Optimización del ciclo de vida 'use client' y prevención de re-renders",
+        "Manejo de eventos táctiles y flujos interactivos de cliente"
+      ]
+    },
+    {
+      "id": "node_ui_design",
+      "name": "Especialidad Interfaz Gráfica & Sistema Visual (UI/UX)",
+      "type": "design_subagent",
+      "files": [
+        ".agents/skills/ui-design-craft/SKILL.md",
+        "tailwind.config.ts",
+        "app/globals.css"
+      ],
+      "responsibilities": [
+        "Único agente autorizado para intervenir el diseño visual (bajo petición expresa)",
+        "Ergonomía táctil para Kiosko (touch targets >= 44x44px)",
+        "Visibilidad de alto contraste para Kitchen Display System (KDS)",
+        "Preservación y replicación exacta del lenguaje visual del sistema"
+      ]
+    }
+  ],
+  "edges": [
+    { "from": "node_auth", "to": "node_database_schema", "relation": "resolves_role_and_tenant" },
+    { "from": "node_kiosk", "to": "node_database_schema", "relation": "creates_order_and_items" },
+    { "from": "node_kiosk", "to": "node_printing_hardware", "relation": "prints_receipt_via" },
+    { "from": "node_database_schema", "to": "node_kds", "relation": "streams_orders_via_realtime" },
+    { "from": "node_kds", "to": "node_database_schema", "relation": "updates_order_status" },
+    { "from": "node_exo_server", "to": "node_database_schema", "relation": "places_table_order" },
+    { "from": "node_restaurant_admin", "to": "node_database_schema", "relation": "manages_catalog_and_orders" },
+    { "from": "node_super_admin", "to": "node_database_schema", "relation": "manages_restaurants_and_settings" },
+    { "from": "node_super_admin", "to": "node_billing_stripe", "relation": "manages_saas_billing" },
+    { "from": "node_restaurant_admin", "to": "node_ai_translation", "relation": "auto_translates_menu_items" },
+    { "from": "node_security_guardian", "to": "node_database_schema", "relation": "audits_rls_and_data_isolation" },
+    { "from": "node_security_guardian", "to": "node_billing_stripe", "relation": "verifies_webhook_signatures" },
+    { "from": "node_backend_core", "to": "node_database_schema", "relation": "executes_server_business_logic" },
+    { "from": "node_frontend_core", "to": "node_backend_core", "relation": "invokes_typed_server_actions" },
+    { "from": "node_ui_design", "to": "node_frontend_core", "relation": "applies_visual_styling_on_demand" }
+  ],
+  "token_efficiency_protocol": {
+    "unbreakable_rule": true,
+    "rule": "INQUEBRANTABLE: Consultar este grafo para identificar el nodo y archivo exacto a intervenir. Prohibido reescribir código existente funcional, regenerar archivos enteros o alterar la interfaz gráfica/diseño sin instrucción explícita. Toda modificación debe ser quirúrgica sobre bloques contiguos puntuales para maximizar el ahorro de tokens y garantizar la estabilidad total."
+  }
+}
