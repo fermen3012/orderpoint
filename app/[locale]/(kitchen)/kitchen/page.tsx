@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { supabase } from '@/lib/supabase/client';
-import { formatPrice, formatOrderNumber } from '@/lib/utils';
+import { formatPrice, formatOrderNumber, getLocalizedValue } from '@/lib/utils';
 import { Clock, ChefHat, LogOut, Utensils, ShoppingBag, Smartphone, Monitor, User } from 'lucide-react';
 import type { Database } from '@/lib/supabase/types';
 import { use } from 'react';
@@ -47,6 +47,7 @@ export default function KitchenPage({ params }: { params: Promise<{ locale: stri
 
     const [orders, setOrders] = useState<OrderWithItems[]>([]);
     const [ingredientsMap, setIngredientsMap] = useState<Record<string, string>>({});
+    const [restaurantName, setRestaurantName] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [mounted, setMounted] = useState(false);
 
@@ -54,7 +55,7 @@ export default function KitchenPage({ params }: { params: Promise<{ locale: stri
         setMounted(true);
     }, []);
 
-    // Load ingredients
+    // Load ingredients and restaurant
     useEffect(() => {
         async function loadIngredients(rid: string) {
             const { data } = await (supabase
@@ -69,8 +70,21 @@ export default function KitchenPage({ params }: { params: Promise<{ locale: stri
             }
         }
 
+        async function loadRestaurant(rid: string) {
+            const { data } = await (supabase
+                .from('restaurants') as any)
+                .select('name')
+                .eq('id', rid)
+                .single();
+
+            if (data?.name) {
+                setRestaurantName(data.name);
+            }
+        }
+
         if (restaurantId) {
             loadIngredients(restaurantId);
+            loadRestaurant(restaurantId);
         }
     }, [restaurantId]);
 
@@ -215,6 +229,14 @@ export default function KitchenPage({ params }: { params: Promise<{ locale: stri
                             <ChefHat className="w-10 h-10 text-white" />
                         </div>
                         <div>
+                            {restaurantName && (
+                                <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-2xl bg-gradient-to-r from-emerald-500/20 via-primary-500/15 to-emerald-500/10 border border-primary-500/40 shadow-[0_0_20px_rgba(16,185,129,0.25)] mb-2.5">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-accent-400 animate-pulse shadow-[0_0_8px_#34d399]" />
+                                    <span className="text-sm sm:text-base font-black text-primary-300 uppercase tracking-[0.25em]">
+                                        {restaurantName}
+                                    </span>
+                                </div>
+                            )}
                             <h1 className="text-5xl font-black text-white tracking-tighter">{t('title')}</h1>
                             <p className="text-secondary-400 text-lg font-bold uppercase tracking-widest mt-1">
                                 {mounted ? new Date().toLocaleDateString(locale === 'es' ? 'es-SV' : 'en-US', {
@@ -452,13 +474,13 @@ function OrderCard({
                                 </div>
                                 <div className="flex-1">
                                     <span className="text-white font-black text-lg leading-tight">
-                                        {item.products?.name || `${t('product')} #${item.product_id?.slice(0, 8)}`}
+                                        {getLocalizedValue(item.products?.name, locale) || `${t('product')} #${item.product_id?.slice(0, 8)}`}
                                     </span>
                                     {modifiers && modifiers.length > 0 && (
                                         <div className="mt-2 space-y-1">
                                             {modifiers.map((mod: any, idx: number) => (
                                                 <div key={idx} className="text-xs font-bold text-secondary-400 uppercase tracking-tighter">
-                                                    {mod.options.map((o: any) => o.name).join(', ')}
+                                                    {mod.options.map((o: any) => getLocalizedValue(o.name, locale)).join(', ')}
                                                 </div>
                                             ))}
                                         </div>

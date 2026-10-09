@@ -2,7 +2,7 @@
 
 import { Product } from '@/types';
 import { Plus, Minus, Info, SlidersHorizontal } from 'lucide-react';
-import { cn, formatPrice } from '@/lib/utils';
+import { cn, formatPrice, getLocalizedValue } from '@/lib/utils';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
@@ -18,7 +18,7 @@ export default function ProductListItem({ product, quantity, onAdd, onRemove, on
     const t = useTranslations('exo');
     const params = useParams();
     const locale = (params?.locale as string) || 'es';
-    const productName = product.name?.[locale] || product.name?.es || (typeof product.name === 'string' ? product.name : '');
+    const productName = getLocalizedValue(product.name, locale);
 
     return (
         <div className="flex items-center gap-4 bg-slate-800/40 p-4 rounded-[32px] border border-slate-800/60 hover:border-slate-700 transition-all">

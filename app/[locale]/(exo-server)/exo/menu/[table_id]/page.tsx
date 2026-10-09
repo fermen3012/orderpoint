@@ -336,7 +336,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
             // 2. Prepare data for Supabase as requested (items as JSONB)
             const orderItems = currentCart.map(item => ({
                 product_id: item.product.id,
-                name: item.product.name?.[locale] || item.product.name?.es || (typeof item.product.name === 'string' ? item.product.name : ''),
+                name: getLocalizedValue(item.product.name, locale),
                 quantity: item.quantity,
                 unit_price: item.unitPrice,
                 total_price: item.totalPrice,
@@ -595,7 +595,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                                                                 <div className="flex flex-wrap gap-1 mt-1">
                                                                     {item.modifiers_json.map((mod: any, mIdx: number) => (
                                                                         <span key={mIdx} className="text-[9px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-md">
-                                                                            {mod.options ? mod.options.map((o: any) => o.name).join(', ') : ''}
+                                                                            {mod.options ? mod.options.map((o: any) => getLocalizedValue(o.name, locale)).join(', ') : ''}
                                                                         </span>
                                                                     ))}
                                                                 </div>

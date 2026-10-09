@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Product, ModifierGroup, SelectedModifier, Modifier } from '@/types';
 import { X, Check, Plus, Minus, ChefHat, MessageSquareText } from 'lucide-react';
-import { cn, formatPrice } from '@/lib/utils';
+import { cn, formatPrice, getLocalizedValue } from '@/lib/utils';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
@@ -37,13 +37,13 @@ export default function ModifierModal({ product, onClose, onConfirm }: ModifierM
     const t = useTranslations('exo');
     const params = useParams();
     const locale = (params?.locale as string) || 'es';
-    const productName = product.name?.[locale] || product.name?.es || (typeof product.name === 'string' ? product.name : '');
+    const productName = getLocalizedValue(product.name, locale);
 
     // 1. Modifiers state
     const [selections, setSelections] = useState<SelectedModifier[]>(
         product.modifier_groups.map(group => ({
             groupId: group.id,
-            groupName: group.name,
+            groupName: getLocalizedValue(group.name, locale),
             options: []
         }))
     );
@@ -221,7 +221,7 @@ export default function ModifierModal({ product, onClose, onConfirm }: ModifierM
                         <div key={group.id} className="space-y-3 pt-2 border-t border-slate-800/60">
                             <div className="flex items-center justify-between">
                                 <h4 className="text-xs font-black uppercase tracking-wider text-slate-200">
-                                    {group.name}
+                                    {getLocalizedValue(group.name, locale)}
                                     {group.is_required && <span className="text-orange-500 ml-1">*</span>}
                                 </h4>
                                 <div className={cn(
@@ -254,7 +254,7 @@ export default function ModifierModal({ product, onClose, onConfirm }: ModifierM
                                                 )}>
                                                     {isSelected && <Check className="w-3.5 h-3.5 stroke-[4px]" />}
                                                 </div>
-                                                <span className="font-bold text-xs tracking-tight uppercase">{option.name}</span>
+                                                <span className="font-bold text-xs tracking-tight uppercase">{getLocalizedValue(option.name, locale)}</span>
                                             </div>
                                             {Number(option.price) > 0 && (
                                                 <span className="font-black text-xs text-emerald-400">

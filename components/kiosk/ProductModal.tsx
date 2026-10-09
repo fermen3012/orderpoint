@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { X, Check, Minus, Plus, ShoppingCart, Info, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, getLocalizedValue } from '@/lib/utils';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -194,7 +194,7 @@ export function ProductModal({
                     {product.image_url ? (
                         <Image
                             src={product.image_url}
-                            alt={product.name?.es || (typeof product.name === 'string' ? product.name : '')}
+                            alt={getLocalizedValue(product.name, locale)}
                             fill
                             className="object-cover"
                         />
@@ -214,10 +214,10 @@ export function ProductModal({
 
                     <div className="absolute bottom-6 left-6 right-6 text-white">
                         <DialogTitle className="text-3xl md:text-4xl font-black tracking-tight leading-none mb-2 drop-shadow-lg">
-                            {product.name?.[locale] || product.name?.es || (typeof product.name === 'string' ? product.name : '')}
+                            {getLocalizedValue(product.name, locale)}
                         </DialogTitle>
                         <p className="text-white/90 text-sm md:text-base font-medium line-clamp-2 max-w-xl drop-shadow-md">
-                            {product.description?.[locale] || product.description?.es || (typeof product.description === 'string' ? product.description : '')}
+                            {getLocalizedValue(product.description, locale)}
                         </p>
                         <div className="mt-3 inline-flex bg-white/20 backdrop-blur-md px-3 py-1 rounded-lg">
                             <span className="font-bold text-lg">
