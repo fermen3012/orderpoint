@@ -11,7 +11,6 @@ import {
     X as CloseIcon,
     Utensils,
     Users,
-    UserCircle,
     Loader2,
     RefreshCw,
     AlertTriangle
@@ -24,12 +23,11 @@ export default function TablesPage() {
     const { restaurantId } = useAuth();
     const [loading, setLoading] = useState(true);
     const [tables, setTables] = useState<any[]>([]);
-    const [staff, setStaff] = useState<any[]>([]);
     
     // Add/Edit Modal
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTable, setEditingTable] = useState<any | null>(null);
-    const [newTable, setNewTable] = useState({ number: '', capacity: 2, waitress_id: '' });
+    const [newTable, setNewTable] = useState({ number: '', capacity: 2 });
     const [saving, setSaving] = useState(false);
 
     // Delete Confirmation Modal
@@ -48,21 +46,13 @@ export default function TablesPage() {
         if (!restaurantId) return;
         setLoading(true);
         try {
-            const [tablesRes, staffRes] = await Promise.all([
-                (supabase.from('tables') as any)
-                    .select('*, profiles:waitress_id(full_name)')
-                    .eq('restaurant_id', restaurantId)
-                    .order('number', { ascending: true }),
-                supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('restaurant_id', restaurantId)
-                    .eq('role', 'mesera')
-                    .order('full_name', { ascending: true })
-            ]);
+            const { data, error } = await (supabase.from('tables') as any)
+                .select('*')
+                .eq('restaurant_id', restaurantId)
+                .order('number', { ascending: true });
 
-            if (tablesRes.data) setTables(tablesRes.data);
-            if (staffRes.data) setStaff(staffRes.data);
+            if (error) throw error;
+            if (data) setTables(data);
         } catch (error) {
             console.error('Error loading tables data:', error);
         } finally {
@@ -80,7 +70,7 @@ export default function TablesPage() {
                 id: editingTable?.id,
                 number: newTable.number,
                 capacity: newTable.capacity,
-                waitress_id: newTable.waitress_id || null,
+                waitress_id: null,
                 restaurantId
             });
 
@@ -95,7 +85,7 @@ export default function TablesPage() {
 
             setIsModalOpen(false);
             setEditingTable(null);
-            setNewTable({ number: '', capacity: 2, waitress_id: '' });
+            setNewTable({ number: '', capacity: 2 });
             await loadData();
         } catch (error: any) {
             const errorMsg = error.message || 'Error desconocido';
@@ -110,8 +100,7 @@ export default function TablesPage() {
         setEditingTable(table);
         setNewTable({
             number: table.number,
-            capacity: table.capacity || 2,
-            waitress_id: table.waitress_id || ''
+            capacity: table.capacity || 2
         });
         setIsModalOpen(true);
     };
@@ -175,7 +164,7 @@ export default function TablesPage() {
                     <button
                         onClick={() => {
                             setEditingTable(null);
-                            setNewTable({ number: '', capacity: 2, waitress_id: '' });
+                            setNewTable({ number: '', capacity: 2 });
                             setIsModalOpen(true);
                         }}
                         className="flex-1 md:flex-none flex items-center justify-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-[0_8px_25px_rgba(16,185,129,0.35)] hover:-translate-y-0.5 transition-all active:scale-95"
@@ -188,65 +177,54 @@ export default function TablesPage() {
 
             {/* Grid de Mesas con el diseño visual exacto de Exo Server */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
-                {tables.map((table) => {
-                    const hasWaitress = Boolean(table.profiles?.full_name);
-                    return (
-                        <div
-                            key={table.id}
-                            className="aspect-square p-5 rounded-[32px] border-2 border-emerald-500/80 bg-gradient-to-br from-emerald-950/50 via-slate-900 to-teal-950/60 shadow-[0_0_25px_rgba(16,185,129,0.35)] hover:shadow-[0_0_35px_rgba(16,185,129,0.55)] hover:border-emerald-400 transition-all duration-300 relative overflow-hidden group flex flex-col items-center justify-between"
-                        >
-                            {/* Ambient glow highlight (igual a Exo Server) */}
-                            <div className="absolute -top-10 -right-10 w-28 h-28 rounded-full blur-2xl pointer-events-none bg-emerald-500/25 group-hover:bg-emerald-500/35 transition-all" />
+                {tables.map((table) => (
+                    <div
+                        key={table.id}
+                        className="aspect-square p-5 rounded-[32px] border-2 border-emerald-500/80 bg-gradient-to-br from-emerald-950/50 via-slate-900 to-teal-950/60 shadow-[0_0_25px_rgba(16,185,129,0.35)] hover:shadow-[0_0_35px_rgba(16,185,129,0.55)] hover:border-emerald-400 transition-all duration-300 relative overflow-hidden group flex flex-col items-center justify-between"
+                    >
+                        {/* Ambient glow highlight (igual a Exo Server) */}
+                        <div className="absolute -top-10 -right-10 w-28 h-28 rounded-full blur-2xl pointer-events-none bg-emerald-500/25 group-hover:bg-emerald-500/35 transition-all" />
 
-                            {/* Top row: Icon and Action Buttons */}
-                            <div className="w-full flex items-center justify-between relative z-10">
-                                <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-gradient-to-tr from-emerald-600 to-teal-400 shadow-[0_0_15px_rgba(16,185,129,0.5)] transition-transform group-hover:scale-105">
-                                    <Utensils className="w-5 h-5 text-white" />
-                                </div>
-
-                                <div className="flex items-center gap-1.5">
-                                    <button
-                                        onClick={() => handleEditClick(table)}
-                                        className="p-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 transition-all active:scale-90 shadow-md"
-                                        title={t('edit')}
-                                    >
-                                        <Pencil className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button
-                                        onClick={() => setTableToDelete(table)}
-                                        className="p-2 rounded-xl bg-red-950/80 hover:bg-red-900/90 text-red-400 hover:text-red-300 border border-red-500/40 transition-all active:scale-90 shadow-md shadow-red-950/50"
-                                        title={t('delete')}
-                                    >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                </div>
+                        {/* Top row: Icon and Action Buttons */}
+                        <div className="w-full flex items-center justify-between relative z-10">
+                            <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-gradient-to-tr from-emerald-600 to-teal-400 shadow-[0_0_15px_rgba(16,185,129,0.5)] transition-transform group-hover:scale-105">
+                                <Utensils className="w-5 h-5 text-white" />
                             </div>
 
-                            {/* Center: Table Number */}
-                            <div className="text-center relative z-10 my-auto">
-                                <span className="block text-3xl sm:text-4xl font-black italic tracking-tighter leading-none text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
-                                    #{table.number}
-                                </span>
-                                <span className="text-[10px] uppercase font-black tracking-widest text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.6)] mt-1.5 block">
-                                    {t('capacity', { count: table.capacity })}
-                                </span>
-                            </div>
-
-                            {/* Bottom row: Assigned Waitress Badge */}
-                            <div className="w-full text-center relative z-10">
-                                {hasWaitress ? (
-                                    <span className="text-[9px] sm:text-[10px] font-black text-indigo-200 truncate block tracking-tight uppercase bg-indigo-950/80 px-2.5 py-1 rounded-full border border-indigo-500/40 max-w-[95%] mx-auto shadow-sm">
-                                        {table.profiles.full_name}
-                                    </span>
-                                ) : (
-                                    <span className="text-[9px] font-bold text-slate-500 truncate block tracking-wider uppercase px-2 py-0.5">
-                                        {t('unassigned')}
-                                    </span>
-                                )}
+                            <div className="flex items-center gap-1.5">
+                                <button
+                                    onClick={() => handleEditClick(table)}
+                                    className="p-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 transition-all active:scale-90 shadow-md"
+                                    title={t('edit')}
+                                >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                    onClick={() => setTableToDelete(table)}
+                                    className="p-2 rounded-xl bg-red-950/80 hover:bg-red-900/90 text-red-400 hover:text-red-300 border border-red-500/40 transition-all active:scale-90 shadow-md shadow-red-950/50"
+                                    title={t('delete')}
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
                             </div>
                         </div>
-                    );
-                })}
+
+                        {/* Center: Table Number */}
+                        <div className="text-center relative z-10 my-auto">
+                            <span className="block text-3xl sm:text-4xl font-black italic tracking-tighter leading-none text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+                                #{table.number}
+                            </span>
+                        </div>
+
+                        {/* Bottom row: Capacity Badge */}
+                        <div className="w-full text-center relative z-10">
+                            <span className="inline-flex items-center justify-center gap-1.5 text-[10px] uppercase font-black tracking-widest text-emerald-300 bg-emerald-950/80 px-3 py-1 rounded-full border border-emerald-500/40 shadow-sm">
+                                <Users className="w-3 h-3 text-emerald-400" />
+                                {t('capacity', { count: table.capacity })}
+                            </span>
+                        </div>
+                    </div>
+                ))}
 
                 {tables.length === 0 && (
                     <div className="col-span-full py-20 bg-slate-900/30 rounded-[32px] border-2 border-dashed border-slate-800 flex flex-col items-center justify-center text-center p-6">
@@ -307,24 +285,6 @@ export default function TablesPage() {
                                 />
                             </div>
 
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                                    {t('assignedWaitress')}
-                                </label>
-                                <select
-                                    value={newTable.waitress_id}
-                                    onChange={(e) => setNewTable({ ...newTable, waitress_id: e.target.value })}
-                                    className="w-full px-5 py-4 bg-slate-955 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-black text-white text-xs uppercase tracking-wider cursor-pointer"
-                                >
-                                    <option value="">-- {t('unassigned')} --</option>
-                                    {staff.map((member) => (
-                                        <option key={member.id} value={member.id}>
-                                            {member.full_name || member.email}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
                             <button
                                 type="submit"
                                 disabled={saving}
@@ -337,7 +297,7 @@ export default function TablesPage() {
                 </div>
             )}
 
-            {/* Modal de Confirmación de Borrado (Tarea 2) */}
+            {/* Modal de Confirmación de Borrado */}
             {tableToDelete && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-955/85 backdrop-blur-md animate-in fade-in duration-200">
                     <div className="bg-slate-900 w-full max-w-md rounded-[32px] border border-red-500/30 shadow-[0_0_50px_rgba(239,68,68,0.2)] p-8 relative overflow-hidden animate-in zoom-in-95 duration-200">

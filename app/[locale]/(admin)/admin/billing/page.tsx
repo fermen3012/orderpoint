@@ -122,64 +122,192 @@ function BillingPageContent() {
     const handlePrintQR = () => {
         const printWindow = window.open('', '_blank');
         if (printWindow) {
+            const highResQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(menuUrl)}&margin=10`;
+            const cleanRestaurantName = (restaurantName || 'RESTAURANT').toUpperCase();
+
             printWindow.document.write(`
+                <!DOCTYPE html>
                 <html>
                 <head>
-                    <title>Imprimir QR - ${restaurantName || 'Menú'}</title>
+                    <meta charset="utf-8">
+                    <title>Digital Menu - ${cleanRestaurantName}</title>
                     <style>
+                        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap');
+                        
+                        * {
+                            box-sizing: border-box;
+                            margin: 0;
+                            padding: 0;
+                        }
+
                         body {
+                            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+                            background-color: #f8fafc;
+                            color: #0f172a;
+                            min-height: 100vh;
                             display: flex;
-                            flex-direction: column;
                             align-items: center;
                             justify-content: center;
-                            height: 90vh;
-                            margin: 0;
-                            font-family: system-ui, -apple-system, sans-serif;
-                            background-color: white;
-                            color: black;
-                            text-align: center;
-                        }
-                        .qr-container {
-                            border: 4px solid black;
                             padding: 20px;
-                            border-radius: 24px;
-                            background: white;
-                            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
                         }
-                        img {
-                            width: 320px;
-                            height: 320px;
-                            display: block;
+
+                        .menu-card {
+                            width: 380px;
+                            background: #ffffff;
+                            border-radius: 36px;
+                            padding: 36px 30px;
+                            box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.15);
+                            border: 2px solid #e2e8f0;
+                            text-align: center;
+                            position: relative;
+                            overflow: hidden;
                         }
-                        h1 {
-                            margin-top: 25px;
-                            font-size: 28px;
+
+                        .decorative-bar {
+                            width: 48px;
+                            height: 4px;
+                            background: #f97316;
+                            border-radius: 999px;
+                            margin: 0 auto 16px;
+                        }
+
+                        .restaurant-title {
+                            font-size: 22px;
                             font-weight: 900;
+                            letter-spacing: 1px;
                             text-transform: uppercase;
-                            letter-spacing: -1px;
+                            color: #0f172a;
+                            margin-bottom: 8px;
+                            word-break: break-word;
                             font-style: italic;
                         }
-                        p {
-                            font-size: 14px;
-                            font-weight: 700;
-                            color: #666;
-                            margin-top: 5px;
+
+                        .badge {
+                            display: inline-block;
+                            background: #0f172a;
+                            color: #ffffff;
+                            font-size: 11px;
+                            font-weight: 900;
+                            letter-spacing: 2.5px;
                             text-transform: uppercase;
+                            padding: 6px 16px;
+                            border-radius: 999px;
+                            margin-bottom: 24px;
+                        }
+
+                        .qr-wrapper {
+                            background: #ffffff;
+                            border: 2px solid #0f172a;
+                            border-radius: 28px;
+                            padding: 18px;
+                            display: inline-block;
+                            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+                            margin-bottom: 22px;
+                        }
+
+                        .qr-image {
+                            width: 240px;
+                            height: 240px;
+                            display: block;
+                            border-radius: 12px;
+                        }
+
+                        .scan-action {
+                            font-size: 18px;
+                            font-weight: 900;
+                            letter-spacing: -0.5px;
+                            text-transform: uppercase;
+                            color: #0f172a;
+                            margin-bottom: 6px;
+                        }
+
+                        .scan-instruction {
+                            font-size: 12px;
+                            font-weight: 600;
+                            color: #64748b;
+                            text-transform: uppercase;
+                            letter-spacing: 0.5px;
+                            line-height: 1.4;
+                            max-width: 280px;
+                            margin: 0 auto 20px;
+                        }
+
+                        .features-row {
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            gap: 12px;
+                            border-top: 1px dashed #e2e8f0;
+                            padding-top: 16px;
+                            margin-top: 4px;
+                        }
+
+                        .feature-item {
+                            font-size: 9px;
+                            font-weight: 800;
                             letter-spacing: 1px;
+                            color: #94a3b8;
+                            text-transform: uppercase;
+                        }
+
+                        .feature-dot {
+                            width: 3px;
+                            height: 3px;
+                            background: #cbd5e1;
+                            border-radius: 50%;
+                        }
+
+                        @media print {
+                            body {
+                                background: white;
+                                padding: 0;
+                                min-height: auto;
+                            }
+                            .menu-card {
+                                box-shadow: none;
+                                border: 2px solid #cbd5e1;
+                                margin: 20px auto;
+                                page-break-inside: avoid;
+                            }
                         }
                     </style>
                 </head>
                 <body>
-                    <div class="qr-container">
-                        <img src="${qrImageUrl}" />
+                    <div class="menu-card">
+                        <div class="decorative-bar"></div>
+                        <div class="restaurant-title">${cleanRestaurantName}</div>
+                        <div class="badge">DIGITAL MENU</div>
+
+                        <div class="qr-wrapper">
+                            <img class="qr-image" id="qrImg" src="${highResQrUrl}" alt="Digital Menu QR" />
+                        </div>
+
+                        <div class="scan-action">SCAN TO VIEW MENU</div>
+                        <div class="scan-instruction">
+                            Point your phone camera to browse our menu & order
+                        </div>
+
+                        <div class="features-row">
+                            <span class="feature-item">TOUCHLESS</span>
+                            <span class="feature-dot"></span>
+                            <span class="feature-item">NO APP REQUIRED</span>
+                            <span class="feature-dot"></span>
+                            <span class="feature-item">INSTANT ACCESS</span>
+                        </div>
                     </div>
-                    <h1>\${restaurantName || t('qrMenuTitle')}</h1>
-                    <p>\${t('qrMenuPrintInstruction')}</p>
+
                     <script>
-                        window.onload = function() {
+                        var img = document.getElementById('qrImg');
+                        function triggerPrint() {
                             window.print();
-                            setTimeout(function() { window.close(); }, 500);
-                        };
+                            setTimeout(function() { window.close(); }, 800);
+                        }
+                        if (img.complete) {
+                            triggerPrint();
+                        } else {
+                            img.onload = triggerPrint;
+                            img.onerror = triggerPrint;
+                        }
                     </script>
                 </body>
                 </html>
@@ -256,7 +384,7 @@ function BillingPageContent() {
                     <div className="flex-1 space-y-4 text-center md:text-left w-full">
                         <div className="flex items-center gap-2 justify-center md:justify-start">
                             <span className="w-8 h-1 bg-orange-500 rounded-full"></span>
-                            <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.3em]">{t('qrMenuSubtitle')}</span>
+                            <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.3em]">DIGITAL MENU • QR DISPLAY</span>
                         </div>
                         <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">
                             {t('qrMenuTitle')}
@@ -308,9 +436,27 @@ function BillingPageContent() {
                     </div>
 
                     <div className="flex-shrink-0 flex flex-col items-center gap-3 w-full md:w-auto">
-                        <div className="relative p-6 bg-white rounded-[2rem] border-4 border-slate-800 shadow-xl flex items-center justify-center animate-in zoom-in-95 duration-500">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={qrImageUrl} alt="QR Menu" className="w-44 h-44 object-contain" />
+                        {/* Restaurant Table Standee Mockup */}
+                        <div className="relative p-7 bg-white rounded-[2.5rem] border-4 border-slate-800 shadow-2xl flex flex-col items-center justify-center animate-in zoom-in-95 duration-500 text-center max-w-[270px]">
+                            <div className="w-8 h-1 bg-orange-500 rounded-full mb-3" />
+                            <span className="text-[11px] font-black italic uppercase tracking-wider text-slate-900 line-clamp-1 max-w-[200px]">
+                                {restaurantName || 'RESTAURANT'}
+                            </span>
+                            <span className="my-2 px-3 py-1 bg-slate-950 text-white rounded-full font-black text-[9px] uppercase tracking-widest shadow-sm">
+                                DIGITAL MENU
+                            </span>
+
+                            <div className="p-2.5 bg-slate-50 rounded-2xl border-2 border-slate-900 my-1 shadow-inner">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={qrImageUrl} alt="QR Menu" className="w-40 h-40 object-contain rounded-lg" />
+                            </div>
+
+                            <span className="mt-3 text-[11px] font-black text-slate-950 uppercase tracking-tight">
+                                SCAN TO VIEW MENU
+                            </span>
+                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
+                                TOUCHLESS • INSTANT ACCESS
+                            </span>
                         </div>
                         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">
                             {t('qrMenuFooter')}
