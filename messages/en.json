@@ -381,6 +381,14 @@
         "capacityLabel": "Capacity",
         "placeholderTableName": "e.g., 1 or VIP-01",
         "confirmDeleteTable": "Are you sure you want to delete this table?",
+        "deleteTableModalTitle": "Are you sure you want to delete?",
+        "deleteTableModalDesc": "This action will remove table #{number} from the dining room. Past order history will remain preserved.",
+        "confirmDeleteBtn": "Yes, Delete Table",
+        "assignedWaitress": "Assigned Waitress",
+        "tableDeletedSuccess": "Table deleted successfully.",
+        "tableSavedSuccess": "Table saved successfully.",
+        "tableAlreadyExists": "A table with this number or name already exists.",
+        "errorDeleteTable": "Error deleting table: {error}",
         "viewAll": "View All"
     },
     "common": {

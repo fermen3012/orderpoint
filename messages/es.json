@@ -381,6 +381,14 @@
         "capacityLabel": "Capacidad",
         "placeholderTableName": "Ej: 1 o VIP-01",
         "confirmDeleteTable": "¿Estás seguro de eliminar esta mesa?",
+        "deleteTableModalTitle": "¿Estás seguro de borrar?",
+        "deleteTableModalDesc": "Esta acción eliminará la mesa #{number} del salón. El historial de comandas pasadas se mantendrá intacto.",
+        "confirmDeleteBtn": "Sí, Borrar Mesa",
+        "assignedWaitress": "Mesera Asignada",
+        "tableDeletedSuccess": "Mesa eliminada correctamente.",
+        "tableSavedSuccess": "Mesa guardada correctamente.",
+        "tableAlreadyExists": "Ya existe una mesa con ese número o nombre.",
+        "errorDeleteTable": "Error al eliminar la mesa: {error}",
         "viewAll": "Ver Todo"
     },
     "common": {
