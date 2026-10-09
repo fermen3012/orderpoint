@@ -19,7 +19,10 @@ import {
     Smartphone,
     Monitor,
     User,
-    Utensils
+    Utensils,
+    DollarSign,
+    Flame,
+    Award
 } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 
@@ -31,8 +34,8 @@ export default function DashboardPage() {
     const router = useRouter();
     const { restaurantId } = useAuth();
     
-    const parseLocalizedField = (field: any): { es: string; en: string } => {
-        if (!field) return { es: '', en: '' };
+    const getLocalizedValue = (field: any, currentLang: string): string => {
+        if (!field) return '';
         let current = field;
         for (let i = 0; i < 5; i++) {
             if (typeof current === 'string') {
@@ -56,30 +59,50 @@ export default function DashboardPage() {
                     }
                 }
                 break;
+            } else if (current && typeof current === 'object') {
+                const foundKey = Object.keys(current).find(pk => pk.toLowerCase() === currentLang.toLowerCase());
+                if (foundKey) {
+                    current = current[foundKey];
+                } else {
+                    const esKey = Object.keys(current).find(pk => pk.toLowerCase() === 'es');
+                    if (esKey) {
+                        current = current[esKey];
+                    } else {
+                        const firstKey = Object.keys(current)[0];
+                        current = firstKey ? current[firstKey] : '';
+                    }
+                }
             } else {
                 break;
             }
         }
-        
-        if (current && typeof current === 'object') {
-            const es = current.es || current.ES || current.Es || '';
-            const en = current.en || current.EN || current.En || es || '';
-            return {
-                es: typeof es === 'string' ? es : String(es),
-                en: typeof en === 'string' ? en : String(en)
-            };
-        }
-        
-        const val = typeof current === 'string' ? current : String(current);
-        return { es: val, en: val };
+        return typeof current === 'string' ? current : (current ? String(current) : '');
     };
+
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
+        todaySales: 0,
+        todayOrders: 0,
+        todayAverageTicket: 0,
+        averageTicket: 0,
         totalSales: 0,
         totalOrders: 0,
+        activeKitchenOrders: 0,
+        pendingOrders: 0,
+        preparingOrders: 0,
         activeProducts: 0,
         categories: 0
     });
+    const [channelStats, setChannelStats] = useState({
+        kioskOrders: 0,
+        kioskSales: 0,
+        kioskPercent: 50,
+        exoOrders: 0,
+        exoSales: 0,
+        exoPercent: 50
+    });
+    const [topDishes, setTopDishes] = useState<Array<{ id: string; name: any; quantity: number; revenue: number }>>([]);
+    const [topWaitresses, setTopWaitresses] = useState<Array<{ name: string; ordersCount: number; sales: number }>>([]);
     const [recentOrders, setRecentOrders] = useState<any[]>([]);
     const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
     const [mounted, setMounted] = useState(false);
@@ -111,13 +134,119 @@ export default function DashboardPage() {
 
             if (ordersRes.data) {
                 const orders = ordersRes.data as any[];
-                const totalSales = orders.reduce((acc, order) => acc + Number(order.total_amount), 0);
+
+                // Métricas Generales
+                const totalSales = orders.reduce((acc, order) => acc + (Number(order.total_amount) || 0), 0);
+                const averageTicket = orders.length > 0 ? totalSales / orders.length : 0;
+
+                // Métricas de Hoy
+                const todayStr = new Date().toDateString();
+                const todayOrdersList = orders.filter(o => new Date(o.created_at).toDateString() === todayStr);
+                const todaySales = todayOrdersList.reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0);
+                const todayAverageTicket = todayOrdersList.length > 0 ? todaySales / todayOrdersList.length : 0;
+
+                // Órdenes en Cocina
+                const pendingOrders = orders.filter(o => o.status === 'pending').length;
+                const preparingOrders = orders.filter(o => o.status === 'preparing').length;
+                const activeKitchenOrders = pendingOrders + preparingOrders;
+
                 setStats({
+                    todaySales,
+                    todayOrders: todayOrdersList.length,
+                    todayAverageTicket,
+                    averageTicket,
                     totalSales,
                     totalOrders: orders.length,
+                    activeKitchenOrders,
+                    pendingOrders,
+                    preparingOrders,
                     activeProducts: productsRes.count || 0,
                     categories: categoriesRes.count || 0
                 });
+
+                // Canales de Venta (Kiosko vs Exo Server)
+                let kioskOrders = 0;
+                let kioskSales = 0;
+                let exoOrders = 0;
+                let exoSales = 0;
+
+                orders.forEach(order => {
+                    const isExo = order.source === 'exo_server' || order.source === 'exo_server_closed' || Boolean(order.waitress_id || order.waitress || order.table_id || order.table);
+                    const amount = Number(order.total_amount) || 0;
+                    if (isExo) {
+                        exoOrders++;
+                        exoSales += amount;
+                    } else {
+                        kioskOrders++;
+                        kioskSales += amount;
+                    }
+                });
+
+                const totalChannelVolume = (kioskSales + exoSales) || 1;
+                const kioskPercent = Math.round((kioskSales / totalChannelVolume) * 100);
+                const exoPercent = 100 - kioskPercent;
+
+                setChannelStats({
+                    kioskOrders,
+                    kioskSales,
+                    kioskPercent,
+                    exoOrders,
+                    exoSales,
+                    exoPercent
+                });
+
+                // Top 5 Platillos Más Vendidos
+                const productMap = new Map<string, { id: string; name: any; quantity: number; revenue: number }>();
+                orders.forEach(order => {
+                    if (order.status === 'cancelled') return;
+                    order.order_items?.forEach((item: any) => {
+                        const pId = item.product_id || (typeof item.products?.name === 'string' ? item.products.name : JSON.stringify(item.products?.name || 'unknown'));
+                        const qty = Number(item.quantity) || 1;
+                        const unitPrice = Number(item.unit_price) || 0;
+                        const existing = productMap.get(pId);
+                        if (existing) {
+                            existing.quantity += qty;
+                            existing.revenue += (unitPrice * qty);
+                        } else {
+                            productMap.set(pId, {
+                                id: pId,
+                                name: item.products?.name,
+                                quantity: qty,
+                                revenue: unitPrice * qty
+                            });
+                        }
+                    });
+                });
+
+                const sortedDishes = Array.from(productMap.values())
+                    .sort((a, b) => b.quantity - a.quantity)
+                    .slice(0, 5);
+                setTopDishes(sortedDishes);
+
+                // Rendimiento de Meseras
+                const waitressMap = new Map<string, { name: string; ordersCount: number; sales: number }>();
+                orders.forEach(order => {
+                    const waitressName = order.waitress?.full_name;
+                    if (waitressName) {
+                        const existing = waitressMap.get(waitressName);
+                        const amount = Number(order.total_amount) || 0;
+                        if (existing) {
+                            existing.ordersCount++;
+                            existing.sales += amount;
+                        } else {
+                            waitressMap.set(waitressName, {
+                                name: waitressName,
+                                ordersCount: 1,
+                                sales: amount
+                            });
+                        }
+                    }
+                });
+
+                const sortedWaitresses = Array.from(waitressMap.values())
+                    .sort((a, b) => b.sales - a.sales)
+                    .slice(0, 4);
+                setTopWaitresses(sortedWaitresses);
 
                 // Sort and take recent 5
                 const sorted = [...orders].sort((a, b) =>
@@ -176,35 +305,37 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* Stats Grid */}
+            {/* Stats Grid - High Value Business KPIs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
-                    icon={<TrendingUp className="w-6 h-6" />}
-                    label={t('totalSales')}
-                    value={formatPrice(stats.totalSales, locale === 'es' ? 'es-SV' : 'en-US')}
-                    trend="+12.5%"
+                    icon={<DollarSign className="w-6 h-6" />}
+                    label={locale === 'es' ? 'Ventas de Hoy' : 'Today Sales'}
+                    value={formatPrice(stats.todaySales, locale === 'es' ? 'es-SV' : 'en-US')}
+                    trend={`${stats.todayOrders} ${locale === 'es' ? 'pedidos hoy' : 'orders today'}`}
                     color="emerald"
                     delay="delay-[100ms]"
                 />
                 <StatCard
-                    icon={<ShoppingBag className="w-6 h-6" />}
-                    label={t('totalOrders')}
-                    value={stats.totalOrders.toString()}
-                    trend="+5.2%"
-                    color="amber"
+                    icon={<TrendingUp className="w-6 h-6" />}
+                    label={locale === 'es' ? 'Ticket Promedio' : 'Average Ticket'}
+                    value={formatPrice(stats.averageTicket, locale === 'es' ? 'es-SV' : 'en-US')}
+                    trend={stats.todayAverageTicket > 0 ? (locale === 'es' ? `Hoy: ${formatPrice(stats.todayAverageTicket, 'es-SV')}` : `Today: ${formatPrice(stats.todayAverageTicket, 'en-US')}`) : undefined}
+                    color="blue"
                     delay="delay-[200ms]"
                 />
                 <StatCard
-                    icon={<Package className="w-6 h-6" />}
-                    label={t('products')}
-                    value={stats.activeProducts.toString()}
-                    color="blue"
+                    icon={<Clock className="w-6 h-6" />}
+                    label={locale === 'es' ? 'En Cocina Ahora' : 'In Kitchen Now'}
+                    value={stats.activeKitchenOrders.toString()}
+                    trend={`${stats.pendingOrders} ${locale === 'es' ? 'en espera' : 'waiting'}`}
+                    color="amber"
                     delay="delay-[300ms]"
                 />
                 <StatCard
-                    icon={<Users className="w-6 h-6" />}
-                    label={t('categories')}
-                    value={stats.categories.toString()}
+                    icon={<ShoppingBag className="w-6 h-6" />}
+                    label={t('totalSales')}
+                    value={formatPrice(stats.totalSales, locale === 'es' ? 'es-SV' : 'en-US')}
+                    trend={`${stats.totalOrders} ${locale === 'es' ? 'pedidos' : 'orders'}`}
                     color="purple"
                     delay="delay-[400ms]"
                 />
@@ -270,7 +401,7 @@ export default function DashboardPage() {
                                             </span>
                                         </div>
                                         <p className="text-slate-400 font-bold text-sm">
-                                            {parseLocalizedField(order.order_items?.[0]?.products?.name)[locale as 'es' | 'en'] || parseLocalizedField(order.order_items?.[0]?.products?.name).es} {order.order_items?.length > 1 ? `+${order.order_items.length - 1} ${locale === 'es' ? 'más' : 'more'}` : ''}
+                                            {getLocalizedValue(order.order_items?.[0]?.products?.name, locale) || (locale === 'es' ? 'Plato' : 'Dish')} {order.order_items?.length > 1 ? `+${order.order_items.length - 1} ${locale === 'es' ? 'más' : 'more'}` : ''}
                                         </p>
                                     </div>
                                 </div>
@@ -298,34 +429,170 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                {/* Right Column - Quick Stats / Activity */}
+                {/* Right Column - High Impact Business Intelligence Widgets */}
                 <div className="space-y-8">
-                    <div className="bg-slate-900/50 backdrop-blur-xl p-8 rounded-[3rem] border border-slate-800 h-full">
-                        <h3 className="text-xl font-black text-white italic tracking-tighter uppercase mb-8">{t('performance')}</h3>
+                    {/* Widget 1: Canales de Venta (Kiosko vs Exo Server) */}
+                    <div className="bg-slate-900/50 backdrop-blur-xl p-8 rounded-[3rem] border border-slate-800">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-xl font-black text-white italic tracking-tighter uppercase flex items-center gap-2">
+                                <TrendingUp className="w-5 h-5 text-emerald-500" />
+                                {locale === 'es' ? 'Canales de Venta' : 'Sales Channels'}
+                            </h3>
+                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                {locale === 'es' ? 'Volumen Real' : 'Real Volume'}
+                            </span>
+                        </div>
 
-                        <div className="space-y-8">
-                            <div className="space-y-3">
-                                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                                    <span className="text-slate-500">{t('kitchenCapacity')}</span>
-                                    <span className="text-emerald-500">85%</span>
+                        {/* Visual Progress Bar (Multi-color) */}
+                        <div className="h-4 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50 p-0.5 flex gap-1 mb-6">
+                            <div
+                                className="h-full bg-gradient-to-r from-amber-600 to-amber-400 rounded-full transition-all duration-700"
+                                style={{ width: `${Math.max(channelStats.kioskPercent, 5)}%` }}
+                                title={`Kiosko: ${channelStats.kioskPercent}%`}
+                            ></div>
+                            <div
+                                className="h-full bg-gradient-to-r from-purple-600 to-indigo-500 rounded-full transition-all duration-700"
+                                style={{ width: `${Math.max(channelStats.exoPercent, 5)}%` }}
+                                title={`Exo Server: ${channelStats.exoPercent}%`}
+                            ></div>
+                        </div>
+
+                        {/* Channels Breakdown Cards */}
+                        <div className="space-y-3">
+                            {/* Kiosk Channel */}
+                            <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2.5 bg-amber-500/10 text-amber-400 rounded-xl">
+                                        <Monitor className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-white">{locale === 'es' ? 'Kiosko Autoservicio' : 'Self-Service Kiosk'}</p>
+                                        <p className="text-[9px] font-bold text-slate-500">{channelStats.kioskOrders} {locale === 'es' ? 'órdenes' : 'orders'} ({channelStats.kioskPercent}%)</p>
+                                    </div>
                                 </div>
-                                <div className="h-3 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50 p-0.5">
-                                    <div className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full" style={{ width: '85%' }}></div>
+                                <div className="text-right">
+                                    <p className="text-base font-black text-white italic tracking-tighter">
+                                        {formatPrice(channelStats.kioskSales, locale === 'es' ? 'es-SV' : 'en-US')}
+                                    </p>
                                 </div>
                             </div>
 
-                            <div className="space-y-3">
-                                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                                    <span className="text-slate-500">{t('tableEfficiency')}</span>
-                                    <span className="text-amber-500">62%</span>
+                            {/* Exo Server Channel */}
+                            <div className="p-4 bg-purple-500/5 border border-purple-500/10 rounded-2xl flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2.5 bg-purple-500/10 text-purple-400 rounded-xl">
+                                        <Smartphone className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-white">Exo Server (Meseras)</p>
+                                        <p className="text-[9px] font-bold text-slate-500">{channelStats.exoOrders} {locale === 'es' ? 'órdenes' : 'orders'} ({channelStats.exoPercent}%)</p>
+                                    </div>
                                 </div>
-                                <div className="h-3 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50 p-0.5">
-                                    <div className="h-full bg-gradient-to-r from-amber-600 to-amber-400 rounded-full" style={{ width: '62%' }}></div>
+                                <div className="text-right">
+                                    <p className="text-base font-black text-white italic tracking-tighter">
+                                        {formatPrice(channelStats.exoSales, locale === 'es' ? 'es-SV' : 'en-US')}
+                                    </p>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <div className="mt-12 p-6 bg-emerald-500/5 rounded-[2rem] border border-emerald-500/10">
+                    {/* Widget 2: Top Platillos Más Vendidos (Ranking del Menú) */}
+                    <div className="bg-slate-900/50 backdrop-blur-xl p-8 rounded-[3rem] border border-slate-800">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-xl font-black text-white italic tracking-tighter uppercase flex items-center gap-2">
+                                <Flame className="w-5 h-5 text-orange-500" />
+                                {locale === 'es' ? 'Platos Más Vendidos' : 'Best Sellers'}
+                            </h3>
+                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                TOP 5
+                            </span>
+                        </div>
+
+                        {topDishes.length === 0 ? (
+                            <div className="py-8 text-center text-slate-500">
+                                <Utensils className="w-8 h-8 text-slate-700 mx-auto mb-2" />
+                                <p className="text-[10px] font-black uppercase tracking-widest">{locale === 'es' ? 'Sin datos de platos aún' : 'No dish data yet'}</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {topDishes.map((dish, idx) => {
+                                    const maxQty = topDishes[0]?.quantity || 1;
+                                    const percent = Math.round((dish.quantity / maxQty) * 100);
+                                    const dishName = getLocalizedValue(dish.name, locale) || (locale === 'es' ? 'Plato Especial' : 'Special Dish');
+
+                                    return (
+                                        <div key={dish.id || idx} className="p-3.5 bg-slate-950/40 border border-slate-800/80 rounded-2xl space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2.5">
+                                                    <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black ${
+                                                        idx === 0 ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20' :
+                                                        idx === 1 ? 'bg-slate-300 text-slate-950' :
+                                                        idx === 2 ? 'bg-amber-700 text-white' :
+                                                        'bg-slate-800 text-slate-400'
+                                                    }`}>
+                                                        #{idx + 1}
+                                                    </span>
+                                                    <div>
+                                                        <p className="text-xs font-black text-white uppercase italic tracking-tight leading-none truncate max-w-[150px]">
+                                                            {dishName}
+                                                        </p>
+                                                        <span className="text-[9px] font-bold text-slate-500">
+                                                            {dish.quantity} {locale === 'es' ? 'vendidos' : 'sold'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <span className="text-xs font-black text-emerald-400 italic">
+                                                    {formatPrice(dish.revenue, locale === 'es' ? 'es-SV' : 'en-US')}
+                                                </span>
+                                            </div>
+                                            <div className="h-1.5 bg-slate-800/80 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-500"
+                                                    style={{ width: `${percent}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Widget 3: Rendimiento de Meseras (si hay comandas en sala) o Tip Operativo */}
+                    {topWaitresses.length > 0 ? (
+                        <div className="bg-slate-900/50 backdrop-blur-xl p-8 rounded-[3rem] border border-slate-800">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xl font-black text-white italic tracking-tighter uppercase flex items-center gap-2">
+                                    <Award className="w-5 h-5 text-indigo-400" />
+                                    {locale === 'es' ? 'Rendimiento Meseras' : 'Waitress Performance'}
+                                </h3>
+                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                    EXO SERVER
+                                </span>
+                            </div>
+
+                            <div className="space-y-2.5">
+                                {topWaitresses.map((w, idx) => (
+                                    <div key={idx} className="p-3 bg-slate-950/40 border border-slate-800/80 rounded-2xl flex items-center justify-between">
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="w-7 h-7 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center font-black text-[10px]">
+                                                {w.name.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-black text-white">{w.name}</p>
+                                                <p className="text-[9px] font-bold text-slate-500">{w.ordersCount} {locale === 'es' ? 'comandas tomadas' : 'orders taken'}</p>
+                                            </div>
+                                        </div>
+                                        <span className="text-xs font-black text-white italic">
+                                            {formatPrice(w.sales, locale === 'es' ? 'es-SV' : 'en-US')}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="p-6 bg-emerald-500/5 rounded-[2.5rem] border border-emerald-500/10">
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-[0_10px_20px_rgba(16,185,129,0.2)]">
                                     <Sparkles className="w-6 h-6 text-slate-900" />
@@ -338,7 +605,7 @@ export default function DashboardPage() {
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
 
@@ -405,7 +672,7 @@ export default function DashboardPage() {
                                     <div className="flex-1">
                                         <div className="flex justify-between items-start mb-2">
                                             <h3 className="text-lg font-black text-white uppercase italic tracking-tighter">
-                                                {parseLocalizedField(item.products?.name)[locale as 'es' | 'en'] || parseLocalizedField(item.products?.name).es}
+                                                {getLocalizedValue(item.products?.name, locale) || (locale === 'es' ? 'Plato' : 'Dish')}
                                             </h3>
                                             <span className="font-black text-emerald-500 text-lg">
                                                 {formatPrice(Number(item.unit_price) * item.quantity, locale === 'es' ? 'es-SV' : 'en-US')}

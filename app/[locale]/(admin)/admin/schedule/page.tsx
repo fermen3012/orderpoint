@@ -6,7 +6,7 @@ import { adminSupabase } from '@/lib/supabase/admin-client';
 import { useAuth } from '@/components/auth/AuthContext';
 import { getProductSchedule, toggleProductAvailability, applyScheduleToAllDays } from '@/actions/schedule';
 import { Calendar, Check, X, Copy, Loader2, Save } from 'lucide-react';
-import { parseLocalizedField } from '@/components/admin/ProductsPageContent';
+import { getLocalizedValue } from '@/lib/utils';
 
 const DAYS = [
     { id: 0, key: 'sunday' },
@@ -64,23 +64,12 @@ export default function SchedulePage() {
             productsData.forEach((p: any) => {
                 newSchedules[p.id] = {};
                 DAYS.forEach(d => {
-                    // Default logic: Available
                     newSchedules[p.id][d.id] = true;
                 });
             });
 
             // Overlay actual database records
             if (availabilityData) {
-                const productsWithRecords = new Set(availabilityData.map((a: any) => a.product_id));
-
-                productsData.forEach((p: any) => {
-                    if (productsWithRecords.has(p.id)) {
-                        DAYS.forEach(d => {
-                            newSchedules[p.id][d.id] = false;
-                        });
-                    }
-                });
-
                 availabilityData.forEach((a: any) => {
                     if (!newSchedules[a.product_id]) newSchedules[a.product_id] = {};
                     newSchedules[a.product_id][a.day_of_week] = a.is_active;
@@ -132,8 +121,9 @@ export default function SchedulePage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-50">
-                <Loader2 className="w-10 h-10 text-primary-500 animate-spin" />
+            <div className="flex flex-col items-center justify-center py-24 gap-4">
+                <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
+                <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">{t('loadingData')}</p>
             </div>
         );
     }
@@ -158,75 +148,87 @@ export default function SchedulePage() {
                         key={day.id}
                         onClick={() => setSelectedDay(day.id)}
                         className={`
-                            px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest whitespace-nowrap transition-all
+                            px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest whitespace-nowrap transition-all border
                             ${selectedDay === day.id
-                                ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/30'
-                                : 'bg-white text-secondary-500 border border-secondary-100 hover:bg-secondary-50'}
+                                ? 'bg-emerald-500 text-slate-950 border-emerald-500 shadow-lg shadow-emerald-500/20'
+                                : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:bg-slate-800/80 hover:text-white'}
                         `}
                     >
                         {t(day.key as any)}
-                        {day.id === new Date().getDay() && <span className="ml-2 text-[10px] opacity-70">{t('todaySuffix')}</span>}
+                        {day.id === new Date().getDay() && (
+                            <span className={`ml-2 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${selectedDay === day.id ? 'bg-slate-950/20 text-slate-950' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
+                                {t('todaySuffix') || 'Hoy'}
+                            </span>
+                        )}
                     </button>
                 ))}
             </div>
 
             {/* Product List for Selected Day */}
-            <div className="bg-white rounded-[2.5rem] shadow-xl shadow-secondary-900/5 border border-secondary-100 overflow-hidden">
-                <div className="p-6 md:p-8 border-b border-secondary-50 flex justify-between items-center bg-secondary-50/30">
-                    <h2 className="text-xl font-black text-secondary-900">{t('menuOfDay', { day: t(DAYS[selectedDay].key as any) })}</h2>
-                    <span className="text-xs font-bold text-secondary-400 uppercase tracking-wider">{t('productsCount', { count: products.length })}</span>
+            <div className="bg-slate-900/40 backdrop-blur-md rounded-[2.5rem] shadow-xl border border-slate-800/80 overflow-hidden">
+                <div className="p-6 md:p-8 border-b border-slate-800/80 flex justify-between items-center bg-slate-900/60">
+                    <h2 className="text-xl font-black text-white uppercase italic tracking-tight">{t('menuOfDay', { day: t(DAYS[selectedDay].key as any) })}</h2>
+                    <span className="text-xs font-black text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20 uppercase tracking-wider">{t('productsCount', { count: products.length })}</span>
                 </div>
 
-                <div className="divide-y divide-secondary-50">
+                <div className="divide-y divide-slate-800/50">
                     {products.map(product => {
                         const isAvailable = schedules[product.id]?.[selectedDay] ?? true;
                         const isProcessing = toggling === `${product.id}-${selectedDay}`;
 
                         return (
-                            <div key={product.id} className="p-4 md:p-6 flex items-center justify-between hover:bg-secondary-50/50 transition-colors gap-4">
+                            <div key={product.id} className="p-4 md:p-6 flex items-center justify-between hover:bg-slate-800/30 transition-colors gap-4">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 md:w-16 md:h-16 bg-secondary-100 rounded-2xl overflow-hidden flex-shrink-0">
+                                    <div className="w-14 h-14 md:w-16 md:h-16 bg-slate-800 rounded-2xl overflow-hidden flex-shrink-0 border border-slate-700/60">
                                         {product.image_url ? (
-                                            <img src={product.image_url} alt={parseLocalizedField(product.name)[locale as 'es' | 'en'] || parseLocalizedField(product.name).es} className="w-full h-full object-cover" />
+                                            <img src={product.image_url} alt={getLocalizedValue(product.name, locale)} className="w-full h-full object-cover" />
                                         ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-secondary-300">
+                                            <div className="w-full h-full flex items-center justify-center text-slate-600">
                                                 <Calendar className="w-6 h-6" />
                                             </div>
                                         )}
                                     </div>
                                     <div>
-                                        <h3 className="font-bold text-secondary-900 text-sm md:text-base">
-                                            {parseLocalizedField(product.name)[locale as 'es' | 'en'] || parseLocalizedField(product.name).es}
+                                        <h3 className="font-black text-white text-sm md:text-base uppercase tracking-tight">
+                                            {getLocalizedValue(product.name, locale)}
                                         </h3>
-                                        <p className="text-xs text-secondary-500 font-bold uppercase tracking-wider">{product.categories?.name}</p>
+                                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-0.5">{getLocalizedValue(product.categories?.name, locale)}</p>
                                     </div>
                                 </div>
 
                                 <div className="flex items-center gap-4">
+                                    <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border hidden sm:inline-block ${
+                                        isAvailable ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-800 text-slate-500 border-slate-700'
+                                    }`}>
+                                        {isAvailable ? (locale === 'es' ? 'Disponible' : 'Available') : (locale === 'es' ? 'Pausado' : 'Paused')}
+                                    </span>
+
                                     {/* Toggle Switch */}
                                     <button
                                         onClick={() => handleToggle(product.id, selectedDay, isAvailable)}
                                         disabled={isProcessing}
                                         className={`
-                                            relative w-14 h-8 rounded-full transition-colors flex items-center px-1
-                                            ${isAvailable ? 'bg-primary-500' : 'bg-secondary-200'}
+                                            relative w-14 h-8 rounded-full transition-colors flex items-center px-1 border
+                                            ${isAvailable ? 'bg-emerald-500 border-emerald-400' : 'bg-slate-800 border-slate-700'}
                                             ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                                         `}
                                     >
                                         <div className={`
-                                            w-6 h-6 rounded-full bg-white shadow-sm transition-transform transform
+                                            w-6 h-6 rounded-full bg-slate-950 shadow-md transition-transform transform flex items-center justify-center
                                             ${isAvailable ? 'translate-x-6' : 'translate-x-0'}
-                                        `} />
+                                        `}>
+                                            {isAvailable ? <Check className="w-3.5 h-3.5 text-emerald-400 stroke-[3]" /> : <X className="w-3.5 h-3.5 text-slate-500 stroke-[3]" />}
+                                        </div>
                                     </button>
 
                                     {/* Copy to All Button */}
                                     <button
                                         onClick={() => handleApplyAll(product.id)}
                                         disabled={toggling === `${product.id}-all`}
-                                        className="p-2 text-secondary-400 hover:text-primary-500 hover:bg-primary-50 rounded-xl transition-colors hidden sm:block"
+                                        className="p-2.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-2xl border border-transparent hover:border-emerald-500/20 transition-all hidden sm:block active:scale-90"
                                         title={t('enableAllDays')}
                                     >
-                                        {toggling === `${product.id}-all` ? <Loader2 className="w-5 h-5 animate-spin" /> : <Copy className="w-5 h-5" />}
+                                        {toggling === `${product.id}-all` ? <Loader2 className="w-5 h-5 animate-spin text-emerald-400" /> : <Copy className="w-5 h-5" />}
                                     </button>
                                 </div>
                             </div>

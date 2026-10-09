@@ -131,22 +131,34 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                     return;
                 }
 
-                // Parallel fetch filtered by restaurant
-                const [catRes, prodRes] = await Promise.all([
+                const todayDay = new Date().getDay();
+                // Parallel fetch filtered by restaurant and weekly schedule
+                const [catRes, prodRes, schedRes] = await Promise.all([
                     (supabase.from('categories') as any).select('*').eq('restaurant_id', activeRestaurantId).order('name'),
                     (supabase.from('products') as any)
                         .select('*, modifier_groups:product_modifier_groups(modifier_group:modifier_groups(*, options:modifiers(*))), ingredients:product_ingredients(ingredient_id, is_removable, ingredient:ingredients(id, name))')
                         .eq('restaurant_id', activeRestaurantId)
-                        .eq('is_available', true)
+                        .eq('is_available', true),
+                    (supabase.from('product_availability') as any)
+                        .select('product_id, is_active')
+                        .eq('restaurant_id', activeRestaurantId)
+                        .eq('day_of_week', todayDay)
                 ]);
 
                 if (catRes.error) throw catRes.error;
                 if (prodRes.error) throw prodRes.error;
 
+                const disabledProductIds = new Set(
+                    (schedRes.data || [])
+                        .filter((s: any) => s.is_active === false)
+                        .map((s: any) => s.product_id)
+                );
+
                 setCategories(catRes.data || []);
 
-                // Flatten products data structure to match our types
-                const formattedProducts = prodRes.data?.map((p: any) => ({
+                // Flatten products data structure to match our types and filter by weekly schedule
+                const rawProducts = (prodRes.data || []).filter((p: any) => !disabledProductIds.has(p.id));
+                const formattedProducts = rawProducts.map((p: any) => ({
                     ...p,
                     modifier_groups: p.modifier_groups?.map((mg: any) => ({
                         ...mg.modifier_group,
@@ -158,7 +170,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                             id: pi.ingredient.id,
                             name: pi.ingredient.name
                         })) || []
-                })) || [];
+                }));
 
                 setProducts(formattedProducts);
 

@@ -21,7 +21,9 @@ import {
     X as CloseIcon,
     Smartphone,
     Monitor,
-    User
+    User,
+    RotateCcw,
+    DollarSign
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -150,7 +152,9 @@ export default function OrdersPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [typeFilter, setTypeFilter] = useState<string>('all');
-    const [dateFilter, setDateFilter] = useState<'today' | 'all'>('today');
+    const [sourceFilter, setSourceFilter] = useState<'all' | 'kiosk' | 'exo_server'>('all');
+    const [dateFilter, setDateFilter] = useState<'today' | 'yesterday' | 'week' | 'month' | 'custom' | 'all'>('today');
+    const [customDate, setCustomDate] = useState<string>('');
 
     // Live Ticker for preparing time
     const [now, setNow] = useState(new Date());
@@ -249,33 +253,92 @@ export default function OrdersPage() {
 
     // Filter Logic
     const filteredOrders = orders.filter(order => {
-        // Search Term Filter (Order Number)
-        const orderNumStr = `#${order.order_number}`;
-        if (searchTerm && !orderNumStr.includes(searchTerm) && !String(order.order_number).includes(searchTerm)) {
+        const origin = getOrderOrigin(order, locale);
+        const term = searchTerm.trim().toLowerCase();
+
+        // 1. Search Term Filter (Number, Waitress, Table, or Product name)
+        if (term) {
+            const orderNum = String(order.order_number);
+            const matchesOrderNum = `#${orderNum}`.includes(term) || orderNum.includes(term);
+            const matchesWaitress = origin.waitressName ? origin.waitressName.toLowerCase().includes(term) : false;
+            const matchesTable = origin.tableNum ? (`mesa ${origin.tableNum}`.toLowerCase().includes(term) || `table ${origin.tableNum}`.toLowerCase().includes(term) || String(origin.tableNum).toLowerCase().includes(term)) : false;
+            const matchesProduct = order.order_items?.some(item => {
+                const pName = getLocalizedValue(item.products?.name, locale).toLowerCase();
+                return pName.includes(term);
+            });
+
+            if (!matchesOrderNum && !matchesWaitress && !matchesTable && !matchesProduct) {
+                return false;
+            }
+        }
+
+        // 2. Channel / Origin Filter
+        if (sourceFilter === 'kiosk' && origin.isExoServer) {
+            return false;
+        }
+        if (sourceFilter === 'exo_server' && !origin.isExoServer) {
             return false;
         }
 
-        // Status Filter
+        // 3. Status Filter
         if (statusFilter !== 'all' && order.status !== statusFilter) {
             return false;
         }
 
-        // Order Type Filter
+        // 4. Order Type Filter
         if (typeFilter !== 'all' && order.order_type !== typeFilter) {
             return false;
         }
 
-        // Date Filter
-        if (dateFilter === 'today') {
-            const todayStr = new Date().toDateString();
-            const orderDateStr = new Date(order.created_at).toDateString();
-            if (todayStr !== orderDateStr) {
-                return false;
+        // 5. Date Filter
+        if (dateFilter !== 'all') {
+            const orderDate = new Date(order.created_at);
+            const today = new Date();
+
+            if (dateFilter === 'today') {
+                if (orderDate.toDateString() !== today.toDateString()) {
+                    return false;
+                }
+            } else if (dateFilter === 'yesterday') {
+                const yesterday = new Date();
+                yesterday.setDate(today.getDate() - 1);
+                if (orderDate.toDateString() !== yesterday.toDateString()) {
+                    return false;
+                }
+            } else if (dateFilter === 'week') {
+                const sevenDaysAgo = new Date();
+                sevenDaysAgo.setDate(today.getDate() - 7);
+                if (orderDate < sevenDaysAgo) {
+                    return false;
+                }
+            } else if (dateFilter === 'month') {
+                if (orderDate.getMonth() !== today.getMonth() || orderDate.getFullYear() !== today.getFullYear()) {
+                    return false;
+                }
+            } else if (dateFilter === 'custom' && customDate) {
+                const localOrderDateStr = `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, '0')}-${String(orderDate.getDate()).padStart(2, '0')}`;
+                const isoOrderDateStr = orderDate.toISOString().split('T')[0];
+                if (localOrderDateStr !== customDate && isoOrderDateStr !== customDate) {
+                    return false;
+                }
             }
         }
 
         return true;
     });
+
+    const filteredTotalAmount = filteredOrders.reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0);
+    const filteredAverageTicket = filteredOrders.length > 0 ? filteredTotalAmount / filteredOrders.length : 0;
+    const hasActiveFilters = searchTerm !== '' || statusFilter !== 'all' || typeFilter !== 'all' || sourceFilter !== 'all' || dateFilter !== 'today' || customDate !== '';
+
+    const resetFilters = () => {
+        setSearchTerm('');
+        setStatusFilter('all');
+        setTypeFilter('all');
+        setSourceFilter('all');
+        setDateFilter('today');
+        setCustomDate('');
+    };
 
     const getStatusStyles = (status: Order['status']) => {
         switch (status) {
@@ -355,7 +418,16 @@ export default function OrdersPage() {
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(100, 116, 139); // Slate-500
         doc.text(`${locale === 'es' ? 'Generado el' : 'Generated on'}: ${new Date().toLocaleString()}`, 15, 36);
-        doc.text(`${locale === 'es' ? 'Filtro' : 'Filter'}: ${statusFilter.toUpperCase()} | ${typeFilter.toUpperCase()} | ${dateFilter === 'today' ? (locale === 'es' ? 'HOY' : 'TODAY') : (locale === 'es' ? 'HISTORIAL' : 'HISTORY')}`, 15, 42);
+        const dateFilterLabel = dateFilter === 'today' ? (locale === 'es' ? 'HOY' : 'TODAY')
+            : dateFilter === 'yesterday' ? (locale === 'es' ? 'AYER' : 'YESTERDAY')
+            : dateFilter === 'week' ? (locale === 'es' ? '7 DÍAS' : '7 DAYS')
+            : dateFilter === 'month' ? (locale === 'es' ? 'ESTE MES' : 'THIS MONTH')
+            : dateFilter === 'custom' ? (locale === 'es' ? `FECHA: ${customDate || 'N/A'}` : `DATE: ${customDate || 'N/A'}`)
+            : (locale === 'es' ? 'HISTORIAL' : 'ALL HISTORY');
+        const sourceFilterLabel = sourceFilter === 'kiosk' ? (locale === 'es' ? 'KIOSKO' : 'KIOSK')
+            : sourceFilter === 'exo_server' ? 'EXO SERVER'
+            : (locale === 'es' ? 'TODOS CANALES' : 'ALL CHANNELS');
+        doc.text(`${locale === 'es' ? 'Filtro' : 'Filter'}: ${sourceFilterLabel} | ${statusFilter.toUpperCase()} | ${typeFilter.toUpperCase()} | ${dateFilterLabel}`, 15, 42);
         doc.text(`${locale === 'es' ? 'Pedidos en lista' : 'Orders in list'}: ${filteredOrders.length}`, 195, 36, { align: 'right' });
         
         // Horizontal line separator
@@ -450,18 +522,32 @@ export default function OrdersPage() {
             </header>
 
             {/* Filter Section */}
-            <div className="space-y-6 bg-slate-900/40 border border-slate-800/80 rounded-[2.5rem] p-6 lg:p-8 mb-8 backdrop-blur-md">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="space-y-6 bg-slate-900/40 border border-slate-800/80 rounded-[2.5rem] p-6 lg:p-8 mb-8 backdrop-blur-md shadow-xl">
+                {/* Row 1: Search, Channel, Status, Type */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Search Field */}
                     <div className="relative group">
                         <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-emerald-500 transition-colors" />
                         <input
                             type="text"
-                            placeholder={t('searchOrderPlaceholder')}
+                            placeholder={locale === 'es' ? 'BUSCAR ORDEN #, MESERA, MESA O PLATO...' : 'SEARCH ORDER #, WAITRESS, TABLE OR DISH...'}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-12 pr-4 py-4 bg-slate-955 border border-slate-800 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-widest"
+                            className="w-full pl-12 pr-4 py-3.5 bg-slate-955 border border-slate-800 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-wider"
                         />
+                    </div>
+
+                    {/* Channel / Origin Filter */}
+                    <div>
+                        <select
+                            value={sourceFilter}
+                            onChange={(e) => setSourceFilter(e.target.value as any)}
+                            className="w-full px-5 py-3.5 bg-slate-955 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-wider cursor-pointer"
+                        >
+                            <option value="all">{locale === 'es' ? 'TODOS LOS CANALES' : 'ALL CHANNELS'}</option>
+                            <option value="kiosk">{locale === 'es' ? 'KIOSKO (AUTOSERVICIO)' : 'KIOSK (SELF-SERVICE)'}</option>
+                            <option value="exo_server">{locale === 'es' ? 'EXO SERVER (MESERAS)' : 'EXO SERVER (WAITRESSES)'}</option>
+                        </select>
                     </div>
 
                     {/* Status Filter */}
@@ -469,7 +555,7 @@ export default function OrdersPage() {
                         <select
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
-                            className="w-full px-5 py-4 bg-slate-955 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-widest cursor-pointer"
+                            className="w-full px-5 py-3.5 bg-slate-955 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-wider cursor-pointer"
                         >
                             <option value="all">{t('allStatuses')}</option>
                             <option value="pending">{locale === 'es' ? 'PENDIENTES' : 'PENDING'}</option>
@@ -485,37 +571,100 @@ export default function OrdersPage() {
                         <select
                             value={typeFilter}
                             onChange={(e) => setTypeFilter(e.target.value)}
-                            className="w-full px-5 py-4 bg-slate-955 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-widest cursor-pointer"
+                            className="w-full px-5 py-3.5 bg-slate-955 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-wider cursor-pointer"
                         >
                             <option value="all">{t('allTypes')}</option>
-                            <option value="dine_in">{t('kioskOption')}</option>
-                            <option value="takeout">{t('takeoutOption')}</option>
+                            <option value="dine_in">{locale === 'es' ? 'COMER EN SALA (DINE-IN)' : 'DINE IN'}</option>
+                            <option value="takeout">{locale === 'es' ? 'PARA LLEVAR (TAKEOUT)' : 'TAKEOUT'}</option>
                         </select>
                     </div>
+                </div>
 
-                    {/* Date Toggle */}
-                    <div className="flex bg-slate-955 border border-slate-800 p-1.5 rounded-2xl">
-                        <button
-                            onClick={() => setDateFilter('today')}
-                            className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${
-                                dateFilter === 'today'
-                                    ? 'bg-emerald-500 text-slate-955'
-                                    : 'text-slate-400 hover:text-white'
-                            }`}
-                        >
-                            {t('todayOption')}
-                        </button>
-                        <button
-                            onClick={() => setDateFilter('all')}
-                            className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${
-                                dateFilter === 'all'
-                                    ? 'bg-emerald-500 text-slate-955'
-                                    : 'text-slate-400 hover:text-white'
-                            }`}
-                        >
-                            {t('historyOption')}
-                        </button>
+                {/* Row 2: Date Filters & Custom Date */}
+                <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 pt-2 border-t border-slate-800/60">
+                    {/* Date Pills */}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mr-1 flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-emerald-500" />
+                            {locale === 'es' ? 'FECHA:' : 'DATE:'}
+                        </span>
+
+                        {[
+                            { id: 'today', labelEs: 'Hoy', labelEn: 'Today' },
+                            { id: 'yesterday', labelEs: 'Ayer', labelEn: 'Yesterday' },
+                            { id: 'week', labelEs: '7 Días', labelEn: '7 Days' },
+                            { id: 'month', labelEs: 'Este Mes', labelEn: 'This Month' },
+                            { id: 'all', labelEs: 'Historial', labelEn: 'All History' },
+                            { id: 'custom', labelEs: 'Personalizada', labelEn: 'Custom' }
+                        ].map((df) => {
+                            const active = dateFilter === df.id;
+                            return (
+                                <button
+                                    key={df.id}
+                                    type="button"
+                                    onClick={() => setDateFilter(df.id as any)}
+                                    className={`px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${
+                                        active
+                                            ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                                            : 'bg-slate-955 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
+                                    }`}
+                                >
+                                    {locale === 'es' ? df.labelEs : df.labelEn}
+                                </button>
+                            );
+                        })}
                     </div>
+
+                    {/* Custom Date Input (shown if 'custom' is selected) */}
+                    {dateFilter === 'custom' && (
+                        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <input
+                                type="date"
+                                value={customDate}
+                                onChange={(e) => setCustomDate(e.target.value)}
+                                className="px-4 py-2 bg-slate-955 border border-emerald-500/50 rounded-xl font-black text-white text-[10px] outline-none focus:ring-2 focus:ring-emerald-500/20"
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* Row 3: Live Summary Metrics & Reset */}
+                <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-800/60">
+                    <div className="flex flex-wrap items-center gap-4">
+                        {/* Count Badge */}
+                        <div className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-955 border border-slate-800 rounded-xl">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">{locale === 'es' ? 'RESULTADOS:' : 'RESULTS:'}</span>
+                            <span className="text-[11px] font-black text-emerald-400">{filteredOrders.length} {locale === 'es' ? 'pedidos' : 'orders'}</span>
+                        </div>
+
+                        {/* Amount Badge */}
+                        <div className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-955 border border-slate-800 rounded-xl">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">{locale === 'es' ? 'TOTAL FACTURADO:' : 'TOTAL BILLED:'}</span>
+                            <span className="text-[11px] font-black text-white italic">
+                                {formatPrice(filteredTotalAmount, locale === 'es' ? 'es-SV' : 'en-US')}
+                            </span>
+                        </div>
+
+                        {/* Avg Ticket Badge */}
+                        <div className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-955 border border-slate-800 rounded-xl">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">{locale === 'es' ? 'TICKET PROMEDIO:' : 'AVG TICKET:'}</span>
+                            <span className="text-[11px] font-black text-amber-400 italic">
+                                {formatPrice(filteredAverageTicket, locale === 'es' ? 'es-SV' : 'en-US')}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Reset Button */}
+                    {hasActiveFilters && (
+                        <button
+                            type="button"
+                            onClick={resetFilters}
+                            className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all active:scale-95"
+                        >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>{locale === 'es' ? 'LIMPIAR FILTROS' : 'RESET FILTERS'}</span>
+                        </button>
+                    )}
                 </div>
             </div>
 
