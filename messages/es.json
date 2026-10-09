@@ -398,6 +398,7 @@
         "select": "Selecciona",
         "table": "Mesa",
         "signOut": "Cerrar Sesión",
+        "waitressOnDuty": "Mesera",
         "searchTablePlaceholder": "Buscar mesa...",
         "noTables": "No hay mesas configuradas",
         "tableStatusOccupied": "Ocupada",

@@ -398,6 +398,7 @@
         "select": "Select",
         "table": "Table",
         "signOut": "Sign Out",
+        "waitressOnDuty": "Waitress",
         "searchTablePlaceholder": "Search table...",
         "noTables": "No tables configured",
         "tableStatusOccupied": "Occupied",

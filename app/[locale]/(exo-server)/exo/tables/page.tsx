@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/browser';
 import TableGrid from '@/components/exo/TableGrid';
 import { Loader2, Search, LogOut } from 'lucide-react';
 import { useRestaurantStore } from '@/store/restaurant-store';
+import { useExoCartStore } from '@/store/exo-cart-store';
 import { useRouter } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';
 
@@ -13,6 +14,8 @@ export default function TablesPage() {
     const supabase = createClient();
     const router = useRouter();
     const { restaurantName, setRestaurant } = useRestaurantStore();
+    const { setWaitressId, resetStore } = useExoCartStore();
+    const [currentWaitress, setCurrentWaitress] = useState<string | null>(null);
     const [tables, setTables] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -26,9 +29,14 @@ export default function TablesPage() {
 
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('restaurant_id, restaurants(name)')
+                    .select('restaurant_id, full_name, restaurants(name)')
                     .eq('id', session.user.id)
                     .single() as { data: any; error: any };
+
+                if (profile?.full_name) {
+                    setCurrentWaitress(profile.full_name);
+                }
+                setWaitressId(session.user.id);
 
                 if (!profile?.restaurant_id) return;
 
@@ -100,8 +108,14 @@ export default function TablesPage() {
             <div className="flex flex-col gap-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
                             <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">{restaurantName || 'OrderPoint'}</span>
+                            {currentWaitress && (
+                                <span className="text-[10px] font-black text-indigo-300 uppercase tracking-wider bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20 flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                                    {t('waitressOnDuty')}: {currentWaitress}
+                                </span>
+                            )}
                         </div>
                         <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">
                             {t('select')} <span className="text-emerald-500">{t('table')}</span>
@@ -109,6 +123,10 @@ export default function TablesPage() {
                     </div>
                     <button
                         onClick={async () => {
+                            resetStore();
+                            if (typeof window !== 'undefined') {
+                                localStorage.removeItem('exo-server-storage');
+                            }
                             await supabase.auth.signOut();
                             router.push('/login');
                         }}

@@ -30,6 +30,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [tableOrders, setTableOrders] = useState<any[]>([]);
     const [showMenu, setShowMenu] = useState(false);
+    const [currentWaitressName, setCurrentWaitressName] = useState<string | null>(null);
 
     const {
         items,
@@ -40,7 +41,8 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
         setWaitressId,
         setTableId,
         incrementPendingOrders,
-        decrementPendingOrders
+        decrementPendingOrders,
+        resetStore
     } = useExoCartStore();
 
     const { restaurantId, restaurantName, setRestaurant } = useRestaurantStore();
@@ -94,10 +96,17 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
 
         async function loadData() {
             try {
-                // Get Waitress ID if not set
-                if (!waitressId) {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    if (session) setWaitressId(session.user.id);
+                // Always sync active authenticated user as waitressId and fetch profile
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user?.id) {
+                    setWaitressId(session.user.id);
+                    const { data: myProf } = await (supabase.from('profiles') as any)
+                        .select('full_name')
+                        .eq('id', session.user.id)
+                        .single();
+                    if (myProf?.full_name) {
+                        setCurrentWaitressName(myProf.full_name);
+                    }
                 }
 
                 if (!activeRestaurantId) {
@@ -173,11 +182,15 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
 
         loadData();
 
-        // Subscribe to table changes
+        // Subscribe to table changes with waitress relation
         const channel = supabase
             .channel(`table-${tableId}`)
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tables', filter: `id=eq.${tableId}` }, (payload) => {
-                setTable(payload.new);
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tables', filter: `id=eq.${tableId}` }, async () => {
+                const { data: updatedTable } = await (supabase.from('tables') as any)
+                    .select('*, waitress:profiles!waitress_id(full_name)')
+                    .eq('id', tableId)
+                    .single();
+                if (updatedTable) setTable(updatedTable);
             })
             .subscribe();
 
@@ -303,10 +316,20 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
 
             if (rpcError) throw rpcError;
 
+            // Obtain active waitress directly from session
+            let activeWaitressId = waitressId;
+            const { data: { session: activeSession } } = await supabase.auth.getSession();
+            if (activeSession?.user?.id) {
+                activeWaitressId = activeSession.user.id;
+                setWaitressId(activeWaitressId);
+            }
+
+            if (!activeWaitressId) throw new Error('No se pudo identificar la mesera logueada');
+
             // 1. Ensure table is "occupied" by current waitress if it's free
             if (!table?.waitress_id) {
                 await (supabase.from('tables') as any)
-                    .update({ waitress_id: waitressId })
+                    .update({ waitress_id: activeWaitressId })
                     .eq('id', tableId);
             }
 
@@ -323,7 +346,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
             const { data: orderData, error: orderError } = await (supabase.from('orders') as any).insert({
                 restaurant_id: finalRestaurantId,
                 table_id: tableId,
-                waitress_id: waitressId,
+                waitress_id: activeWaitressId,
                 items: orderItems, // Keeping JSONB for backward compatibility
                 status: 'pending',
                 source: 'exo_server',
@@ -391,8 +414,14 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                     <ArrowLeft className="w-6 h-6" />
                 </button>
                 <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
                         <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">{restaurantName || 'OrderPoint'}</span>
+                        {currentWaitressName && (
+                            <span className="text-[10px] font-black text-indigo-300 uppercase tracking-wider bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                                {t('waitressOnDuty')}: {currentWaitressName}
+                            </span>
+                        )}
                     </div>
                     <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">
                         {t('table')} <span className="text-emerald-500">#{table?.number || tableId.substring(0, 3)}</span>
@@ -417,6 +446,10 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                     )}
                     <button
                         onClick={async () => {
+                            resetStore();
+                            if (typeof window !== 'undefined') {
+                                localStorage.removeItem('exo-server-storage');
+                            }
                             await supabase.auth.signOut();
                             router.push('/login');
                         }}

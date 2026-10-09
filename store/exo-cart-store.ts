@@ -26,6 +26,7 @@ interface ExoCartStore {
 
     incrementPendingOrders: () => void;
     decrementPendingOrders: () => void;
+    resetStore: () => void;
 }
 
 export const useExoCartStore = create<ExoCartStore>()(
@@ -158,6 +159,13 @@ export const useExoCartStore = create<ExoCartStore>()(
 
             incrementPendingOrders: () => set((state) => ({ pendingOrdersCount: state.pendingOrdersCount + 1 })),
             decrementPendingOrders: () => set((state) => ({ pendingOrdersCount: Math.max(0, state.pendingOrdersCount - 1) })),
+            resetStore: () => set({
+                tableId: null,
+                waitressId: null,
+                items: [],
+                cartsByTable: {},
+                pendingOrdersCount: 0
+            }),
         }),
         {
             name: 'exo-server-storage',
@@ -185,7 +193,6 @@ export const useExoCartStore = create<ExoCartStore>()(
             },
             partialize: (state) => ({
                 tableId: state.tableId,
-                waitressId: state.waitressId,
                 cartsByTable: state.cartsByTable,
                 items: state.items,
             }),

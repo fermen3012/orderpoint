@@ -19,9 +19,9 @@ export default async function ExoLayout({
         redirect(`/${locale}/login`);
     }
 
-    const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role, is_super_admin')
+    const { data: profile, error: profileError } = await (supabase
+        .from('profiles') as any)
+        .select('role, is_super_admin, full_name')
         .eq('id', user.id)
         .single();
 
@@ -46,7 +46,15 @@ export default async function ExoLayout({
                     <h1 className="text-xl font-black uppercase tracking-tighter italic">Exo Server</h1>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
+                    {profile.full_name && (
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 border border-slate-700/80 text-xs">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                            <span className="font-black text-slate-200 capitalize truncate max-w-[110px] sm:max-w-[180px]">
+                                {profile.full_name}
+                            </span>
+                        </div>
+                    )}
                     <ExoLanguageSwitch />
                     <ConnectivityIndicator />
                 </div>
