@@ -5,6 +5,7 @@ import { Product, ModifierGroup, SelectedModifier, Modifier } from '@/types';
 import { X, Check, Plus, Minus, ChefHat, MessageSquareText } from 'lucide-react';
 import { cn, formatPrice } from '@/lib/utils';
 import { useParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 interface ModifierModalProps {
     product: Product;
@@ -33,6 +34,7 @@ const QUICK_KITCHEN_NOTES = [
 ];
 
 export default function ModifierModal({ product, onClose, onConfirm }: ModifierModalProps) {
+    const t = useTranslations('exo');
     const params = useParams();
     const locale = (params?.locale as string) || 'es';
     const productName = product.name?.[locale] || product.name?.es || (typeof product.name === 'string' ? product.name : '');
@@ -127,7 +129,7 @@ export default function ModifierModal({ product, onClose, onConfirm }: ModifierM
         if (allNotes.length > 0) {
             finalModifiers.push({
                 groupId: 'kitchen-notes',
-                groupName: locale === 'es' ? 'Nota Cocina' : 'Kitchen Note',
+                groupName: t('kitchenNoteGroupName'),
                 options: allNotes.map((noteText, idx) => ({
                     id: `note-${idx}`,
                     name: noteText,
@@ -153,7 +155,7 @@ export default function ModifierModal({ product, onClose, onConfirm }: ModifierM
                 <div className="p-6 bg-slate-850 flex items-center justify-between border-b border-slate-800">
                     <div className="flex flex-col">
                         <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20 w-fit mb-1">
-                            {locale === 'es' ? 'Personalizar Platillo' : 'Customize Dish'}
+                            {t('customizeDish')}
                         </span>
                         <h3 className="text-2xl font-black italic tracking-tighter uppercase leading-none text-white">
                             {productName}
@@ -176,12 +178,12 @@ export default function ModifierModal({ product, onClose, onConfirm }: ModifierM
                             <div className="flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
                                 <h4 className="text-xs font-black uppercase tracking-wider text-slate-200">
-                                    {locale === 'es' ? 'Quitar Ingredientes (Toca para tachar)' : 'Remove Ingredients (Tap to remove)'}
+                                    {t('removeIngredientsTitle')}
                                 </h4>
                             </div>
                             {removedIngredients.length > 0 && (
                                 <span className="text-[10px] font-black uppercase tracking-wider text-red-400 bg-red-500/10 px-2 py-0.5 rounded-md border border-red-500/20">
-                                    {removedIngredients.length} {locale === 'es' ? 'quitados' : 'removed'}
+                                    {t('removedCount', { count: removedIngredients.length })}
                                 </span>
                             )}
                         </div>
@@ -207,7 +209,7 @@ export default function ModifierModal({ product, onClose, onConfirm }: ModifierM
                                         )}>
                                             {isRemoved ? '✕' : '✓'}
                                         </span>
-                                        <span>{isRemoved ? `Sin ${ing}` : ing}</span>
+                                        <span>{isRemoved ? t('without', { name: ing }) : ing}</span>
                                     </button>
                                 );
                             })}
@@ -226,7 +228,7 @@ export default function ModifierModal({ product, onClose, onConfirm }: ModifierM
                                     "px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest",
                                     isGroupValid(group) ? "bg-emerald-500/10 text-emerald-400" : "bg-orange-500/10 text-orange-400"
                                 )}>
-                                    {group.is_required ? `Mín. ${group.min_selections}` : (locale === 'es' ? 'Opcional' : 'Optional')}
+                                    {group.is_required ? t('minRequired', { count: group.min_selections }) : t('optional')}
                                 </div>
                             </div>
 
@@ -271,7 +273,7 @@ export default function ModifierModal({ product, onClose, onConfirm }: ModifierM
                         <div className="flex items-center gap-2">
                             <ChefHat className="w-4 h-4 text-emerald-400" />
                             <h4 className="text-xs font-black uppercase tracking-wider text-slate-200">
-                                {locale === 'es' ? 'Instrucciones Rápidas de Cocina' : 'Quick Kitchen Instructions'}
+                                {t('quickKitchenNotes')}
                             </h4>
                         </div>
 
@@ -299,7 +301,7 @@ export default function ModifierModal({ product, onClose, onConfirm }: ModifierM
                         <div className="relative mt-2">
                             <input
                                 type="text"
-                                placeholder={locale === 'es' ? 'Otra nota especial para el cocinero...' : 'Other special kitchen note...'}
+                                placeholder={t('customNotePlaceholder')}
                                 value={customNote}
                                 onChange={(e) => setCustomNote(e.target.value)}
                                 className="w-full bg-slate-800/90 border border-slate-700/80 rounded-2xl py-3 px-4 text-xs text-white placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
@@ -343,7 +345,7 @@ export default function ModifierModal({ product, onClose, onConfirm }: ModifierM
                         )}
                     >
                         <span className="text-base font-black uppercase italic tracking-tighter">
-                            {locale === 'es' ? 'Agregar a Comanda' : 'Add to Order'}
+                            {t('addToOrder')}
                         </span>
                         <span className="text-xl font-black tracking-tighter italic">
                             {formatPrice(calculateUnitTotal() * quantity, locale === 'es' ? 'es-SV' : 'en-US')}

@@ -165,7 +165,7 @@ export default function SetPasswordPage() {
                         full_name: fullName,
                         terms_accepted: true,
                         terms_accepted_at: new Date().toISOString(),
-                        terms_version: 'v1.0'
+                        terms_version: 'v2.0-FL'
                     });
 
                 if (profileError) {
@@ -405,63 +405,143 @@ export default function SetPasswordPage() {
                                 </div>
                             </div>
                         </div>
-                        <div className="p-8 overflow-y-auto grow text-slate-600 space-y-4">
+                        <div className="p-8 overflow-y-auto grow text-slate-600 space-y-5 text-sm leading-relaxed">
                             {termsLanguage === 'es' ? (
                                 <>
-                                    <p className="font-medium text-slate-800">
-                                        Bienvenido a OrderPoint. Al aceptar esta invitación y usar nuestros servicios, aceptas estos términos y condiciones.
+                                    <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
+                                        <p className="text-xs font-black text-emerald-800 uppercase tracking-wider mb-1">
+                                            Aviso Legal y Jurisdicción (Estado de Florida, EE. UU.)
+                                        </p>
+                                        <p className="text-xs text-slate-700">
+                                            Este contrato mercantil de Software como Servicio (SaaS) B2B se rige expresamente por las leyes del Estado de Florida, EE. UU. Al activar su cuenta de propietario (Owner), usted formaliza un acuerdo legal vinculante entre su establecimiento y <strong>Exo Advance LLC</strong> (compañía titular y proveedora del software y plataforma <strong>OrderPoint</strong>).
+                                        </p>
+                                    </div>
+
+                                    <h3 className="font-black text-slate-900 pt-2 text-base">1. Aceptación y Firma Electrónica</h3>
+                                    <p>
+                                        Al marcar la casilla "He leído y acepto los Términos y Condiciones" y enviar este formulario, usted reconoce y acepta que su acción constituye una firma electrónica con plena validez legal, exigibilidad y efecto vinculante de conformidad con la <strong>Ley de Transacciones Electrónicas Uniformes de Florida (Florida Uniform Electronic Transaction Act - UETA, Fla. Stat. § 668.50)</strong> y la Ley Federal E-SIGN (15 U.S.C. § 7001).
                                     </p>
-                                    <h3 className="font-bold text-slate-900 pt-2">1. Uso del Servicio</h3>
-                                    <p className="text-sm leading-relaxed">
-                                        El usuario se compromete a utilizar la plataforma de acuerdo con la ley, la moral y el orden público. Toda la información proporcionada debe ser veraz y mantenerse actualizada.
+
+                                    <h3 className="font-black text-slate-900 pt-2 text-base">2. Licencia de Software SaaS B2B</h3>
+                                    <p>
+                                        OrderPoint otorga al Restaurante una licencia de uso limitada, revocable, no exclusiva e intransferible para acceder a la plataforma en la nube durante el período de suscripción contratado. Los servicios incluyen: Kiosko táctil de autoservicio, pantalla de cocina (Kitchen Display System - KDS en tiempo real), toma de órdenes por meseros (Exo Server), gestión de cartas y menús QR, y emisión de comandas e impresiones térmicas ESC/POS.
                                     </p>
-                                    <h3 className="font-bold text-slate-900 pt-2">2. Pasarela de Pagos y Suscripciones (Stripe)</h3>
-                                    <p className="text-sm leading-relaxed">
-                                        Para procesar pagos, gestionar suscripciones y emitir facturas mensuales automáticas, OrderPoint utiliza la infraestructura de Stripe. Al aceptar estos términos, autorizas el procesamiento de cobros automáticos basados en la cantidad de licencias contratadas.
+
+                                    <h3 className="font-black text-slate-900 pt-2 text-base">3. Operación Gastronómica, Inocuidad y Alérgenos (Florida DBPR y DOH)</h3>
+                                    <p>
+                                        El Restaurante y su propietario son estricta y exclusivamente responsables de:
                                     </p>
-                                    <h3 className="font-bold text-slate-900 pt-2">3. Procesamiento con Inteligencia Artificial (IA)</h3>
-                                    <p className="text-sm leading-relaxed">
-                                        OrderPoint utiliza servicios de inteligencia artificial (como Gemini API) para asistir y automatizar el soporte técnico y de atención al cliente. Tus interacciones con el bot de soporte pueden ser procesadas para mejorar la calidad del servicio.
+                                    <ul className="list-disc pl-5 space-y-1.5 text-xs text-slate-600">
+                                        <li>La preparación, cocción, conservación de temperatura y salubridad de todos los alimentos y bebidas, cumpliendo con las normas del <strong>Departamento de Regulación Comercial y Profesional de Florida (DBPR)</strong> y del <strong>Departamento de Salud de Florida (Florida Department of Health)</strong>.</li>
+                                        <li>La veracidad de los ingredientes, recetas, precios y advertencias obligatorias de alérgenos (mariscos, frutos secos, lácteos, gluten, etc.), así como las advertencias de consumo de alimentos crudos o poco cocidos.</li>
+                                        <li>OrderPoint es un proveedor de tecnología de software y <strong>no asume ninguna responsabilidad civil o penal</strong> por intoxicaciones, reacciones alérgicas, disputas sobre preparación o cualquier daño a la salud de los comensales.</li>
+                                    </ul>
+
+                                    <h3 className="font-black text-slate-900 pt-2 text-base">4. Pagos, Facturación Recurrente (Stripe) e Impuestos de Florida</h3>
+                                    <p>
+                                        El cobro de suscripciones mensuales y licencias de OrderPoint se procesa a través de la infraestructura certificada de Stripe. Respecto a las ventas de comida a los comensales:
                                     </p>
-                                    <h3 className="font-bold text-slate-900 pt-2">4. Privacidad y Datos</h3>
-                                    <p className="text-sm leading-relaxed">
-                                        Nos tomamos muy en serio tu privacidad. La recopilación y el uso de tu información personal se rigen por nuestra Política de Privacidad. No compartimos tu información con terceros sin tu consentimiento.
+                                    <ul className="list-disc pl-5 space-y-1.5 text-xs text-slate-600">
+                                        <li>El Restaurante actúa como el Comerciante Registrado (Merchant of Record).</li>
+                                        <li>El Restaurante es el único responsable de configurar, recaudar y remitir el Impuesto sobre las Ventas de Florida (<strong>Florida Sales and Use Tax, Fla. Stat. Cap. 212</strong>) ante el Departamento de Rentas de Florida (Florida Department of Revenue).</li>
+                                    </ul>
+
+                                    <h3 className="font-black text-slate-900 pt-2 text-base">5. Protección de Datos y Privacidad (Florida FIPA)</h3>
+                                    <p>
+                                        OrderPoint implementa medidas técnicas de seguridad en cumplimiento con la <strong>Ley de Protección de Información de Florida (Florida Information Protection Act - FIPA, Fla. Stat. § 501.171)</strong> y las directivas PCI-DSS. No almacenamos datos sensibles de tarjetas de crédito o débito en nuestros servidores. El Restaurante es dueño legítimo de su menú y base de clientes y se compromete a no utilizar la plataforma para recopilar datos ilícitos.
                                     </p>
-                                    <h3 className="font-bold text-slate-900 pt-2">5. Responsabilidad</h3>
-                                    <p className="text-sm leading-relaxed">
-                                        OrderPoint provee la infraestructura tecnológica, pero cada restaurante es responsable del manejo de sus operaciones, menú, pedidos y cumplimiento fiscal aplicable.
+
+                                    <h3 className="font-black text-slate-900 pt-2 text-base">6. Funcionalidades con Inteligencia Artificial (Google Gemini)</h3>
+                                    <p>
+                                        OrderPoint integra modelos de Inteligencia Artificial para asistencia técnica y traducción automatizada de cartas y menús. Dichas funciones se entregan "tal cual". El Restaurante tiene la obligación de verificar la exactitud de cualquier descripción, traducción o precio generado por IA antes de ponerlo a disposición del público.
                                     </p>
-                                    <div className="mt-6 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-500 uppercase tracking-widest text-center">
-                                        Versión v1.1 - Última actualización: Julio 2026
+
+                                    <h3 className="font-black text-slate-900 pt-2 text-base">7. Exclusión de Garantías y Límite de Responsabilidad</h3>
+                                    <p>
+                                        EL SERVICIO SE PROPORCIONA "TAL CUAL" ("AS IS") Y "SEGÚN DISPONIBILIDAD" ("AS AVAILABLE"). EN LA MÁXIMA MEDIDA PERMITIDA POR LAS LEYES DE FLORIDA, ORDERPOINT RENUNCIA A TODA GARANTÍA IMPLÍCITA DE COMERCIABILIDAD, APTITUD PARA UN PROPÓSITO ESPECÍFICO O CONTINUIDAD ININTERRUMPIDA. EN NINGÚN CASO LA RESPONSABILIDAD TOTAL DE ORDERPOINT EXCEDERÁ EL MONTO TOTAL ABONADO POR EL CLIENTE EN CONCEPTO DE SUSCRIPCIÓN EN LOS TRES (3) MESES ANTERIORES AL RECLAMO.
+                                    </p>
+
+                                    <h3 className="font-black text-slate-900 pt-2 text-base">8. Indemnización</h3>
+                                    <p>
+                                        El Restaurante acepta defender, indemnizar y mantener indemne a OrderPoint, sus desarrolladores, directores y empleados frente a cualquier demanda, pérdida, costo o reclamo de terceros derivado de la operación comercial del restaurante, calidad de los alimentos, disputas laborales internas (ej. propinas o nómina) o incumplimiento tributario.
+                                    </p>
+
+                                    <h3 className="font-black text-slate-900 pt-2 text-base">9. Ley Aplicable, Jurisdicción y Renuncia a Juicio por Jurado</h3>
+                                    <p>
+                                        Este Contrato se rige por las leyes del <strong>Estado de Florida, EE. UU.</strong>, con jurisdicción exclusiva en los tribunales estatales o federales correspondientes al Estado de Florida. <strong>AMBAS PARTES RENUNCIAN IRREVOCABLEMENTE A CUALQUIER DERECHO A JUICIO POR JURADO</strong> en relación con cualquier litigio derivado de este contrato, y acuerdan resolver cualquier diferendo de forma individual, renunciando expresamente a participar en demandas colectivas (Class Action Waiver).
+                                    </p>
+
+                                    <div className="mt-6 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-500 uppercase tracking-widest text-center">
+                                        Versión v2.0 (Florida Law Compliance) • Exo Advance LLC • Actualización: Octubre 2026
                                     </div>
                                 </>
                             ) : (
                                 <>
-                                    <p className="font-medium text-slate-800">
-                                        Welcome to OrderPoint. By accepting this invitation and using our services, you agree to these terms and conditions.
+                                    <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
+                                        <p className="text-xs font-black text-emerald-800 uppercase tracking-wider mb-1">
+                                            Legal Notice & Governing Law (State of Florida, USA)
+                                        </p>
+                                        <p className="text-xs text-slate-700">
+                                            This B2B Software as a Service (SaaS) Agreement is governed by the laws of the State of Florida, USA. By activating your restaurant Owner account, you enter into a legally binding contract between your establishment and <strong>Exo Advance LLC</strong> (the owning company and provider of the <strong>OrderPoint</strong> software platform).
+                                        </p>
+                                    </div>
+
+                                    <h3 className="font-black text-slate-900 pt-2 text-base">1. Acceptance and Electronic Execution</h3>
+                                    <p>
+                                        By checking the "I have read and accept the Terms & Conditions" box and submitting this form, you acknowledge and agree that your action constitutes a legally binding electronic signature under the <strong>Florida Uniform Electronic Transaction Act (Fla. Stat. § 668.50)</strong> and the Federal Electronic Signatures in Global and National Commerce Act (E-SIGN, 15 U.S.C. § 7001).
                                     </p>
-                                    <h3 className="font-bold text-slate-900 pt-2">1. Service Usage</h3>
-                                    <p className="text-sm leading-relaxed">
-                                        The user agrees to use the platform in accordance with the law, moral principles, and public order. All information provided must be accurate and kept up to date.
+
+                                    <h3 className="font-black text-slate-900 pt-2 text-base">2. B2B SaaS Software License</h3>
+                                    <p>
+                                        OrderPoint grants the Restaurant a limited, revocable, non-exclusive, and non-transferable license to access the cloud software platform during the active subscription period. Services include: Self-service touchscreen Kiosk, real-time Kitchen Display System (KDS), mobile waiter ordering (Exo Server), catalog and QR menu management, and ESC/POS thermal printing integrations.
                                     </p>
-                                    <h3 className="font-bold text-slate-900 pt-2">2. Payment Gateway and Subscriptions (Stripe)</h3>
-                                    <p className="text-sm leading-relaxed">
-                                        To process payments, manage subscriptions, and issue automatic monthly invoices, OrderPoint uses Stripe's infrastructure. By accepting these terms, you authorize automatic billing based on your contracted licenses.
+
+                                    <h3 className="font-black text-slate-900 pt-2 text-base">3. Restaurant Operations, Food Safety & Allergens (Florida DBPR & DOH)</h3>
+                                    <p>
+                                        The Restaurant and its management retain sole and absolute responsibility for:
                                     </p>
-                                    <h3 className="font-bold text-slate-900 pt-2">3. Artificial Intelligence (AI) Processing</h3>
-                                    <p className="text-sm leading-relaxed">
-                                        OrderPoint utilizes artificial intelligence services (such as Gemini API) to assist and automate customer service and technical support. Your interactions with the support bot may be processed to improve service quality.
+                                    <ul className="list-disc pl-5 space-y-1.5 text-xs text-slate-600">
+                                        <li>Food storage, preparation, heating temperatures, sanitary practices, and quality under the regulatory authority of the <strong>Florida Department of Business and Professional Regulation (DBPR)</strong> and the <strong>Florida Department of Health</strong>.</li>
+                                        <li>The accuracy of menu ingredients, pricing, allergen notices (peanuts, shellfish, dairy, gluten, etc.), and consumer advisories regarding raw or undercooked foods.</li>
+                                        <li>OrderPoint is strictly a technology platform provider and <strong>disclaims all liability</strong> for foodborne illness, allergic reactions, customer disputes, or dining room incidents.</li>
+                                    </ul>
+
+                                    <h3 className="font-black text-slate-900 pt-2 text-base">4. Subscriptions, Recurring Billing (Stripe) & Florida Taxes</h3>
+                                    <p>
+                                        Software licensing and subscription fees are billed automatically through Stripe. With respect to customer food and drink transactions:
                                     </p>
-                                    <h3 className="font-bold text-slate-900 pt-2">4. Privacy and Data</h3>
-                                    <p className="text-sm leading-relaxed">
-                                        We take your privacy very seriously. The collection and use of your personal information are governed by our Privacy Policy. We do not share your information with third parties without your consent.
+                                    <ul className="list-disc pl-5 space-y-1.5 text-xs text-slate-600">
+                                        <li>The Restaurant is the sole Merchant of Record.</li>
+                                        <li>The Restaurant is strictly responsible for collecting and remitting Florida Sales and Use Tax (<strong>Fla. Stat. Chapter 212</strong>) to the Florida Department of Revenue.</li>
+                                    </ul>
+
+                                    <h3 className="font-black text-slate-900 pt-2 text-base">5. Data Protection and Privacy (Florida FIPA)</h3>
+                                    <p>
+                                        OrderPoint maintains industry-standard security controls under the <strong>Florida Information Protection Act (FIPA, Fla. Stat. § 501.171)</strong> and PCI-DSS compliance standards. We do not store cardholder account numbers on our servers. The Restaurant retains full ownership of its menu data, customer lists, and transaction history.
                                     </p>
-                                    <h3 className="font-bold text-slate-900 pt-2">5. Liability</h3>
-                                    <p className="text-sm leading-relaxed">
-                                        OrderPoint provides the technological infrastructure, but each restaurant is solely responsible for managing its operations, menu, orders, and applicable tax compliance.
+
+                                    <h3 className="font-black text-slate-900 pt-2 text-base">6. Artificial Intelligence Services (Google Gemini)</h3>
+                                    <p>
+                                        OrderPoint integrates AI models for automated translations and operations. AI features are provided "AS IS". The Restaurant must independently verify all AI-translated menu descriptions, allergen alerts, and prices before publishing them.
                                     </p>
-                                    <div className="mt-6 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-500 uppercase tracking-widest text-center">
-                                        Version v1.1 - Last updated: July 2026
+
+                                    <h3 className="font-black text-slate-900 pt-2 text-base">7. Disclaimer of Warranties and Limitation of Liability</h3>
+                                    <p>
+                                        THE SERVICES ARE PROVIDED "AS IS" AND "AS AVAILABLE". TO THE MAXIMUM EXTENT PERMITTED BY FLORIDA LAW, ORDERPOINT DISCLAIMS ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL ORDERPOINT'S AGGREGATE LIABILITY EXCEED THE TOTAL FEES ACTUALLY PAID BY THE RESTAURANT IN THE THREE (3) MONTHS PRECEDING THE CLAIM.
+                                    </p>
+
+                                    <h3 className="font-black text-slate-900 pt-2 text-base">8. Indemnification</h3>
+                                    <p>
+                                        The Restaurant agrees to defend, indemnify, and hold harmless OrderPoint, its developers, directors, and agents from any third-party claims, liabilities, or expenses resulting from food service operations, staff disputes (e.g. tips or wages), tax non-compliance, or violation of these Terms.
+                                    </p>
+
+                                    <h3 className="font-black text-slate-900 pt-2 text-base">9. Governing Law, Venue & Waiver of Jury Trial</h3>
+                                    <p>
+                                        This Agreement is governed by the laws of the <strong>State of Florida, United States</strong>, with exclusive jurisdiction in the courts located in Florida. <strong>BOTH PARTIES KNOWINGLY AND VOLUNTARILY WAIVE ANY RIGHT TO A TRIAL BY JURY</strong> in any proceeding relating to this agreement, and agree to resolve claims solely on an individual basis, waiving participation in class action suits (Class Action Waiver).
+                                    </p>
+
+                                    <div className="mt-6 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-500 uppercase tracking-widest text-center">
+                                        Version v2.0 (Florida Law Compliance) • Exo Advance LLC • Last Updated: October 2026
                                     </div>
                                 </>
                             )}

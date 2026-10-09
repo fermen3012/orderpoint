@@ -187,7 +187,8 @@ export async function createSecureOrder(input: CreateOrderInput) {
                 total_amount: calculatedTotal,
                 status: 'pending',
                 order_number: nextNumber,
-                order_type: input.order_type
+                order_type: input.order_type,
+                source: 'kiosk'
             })
             .select()
             .single();

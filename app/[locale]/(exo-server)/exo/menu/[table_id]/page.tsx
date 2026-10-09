@@ -9,8 +9,10 @@ import { useRestaurantStore } from '@/store/restaurant-store';
 import { Loader2, ArrowLeft, Send, LogOut, Trash2, AlertTriangle, CheckCircle2, Sparkles, X as CloseIcon, Receipt, Plus, Utensils, Clock } from 'lucide-react';
 import { useRouter } from '@/i18n/routing';
 import { formatPrice, cn, getLocalizedValue } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 export default function MenuPage({ params }: { params: Promise<{ table_id: string }> }) {
+    const t = useTranslations('exo');
     const resolvedParams = use(params);
     const tableId = resolvedParams.table_id;
     const urlParams = useParams();
@@ -206,22 +208,22 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
         switch (status) {
             case 'pending':
                 return {
-                    label: locale === 'es' ? 'Pendiente' : 'Pending',
+                    label: t('statusPending'),
                     className: 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                 };
             case 'preparing':
                 return {
-                    label: locale === 'es' ? 'En Cocina' : 'Preparing',
+                    label: t('statusPreparing'),
                     className: 'bg-blue-500/10 text-blue-400 border-blue-500/20'
                 };
             case 'ready':
                 return {
-                    label: locale === 'es' ? 'Listo' : 'Ready',
+                    label: t('statusReady'),
                     className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                 };
             case 'completed':
                 return {
-                    label: locale === 'es' ? 'Servido' : 'Served',
+                    label: t('statusCompleted'),
                     className: 'bg-slate-700/30 text-slate-400 border-slate-700/50'
                 };
             default:
@@ -373,7 +375,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
                 <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
-                <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Preparando Menú...</p>
+                <p className="text-slate-400 font-black uppercase tracking-widest text-xs">{t('loadingMenu')}</p>
             </div>
         );
     }
@@ -393,14 +395,14 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                         <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">{restaurantName || 'OrderPoint'}</span>
                     </div>
                     <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">
-                        Mesa <span className="text-emerald-500">#{table?.number || tableId.substring(0, 3)}</span>
+                        {t('table')} <span className="text-emerald-500">#{table?.number || tableId.substring(0, 3)}</span>
                     </h2>
                     <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">
                         {isOccupiedByOther
-                            ? (locale === 'es' ? `Ocupada por ${table?.waitress?.full_name || 'otro personal'}` : `Occupied by ${table?.waitress?.full_name || 'other staff'}`)
+                            ? t('occupiedByOther', { name: table?.waitress?.full_name || t('occupiedByOtherStaff') })
                             : (tableOrders.length > 0
-                                ? (locale === 'es' ? `Comanda Activa • ${totalItemsOrdered} productos` : `Active Order • ${totalItemsOrdered} items`)
-                                : (locale === 'es' ? 'Mesa Disponible' : 'Table Available'))}
+                                ? t('activeOrder', { count: totalItemsOrdered })
+                                : t('tableAvailable'))}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -408,7 +410,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                         <button
                             onClick={() => setIsVaciarModalOpen(true)}
                             className="p-3 bg-amber-500/10 text-amber-500 rounded-2xl border border-amber-500/20 active:scale-90 transition-transform group"
-                            title="Desocupar Mesa"
+                            title={t('vacateTableTitle')}
                         >
                             <Trash2 className="w-6 h-6 group-hover:rotate-12 transition-transform" />
                         </button>
@@ -419,7 +421,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                             router.push('/login');
                         }}
                         className="p-3 bg-red-500/10 text-red-500 rounded-2xl border border-red-500/20 active:scale-90 transition-transform group"
-                        title="Cerrar Sesión"
+                        title={t('signOut')}
                     >
                         <LogOut className="w-6 h-6 group-hover:rotate-12 transition-transform" />
                     </button>
@@ -432,9 +434,9 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                         <AlertTriangle className="w-6 h-6 text-slate-900" />
                     </div>
                     <div>
-                        <p className="text-amber-500 font-black uppercase tracking-widest text-[10px]">Atención</p>
+                        <p className="text-amber-500 font-black uppercase tracking-widest text-[10px]">{t('attention')}</p>
                         <p className="text-slate-300 text-sm font-bold">
-                            Esta mesa está siendo atendida por <span className="text-white font-black">{table?.waitress?.full_name || 'otra persona'}</span>. No puedes modificar sus órdenes.
+                            {t('attentionDesc', { name: table?.waitress?.full_name || t('anotherPerson') })}
                         </p>
                     </div>
                 </div>
@@ -452,7 +454,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                     )}
                 >
                     <Receipt className="w-4 h-4" />
-                    <span>{locale === 'es' ? 'Comanda' : 'Orders'} {tableOrders.length > 0 && `(${tableOrders.length})`}</span>
+                    <span>{t('tabOrders')} {tableOrders.length > 0 && `(${tableOrders.length})`}</span>
                 </button>
                 <button
                     onClick={() => setShowMenu(true)}
@@ -464,7 +466,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                     )}
                 >
                     <Utensils className="w-4 h-4" />
-                    <span>{locale === 'es' ? 'Menú / Agregar' : 'Menu / Add'}</span>
+                    <span>{t('tabMenuAdd')}</span>
                 </button>
             </div>
 
@@ -475,10 +477,10 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                     <div className="p-6 bg-slate-900 rounded-[32px] border border-slate-800 shadow-xl relative overflow-hidden">
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-                                {locale === 'es' ? 'Total de la Venta' : 'Total Sales'}
+                                {t('totalSales')}
                             </span>
                             <span className="text-slate-400 text-xs font-bold">
-                                {tableOrders.length} {tableOrders.length === 1 ? (locale === 'es' ? 'orden' : 'order') : (locale === 'es' ? 'órdenes' : 'orders')} • {totalItemsOrdered} {locale === 'es' ? 'artículos' : 'items'}
+                                {t('ordersCount', { count: tableOrders.length })} • {t('itemsCount', { count: totalItemsOrdered })}
                             </span>
                         </div>
                         <div className="flex items-baseline justify-between mt-2">
@@ -491,7 +493,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                                     ? "bg-gradient-to-r from-red-500/20 to-rose-500/10 text-red-400 border-red-500/40 shadow-[0_0_12px_rgba(239,68,68,0.25)]"
                                     : "bg-gradient-to-r from-emerald-500/20 to-teal-500/10 text-emerald-400 border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.25)]"
                             )}>
-                                {table?.waitress_id ? (locale === 'es' ? 'Mesa Ocupada' : 'Occupied') : (locale === 'es' ? 'Mesa Disponible' : 'Available')}
+                                {table?.waitress_id ? t('tableOccupied') : t('tableAvailable')}
                             </span>
                         </div>
                     </div>
@@ -501,10 +503,10 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                         <div className="text-center py-16 bg-slate-900/40 rounded-[32px] border-2 border-dashed border-slate-800 p-8">
                             <Receipt className="w-12 h-12 text-slate-600 mx-auto mb-4" />
                             <p className="text-white font-black text-lg uppercase italic tracking-tighter mb-1">
-                                {locale === 'es' ? 'Mesa sin pedidos activos' : 'No active orders on this table'}
+                                {t('noActiveOrders')}
                             </p>
                             <p className="text-slate-500 text-xs font-bold mb-6">
-                                {locale === 'es' ? 'Abre el menú para tomar la primera comanda de la mesa.' : 'Open the menu to take the first order for this table.'}
+                                {t('noActiveOrdersDesc')}
                             </p>
                             {!isOccupiedByOther && (
                                 <button
@@ -512,7 +514,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                                     className="inline-flex items-center gap-2 px-6 py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-900 rounded-2xl font-black uppercase tracking-wider text-xs shadow-lg transition-all active:scale-95"
                                 >
                                     <Plus className="w-4 h-4 stroke-[3]" />
-                                    <span>{locale === 'es' ? 'Abrir Menú y Ordenar' : 'Open Menu & Order'}</span>
+                                    <span>{t('openMenuAndOrder')}</span>
                                 </button>
                             )}
                         </div>
@@ -520,10 +522,10 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                         <div className="space-y-4">
                             <div className="flex items-center justify-between px-2">
                                 <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">
-                                    {locale === 'es' ? 'Detalle de Comandas' : 'Orders Breakdown'}
+                                    {t('ordersBreakdown')}
                                 </h3>
                                 <span className="text-[10px] text-slate-500 font-bold uppercase">
-                                    {locale === 'es' ? 'En Vivo' : 'Live'}
+                                    {t('live')}
                                 </span>
                             </div>
 
@@ -534,7 +536,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                                         <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
                                             <div className="flex items-center gap-2.5">
                                                 <span className="font-black text-white text-base italic tracking-tighter uppercase">
-                                                    {locale === 'es' ? 'ORDEN' : 'ORDER'} #{order.order_number}
+                                                    {t('orderNumber', { number: order.order_number })}
                                                 </span>
                                                 <span className="text-[10px] font-bold text-slate-500">
                                                     • {new Date(order.created_at).toLocaleTimeString(locale === 'es' ? 'es-SV' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
@@ -547,7 +549,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
 
                                         <div className="space-y-2">
                                             {order.order_items?.map((item: any, idx: number) => (
-                                                <div key={item.id || idx} className="flex justify-between items-start gap-3 py-1">
+                                                 <div key={item.id || idx} className="flex justify-between items-start gap-3 py-1">
                                                     <div className="flex items-start gap-2.5 flex-1 min-w-0">
                                                         <span className="min-w-6 h-6 rounded-lg bg-slate-800 text-emerald-400 font-black text-xs flex items-center justify-center flex-shrink-0">
                                                             {item.quantity}
@@ -567,7 +569,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                                                             )}
                                                             {item.removed_ingredients && item.removed_ingredients.length > 0 && (
                                                                 <p className="text-[9px] font-bold text-red-400 mt-0.5">
-                                                                    {locale === 'es' ? 'Sin' : 'No'}: {item.removed_ingredients.map((ri: any) => ri.name || ri).join(', ')}
+                                                                    {t('noIngredients')}: {item.removed_ingredients.map((ri: any) => ri.name || ri).join(', ')}
                                                                 </p>
                                                             )}
                                                         </div>
@@ -581,7 +583,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
 
                                         <div className="flex justify-between items-center pt-2 border-t border-slate-800/40 text-xs">
                                             <span className="text-slate-500 font-bold uppercase text-[10px]">
-                                                {locale === 'es' ? 'Subtotal Comanda' : 'Order Subtotal'}
+                                                {t('orderSubtotal')}
                                             </span>
                                             <span className="font-black text-emerald-400">
                                                 {formatPrice(Number(order.total_amount), locale === 'es' ? 'es-SV' : 'en-US')}
@@ -603,7 +605,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                                 <div className="w-7 h-7 rounded-full bg-slate-900 text-emerald-400 flex items-center justify-center group-hover:rotate-90 transition-transform">
                                     <Plus className="w-4 h-4 stroke-[3]" />
                                 </div>
-                                <span>{locale === 'es' ? 'Mostrar Menú y Agregar Más' : 'Show Menu & Add More'}</span>
+                                <span>{t('showMenuAddMore')}</span>
                             </button>
                         </div>
                     )}
@@ -619,11 +621,11 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                             className="flex items-center gap-2 text-emerald-400 font-black uppercase text-xs tracking-wider hover:text-emerald-300 transition-colors"
                         >
                             <ArrowLeft className="w-4 h-4" />
-                            <span>{locale === 'es' ? 'Ver Comanda de la Mesa' : 'View Table Order'}</span>
+                            <span>{t('viewTableOrder')}</span>
                         </button>
                         <div className="text-right">
                             <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">
-                                {locale === 'es' ? 'Venta Acumulada' : 'Current Total'}
+                                {t('currentTotal')}
                             </span>
                             <span className="text-emerald-500 font-black text-sm italic">
                                 {formatPrice(totalVenta, locale === 'es' ? 'es-SV' : 'en-US')}
@@ -649,7 +651,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                                         <span className="text-emerald-500 font-black text-xs">{getCartCount()}</span>
                                     </div>
                                     <span className="text-xl font-black uppercase italic tracking-tighter">
-                                        {isSending ? (locale === 'es' ? 'Enviando...' : 'Sending...') : (locale === 'es' ? 'Enviar a Cocina' : 'Send to Kitchen')}
+                                        {isSending ? t('sending') : t('sendToKitchen')}
                                     </span>
                                 </div>
                                 <span className="text-2xl font-black tracking-tighter italic">
@@ -669,9 +671,9 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                             <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-amber-500/20">
                                 <AlertTriangle className="w-10 h-10 text-amber-500" />
                             </div>
-                            <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-2">¿Desocupar Mesa?</h3>
+                            <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-2">{t('vacateConfirmTitle')}</h3>
                             <p className="text-slate-500 font-bold text-sm">
-                                Se eliminará la asignación actual. La mesa quedará libre para que cualquier mesera pueda tomar órdenes.
+                                {t('vacateConfirmDesc')}
                             </p>
                         </div>
                         <div className="p-6 bg-slate-800/50 border-t border-slate-800 flex flex-col gap-3">
@@ -680,13 +682,13 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                                 disabled={isVaciarLoading}
                                 className="w-full py-4 bg-amber-500 hover:bg-amber-400 text-slate-900 rounded-2xl font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50"
                             >
-                                {isVaciarLoading ? 'Limpiando...' : 'Sí, Vaciar Mesa'}
+                                {isVaciarLoading ? t('vacateLoading') : t('vacateButton')}
                             </button>
                             <button
                                 onClick={() => setIsVaciarModalOpen(false)}
                                 className="w-full py-4 bg-slate-700 hover:bg-slate-600 text-white rounded-2xl font-black uppercase tracking-widest transition-all active:scale-95"
                             >
-                                Cancelar
+                                {t('cancel')}
                             </button>
                         </div>
                     </div>
@@ -711,12 +713,11 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-center gap-2">
                                         <Sparkles className="w-4 h-4 text-emerald-500 animate-pulse" />
-                                        <h3 className="text-3xl font-black text-white italic tracking-tighter uppercase">¡Enviado!</h3>
+                                        <h3 className="text-3xl font-black text-white italic tracking-tighter uppercase">{t('orderSentSuccess')}</h3>
                                         <Sparkles className="w-4 h-4 text-emerald-500 animate-pulse" />
                                     </div>
-                                    <p className="text-slate-400 font-bold text-sm leading-tight">
-                                        El pedido se ha enviado con éxito.<br />
-                                        ¡La cocina ya está en marcha!
+                                    <p className="text-slate-400 font-bold text-sm leading-tight whitespace-pre-line">
+                                        {t('orderSentSuccessDesc')}
                                     </p>
                                 </div>
                             </div>
@@ -729,7 +730,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                                 }}
                                 className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-900 rounded-[2rem] font-black uppercase tracking-widest text-xs transition-all active:scale-95 shadow-[0_10px_20px_rgba(16,185,129,0.2)]"
                             >
-                                {locale === 'es' ? 'Ver Comanda de la Mesa' : 'View Table Order'}
+                                {t('viewTableOrder')}
                             </button>
                             <button
                                 onClick={() => {
@@ -738,7 +739,7 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                                 }}
                                 className="w-full py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-[2rem] font-black uppercase tracking-widest text-xs transition-all active:scale-95"
                             >
-                                {locale === 'es' ? 'Ir al Salón de Mesas' : 'Back to Tables'}
+                                {t('backToTables')}
                             </button>
                         </div>
                     </div>

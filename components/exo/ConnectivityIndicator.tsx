@@ -5,8 +5,10 @@ import { useExoCartStore } from '@/store/exo-cart-store';
 import { createClient } from '@/lib/supabase/browser';
 import { Wifi, WifiOff, RefreshCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 export default function ConnectivityIndicator() {
+    const t = useTranslations('exo');
     const [mounted, setMounted] = useState(false);
     const { isOnline, isSupabaseConnected, setConnectivity, pendingOrdersCount } = useExoCartStore();
     const supabase = createClient();
@@ -65,7 +67,7 @@ export default function ConnectivityIndicator() {
                     ? "text-slate-500"
                     : isConnected ? "text-emerald-500" : "text-orange-500"
             )}>
-                {!mounted ? '...' : (isConnected ? 'Online' : 'Offline')}
+                {!mounted ? '...' : (isConnected ? t('online') : t('offline'))}
             </span>
 
             {mounted && (

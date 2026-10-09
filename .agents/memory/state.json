@@ -112,6 +112,18 @@
         "description": "Exo Server: Sistema Ágil de Personalización de Ingredientes y Modificadores para Meseros. Bottom Sheet ergonómico móvil táctil para quitar ingredientes con un toque (chips neón rojo '✕ Sin [Ingrediente]'), añadir modificadores (+ extras), notas rápidas de cocina ('Bien Cocido', 'Salsa Aparte') y persistencia directa a order_items.removed_ingredients sin requerir migraciones de Supabase (compatible con KDS Cocina y Admin).",
         "status": "COMPLETED",
         "verification": "tsc --noEmit exit 0 (0 errores de tipo), comprobación exitosa en Supabase con product_ingredients y order_items.removed_ingredients."
+      },
+      {
+        "id": "M19",
+        "description": "Exo Advance Multi-idioma (ES / EN) y Agente Especialista en Traducciones: Creación y registro de translation_i18n_specialist y skill translation-i18n. Implementación de botón switch con esquinas redondeadas (ExoLanguageSwitch) en header de Exo Server. Catálogo completo de traducciones en messages/es.json y messages/en.json bajo el namespace 'exo'. Traducción exclusiva de todo el módulo Exo (Salón, Mesas, Comanda, Menú, Personalizador de Ingredientes y Modales) sin afectar otros módulos.",
+        "status": "COMPLETED",
+        "verification": "tsc --noEmit exit 0; endpoints /es/exo/tables y /en/exo/tables respondiendo 200 OK; paridad total de claves es.json y en.json."
+      },
+      {
+        "id": "M20",
+        "description": "Términos y Condiciones Legales B2B SaaS con Cumplimiento de Leyes de Florida: Rediseño profesional y exhaustivo del contrato legal para propietarios (Admin Owner) al aceptar su invitación (set-password/page.tsx y legal/terms/page.tsx). Incorpora validez de firma electrónica (Florida UETA, Fla. Stat. § 668.50), deslinde de responsabilidad sanitaria y alérgenos (Florida DBPR / Dept of Health), Merchant of Record y retención de Florida Sales Tax (Fla. Stat. Cap. 212), protección de datos (Florida FIPA, Fla. Stat. § 501.171), limitación de responsabilidad, renuncia a juicio por jurado y renuncia a demandas colectivas (Class Action Waiver) con jurisdicción exclusiva en el Estado de Florida. Bilingüe (Español / Inglés).",
+        "status": "COMPLETED",
+        "verification": "tsc --noEmit exit 0; endpoints /es/legal/terms y /en/legal/terms respondiendo 200 OK; registro de terms_version: 'v2.0-FL' en base de datos."
       }
     ],
     "active_priorities": [

@@ -18,7 +18,10 @@ import {
     Loader2,
     RefreshCw,
     Download,
-    X as CloseIcon
+    X as CloseIcon,
+    Smartphone,
+    Monitor,
+    User
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -49,7 +52,46 @@ interface Order {
     order_items: OrderItem[];
     table?: { number: string } | null;
     tables?: { number: string } | null;
+    table_id?: string | null;
+    waitress_id?: string | null;
+    source?: string | null;
+    waitress?: { full_name: string } | null;
 }
+
+const getOrderOrigin = (order: Order, locale: string) => {
+    const isExoServer = order.source === 'exo_server' || order.source === 'exo_server_closed' || Boolean(order.waitress_id || order.waitress || order.table_id || order.table);
+    const tableNum = order.table?.number || order.tables?.number;
+    const waitressName = order.waitress?.full_name;
+
+    if (isExoServer) {
+        const parts = ['Exo Server'];
+        if (waitressName) {
+            parts.push(locale === 'es' ? `Mesera: ${waitressName}` : `Waitress: ${waitressName}`);
+        }
+        if (tableNum) {
+            parts.push(locale === 'es' ? `Mesa #${tableNum}` : `Table #${tableNum}`);
+        }
+        return {
+            isExoServer: true,
+            sourceLabel: 'Exo Server',
+            waitressName: waitressName || null,
+            tableNum: tableNum || null,
+            pdfOrigin: parts.join(' • ')
+        };
+    }
+
+    const typeLabel = order.order_type === 'takeout'
+        ? (locale === 'es' ? 'Llevar' : 'Takeout')
+        : (locale === 'es' ? 'Comer Aquí' : 'Dine In');
+
+    return {
+        isExoServer: false,
+        sourceLabel: locale === 'es' ? 'Kiosko' : 'Kiosk',
+        waitressName: null,
+        tableNum: null,
+        pdfOrigin: `${locale === 'es' ? 'Kiosko' : 'Kiosk'} • ${locale === 'es' ? `Orden #${order.order_number}` : `Order #${order.order_number}`} (${typeLabel})`
+    };
+};
 
 const getLocalizedValue = (field: any, currentLang: string): string => {
     if (!field) return '';
@@ -127,6 +169,9 @@ export default function OrdersPage() {
                     *,
                     table:tables (
                         number
+                    ),
+                    waitress:profiles!waitress_id (
+                        full_name
                     ),
                     order_items (
                         *,
@@ -321,12 +366,9 @@ export default function OrdersPage() {
         // Map table rows
         const tableBody = filteredOrders.map(order => {
             const statusInfo = getStatusStyles(order.status);
-            const tableNum = order.table?.number || order.tables?.number;
-            const originLabel = tableNum
-                ? (locale === 'es' ? `Mesa #${tableNum}` : `Table #${tableNum}`)
-                : (order.order_type === 'dine_in' ? (locale === 'es' ? 'Kiosco' : 'Kiosk') : (locale === 'es' ? 'Llevar' : 'Takeout'));
+            const originInfo = getOrderOrigin(order, locale);
             return [
-                `${locale === 'es' ? 'ORDEN' : 'ORDER'} #${order.order_number}\n(${originLabel})`,
+                `${locale === 'es' ? 'ORDEN' : 'ORDER'} #${order.order_number}\n(${originInfo.pdfOrigin})`,
                 order.order_items.map(item => `x${item.quantity} ${getLocalizedValue(item.products?.name, locale)}`).join('\n'),
                 formatPrice(order.total_amount, locale === 'es' ? 'es-SV' : 'en-US'),
                 getPreparationTime(order),
@@ -511,14 +553,57 @@ export default function OrdersPage() {
                                                 {/* Pedido */}
                                                 <td className="px-10 py-8">
                                                     <div>
-                                                        <span className="font-black text-white text-lg italic tracking-tighter uppercase leading-none block">
-                                                            {locale === 'es' ? 'ORDEN' : 'ORDER'} #{order.order_number}
-                                                        </span>
-                                                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-1 block">
-                                                            {order.table?.number || order.tables?.number
-                                                                ? (locale === 'es' ? `Mesa #${order.table?.number || order.tables?.number}` : `Table #${order.table?.number || order.tables?.number}`)
-                                                                : (order.order_type === 'dine_in' ? (locale === 'es' ? 'Kiosco' : 'Kiosk') : (locale === 'es' ? 'Llevar' : 'Takeout'))} • {new Date(order.created_at).toLocaleTimeString(locale === 'es' ? 'es-SV' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
-                                                        </span>
+                                                        <div className="flex items-center gap-2 mb-1.5">
+                                                            <span className="font-black text-white text-lg italic tracking-tighter uppercase leading-none block">
+                                                                {locale === 'es' ? 'ORDEN' : 'ORDER'} #{order.order_number}
+                                                            </span>
+                                                            {(() => {
+                                                                const origin = getOrderOrigin(order, locale);
+                                                                return origin.isExoServer ? (
+                                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                                                                        <Smartphone className="w-2.5 h-2.5" />
+                                                                        Exo Server
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                                                        <Monitor className="w-2.5 h-2.5" />
+                                                                        {locale === 'es' ? 'Kiosko' : 'Kiosk'}
+                                                                    </span>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                                            {(() => {
+                                                                const origin = getOrderOrigin(order, locale);
+                                                                return (
+                                                                    <div className="flex flex-wrap items-center gap-1.5">
+                                                                        {origin.isExoServer ? (
+                                                                            <>
+                                                                                {origin.waitressName && (
+                                                                                    <span className="text-indigo-300 font-black">
+                                                                                        {locale === 'es' ? 'Mesera:' : 'Waitress:'} {origin.waitressName}
+                                                                                    </span>
+                                                                                )}
+                                                                                {origin.waitressName && origin.tableNum && <span>•</span>}
+                                                                                {origin.tableNum && (
+                                                                                    <span className="text-emerald-400 font-black">
+                                                                                        {locale === 'es' ? `Mesa #${origin.tableNum}` : `Table #${origin.tableNum}`}
+                                                                                    </span>
+                                                                                )}
+                                                                            </>
+                                                                        ) : (
+                                                                            <span className="text-amber-400 font-black">
+                                                                                {locale === 'es' ? `Kiosko #${order.order_number}` : `Kiosk #${order.order_number}`} ({order.order_type === 'dine_in' ? (locale === 'es' ? 'Comer Aquí' : 'Dine In') : (locale === 'es' ? 'Llevar' : 'Takeout')})
+                                                                            </span>
+                                                                        )}
+                                                                        <span className="text-slate-600">•</span>
+                                                                        <span className="text-slate-500">
+                                                                            {new Date(order.created_at).toLocaleTimeString(locale === 'es' ? 'es-SV' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                                                                        </span>
+                                                                    </div>
+                                                                );
+                                                            })()}
+                                                        </div>
                                                     </div>
                                                 </td>
                                                 {/* Productos */}
@@ -581,28 +666,65 @@ export default function OrdersPage() {
                                 >
                                     <div className="flex justify-between items-start mb-6">
                                         <div>
-                                            <div className="flex items-center gap-3 mb-2">
+                                            <div className="flex flex-wrap items-center gap-2 mb-2">
                                                 <span className="font-black text-2xl text-white italic tracking-tighter">
                                                     {locale === 'es' ? 'ORDEN' : 'ORDER'} #{order.order_number}
                                                 </span>
                                                 <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border ${statusInfo.bg}`}>
                                                     {statusInfo.label}
                                                 </span>
+                                                {(() => {
+                                                    const origin = getOrderOrigin(order, locale);
+                                                    return origin.isExoServer ? (
+                                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                                                            <Smartphone className="w-2.5 h-2.5" />
+                                                            Exo Server
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                                            <Monitor className="w-2.5 h-2.5" />
+                                                            {locale === 'es' ? 'Kiosko' : 'Kiosk'}
+                                                        </span>
+                                                    );
+                                                })()}
                                             </div>
-                                            <div className="flex items-center gap-1.5 text-slate-500 text-[10px] font-black uppercase tracking-wider">
-                                                <Clock className="w-3.5 h-3.5" />
-                                                <span>
-                                                    {new Date(order.created_at).toLocaleTimeString(locale === 'es' ? 'es-SV' : 'en-US', {
-                                                        hour: '2-digit',
-                                                        minute: '2-digit'
-                                                    })}
-                                                </span>
-                                                <span className="text-slate-700">•</span>
-                                                <span className="text-slate-400">
-                                                    {order.table?.number || order.tables?.number
-                                                        ? (locale === 'es' ? `Mesa #${order.table?.number || order.tables?.number}` : `Table #${order.table?.number || order.tables?.number}`)
-                                                        : (order.order_type === 'dine_in' ? (locale === 'es' ? 'Kiosco' : 'Kiosk') : (locale === 'es' ? 'Llevar' : 'Takeout'))}
-                                                </span>
+                                            <div className="flex flex-wrap items-center gap-1.5 text-slate-400 text-[10px] font-black uppercase tracking-wider">
+                                                {(() => {
+                                                    const origin = getOrderOrigin(order, locale);
+                                                    return (
+                                                        <>
+                                                            {origin.isExoServer ? (
+                                                                <>
+                                                                    {origin.waitressName && (
+                                                                        <span className="text-indigo-300 font-black">
+                                                                            {locale === 'es' ? 'Mesera:' : 'Waitress:'} {origin.waitressName}
+                                                                        </span>
+                                                                    )}
+                                                                    {origin.waitressName && origin.tableNum && <span>•</span>}
+                                                                    {origin.tableNum && (
+                                                                        <span className="text-emerald-400 font-black">
+                                                                            {locale === 'es' ? `Mesa #${origin.tableNum}` : `Table #${origin.tableNum}`}
+                                                                        </span>
+                                                                    )}
+                                                                </>
+                                                            ) : (
+                                                                <span className="text-amber-400 font-black">
+                                                                    {locale === 'es' ? `Kiosko #${order.order_number}` : `Kiosk #${order.order_number}`} ({order.order_type === 'dine_in' ? (locale === 'es' ? 'Comer Aquí' : 'Dine In') : (locale === 'es' ? 'Llevar' : 'Takeout')})
+                                                                </span>
+                                                            )}
+                                                            <span className="text-slate-700">•</span>
+                                                            <div className="flex items-center gap-1 text-slate-500">
+                                                                <Clock className="w-3.5 h-3.5" />
+                                                                <span>
+                                                                    {new Date(order.created_at).toLocaleTimeString(locale === 'es' ? 'es-SV' : 'en-US', {
+                                                                        hour: '2-digit',
+                                                                        minute: '2-digit'
+                                                                    })}
+                                                                </span>
+                                                            </div>
+                                                        </>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
 
@@ -670,11 +792,30 @@ export default function OrdersPage() {
                                     <span className="text-2xl font-black text-slate-900 tracking-tighter">#{selectedOrder.order_number}</span>
                                 </div>
                                 <div>
-                                    <div className="flex items-center gap-3 mb-1">
+                                    <div className="flex flex-wrap items-center gap-2 mb-1">
                                         <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase">{t('orderDetails')}</h2>
+                                        {(() => {
+                                            const origin = getOrderOrigin(selectedOrder, locale);
+                                            return origin.isExoServer ? (
+                                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                                                    <Smartphone className="w-3 h-3" />
+                                                    Exo Server
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                                    <Monitor className="w-3 h-3" />
+                                                    {locale === 'es' ? 'Kiosko' : 'Kiosk'}
+                                                </span>
+                                            );
+                                        })()}
                                         {(selectedOrder.table?.number || selectedOrder.tables?.number) && (
                                             <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                                                 {locale === 'es' ? `Mesa #${selectedOrder.table?.number || selectedOrder.tables?.number}` : `Table #${selectedOrder.table?.number || selectedOrder.tables?.number}`}
+                                            </span>
+                                        )}
+                                        {selectedOrder.waitress?.full_name && (
+                                            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                                                {locale === 'es' ? `Mesera: ${selectedOrder.waitress.full_name}` : `Waitress: ${selectedOrder.waitress.full_name}`}
                                             </span>
                                         )}
                                     </div>

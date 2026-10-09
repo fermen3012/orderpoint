@@ -4,6 +4,7 @@ import { useRouter } from '@/i18n/routing';
 import { useExoCartStore } from '@/store/exo-cart-store';
 import { cn } from '@/lib/utils';
 import { Utensils } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface Table {
     id: string;
@@ -17,6 +18,7 @@ interface TableGridProps {
 }
 
 export default function TableGrid({ tables }: TableGridProps) {
+    const t = useTranslations('exo');
     const router = useRouter();
     const setTableId = useExoCartStore((state) => state.setTableId);
 
@@ -61,11 +63,11 @@ export default function TableGrid({ tables }: TableGridProps) {
                             "text-[9px] sm:text-[10px] uppercase font-black tracking-widest mt-1 block",
                             table.status === 'occupied' ? "text-red-400 drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]" : "text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.6)]"
                         )}>
-                            {table.status === 'occupied' ? 'Ocupada' : 'Disponible'}
+                            {table.status === 'occupied' ? t('tableStatusOccupied') : t('tableStatusAvailable')}
                         </span>
                         {table.status === 'occupied' && (
                             <span className="text-[9px] sm:text-[10px] font-black text-rose-200/90 truncate block mt-1 tracking-tight uppercase bg-red-950/60 px-2 py-0.5 rounded-full border border-red-500/30 max-w-[95%] mx-auto shadow-sm">
-                                {table.waitress_name || 'En atención'}
+                                {table.waitress_name || t('inService')}
                             </span>
                         )}
                     </div>

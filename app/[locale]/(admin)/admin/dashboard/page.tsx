@@ -15,7 +15,11 @@ import {
     Clock,
     Eye,
     Sparkles,
-    X as CloseIcon
+    X as CloseIcon,
+    Smartphone,
+    Monitor,
+    User,
+    Utensils
 } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 
@@ -95,7 +99,7 @@ export default function DashboardPage() {
             // Fetch stats
             const [ordersRes, productsRes, categoriesRes] = await Promise.all([
                 (supabase.from('orders') as any)
-                    .select('*, order_items(*, products(name))')
+                    .select('*, table:tables(number), waitress:profiles!waitress_id(full_name), order_items(*, products(name))')
                     .eq('restaurant_id', restaurantId),
                 (supabase.from('products') as any)
                     .select('*', { count: 'exact', head: true })
@@ -230,13 +234,37 @@ export default function DashboardPage() {
                                         <span className="text-xl font-black text-white tracking-tighter">{order.order_number}</span>
                                     </div>
                                     <div>
-                                        <div className="flex items-center gap-2 mb-1">
+                                        <div className="flex flex-wrap items-center gap-2 mb-1">
                                             <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${order.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
                                                 order.status === 'pending' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
                                                     'bg-blue-500/10 text-blue-500 border border-blue-500/20'
                                                 }`}>
                                                 {t(`status${order.status.charAt(0).toUpperCase() + order.status.slice(1)}` as any) || order.status}
                                             </span>
+                                            {(() => {
+                                                const isExo = order.source === 'exo_server' || order.source === 'exo_server_closed' || Boolean(order.waitress_id || order.waitress || order.table_id || order.table);
+                                                return isExo ? (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                                                        <Smartphone className="w-2.5 h-2.5" />
+                                                        Exo Server
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                                        <Monitor className="w-2.5 h-2.5" />
+                                                        {locale === 'es' ? 'Kiosko' : 'Kiosk'}
+                                                    </span>
+                                                );
+                                            })()}
+                                            {order.waitress?.full_name && (
+                                                <span className="text-[10px] font-black text-indigo-300">
+                                                    {locale === 'es' ? 'Mesera:' : 'Waitress:'} {order.waitress.full_name}
+                                                </span>
+                                            )}
+                                            {(order.table?.number || order.tables?.number) && (
+                                                <span className="text-[10px] font-black text-emerald-400">
+                                                    {locale === 'es' ? `Mesa #${order.table?.number || order.tables?.number}` : `Table #${order.table?.number || order.tables?.number}`}
+                                                </span>
+                                            )}
                                             <span className="text-[10px] font-bold text-slate-500">
                                                 {mounted ? new Date(order.created_at).toLocaleTimeString(locale === 'es' ? 'es-SV' : 'en-US', { hour: '2-digit', minute: '2-digit' }) : ''}
                                             </span>
@@ -325,7 +353,33 @@ export default function DashboardPage() {
                                     <span className="text-2xl font-black text-slate-900 tracking-tighter">{selectedOrder.order_number}</span>
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-1">{t('orderDetails')}</h2>
+                                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                                        <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase">{t('orderDetails')}</h2>
+                                        {(() => {
+                                            const isExo = selectedOrder.source === 'exo_server' || selectedOrder.source === 'exo_server_closed' || Boolean(selectedOrder.waitress_id || selectedOrder.waitress || selectedOrder.table_id || selectedOrder.table);
+                                            return isExo ? (
+                                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                                                    <Smartphone className="w-3 h-3" />
+                                                    Exo Server
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                                    <Monitor className="w-3 h-3" />
+                                                    {locale === 'es' ? 'Kiosko' : 'Kiosk'}
+                                                </span>
+                                            );
+                                        })()}
+                                        {(selectedOrder.table?.number || selectedOrder.tables?.number) && (
+                                            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                                {locale === 'es' ? `Mesa #${selectedOrder.table?.number || selectedOrder.tables?.number}` : `Table #${selectedOrder.table?.number || selectedOrder.tables?.number}`}
+                                            </span>
+                                        )}
+                                        {selectedOrder.waitress?.full_name && (
+                                            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                                                {locale === 'es' ? `Mesera: ${selectedOrder.waitress.full_name}` : `Waitress: ${selectedOrder.waitress.full_name}`}
+                                            </span>
+                                        )}
+                                    </div>
                                     <p className="text-slate-500 font-bold text-sm">
                                         {t('processedOn', {
                                             date: mounted ? new Date(selectedOrder.created_at).toLocaleDateString(locale === 'es' ? 'es-SV' : 'en-US') : '',

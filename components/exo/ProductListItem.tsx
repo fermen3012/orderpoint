@@ -3,8 +3,8 @@
 import { Product } from '@/types';
 import { Plus, Minus, Info, SlidersHorizontal } from 'lucide-react';
 import { cn, formatPrice } from '@/lib/utils';
-
 import { useParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 interface ProductListItemProps {
     product: Product;
@@ -15,6 +15,7 @@ interface ProductListItemProps {
 }
 
 export default function ProductListItem({ product, quantity, onAdd, onRemove, onOpenModifiers }: ProductListItemProps) {
+    const t = useTranslations('exo');
     const params = useParams();
     const locale = (params?.locale as string) || 'es';
     const productName = product.name?.[locale] || product.name?.es || (typeof product.name === 'string' ? product.name : '');
@@ -38,14 +39,14 @@ export default function ProductListItem({ product, quantity, onAdd, onRemove, on
                     {productName}
                 </h4>
                 <p className="text-emerald-500 font-black italic tracking-tighter text-lg">
-                    {formatPrice(Number(product.price))}
+                    {formatPrice(Number(product.price), locale === 'es' ? 'es-SV' : 'en-US')}
                 </p>
                 <button
                     onClick={onOpenModifiers}
                     className="mt-1 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-wider transition-colors active:scale-95"
                 >
                     <SlidersHorizontal className="w-3 h-3" />
-                    <span>Personalizar</span>
+                    <span>{t('customize')}</span>
                 </button>
             </div>
 

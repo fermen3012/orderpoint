@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import ConnectivityIndicator from '@/components/exo/ConnectivityIndicator';
+import ExoLanguageSwitch from '@/components/exo/ExoLanguageSwitch';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 
@@ -45,7 +46,8 @@ export default async function ExoLayout({
                     <h1 className="text-xl font-black uppercase tracking-tighter italic">Exo Server</h1>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                    <ExoLanguageSwitch />
                     <ConnectivityIndicator />
                 </div>
             </header>

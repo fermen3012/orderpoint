@@ -6,8 +6,10 @@ import TableGrid from '@/components/exo/TableGrid';
 import { Loader2, Search, LogOut } from 'lucide-react';
 import { useRestaurantStore } from '@/store/restaurant-store';
 import { useRouter } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 
 export default function TablesPage() {
+    const t = useTranslations('exo');
     const supabase = createClient();
     const router = useRouter();
     const { restaurantName, setRestaurant } = useRestaurantStore();
@@ -88,7 +90,7 @@ export default function TablesPage() {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
                 <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
-                <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Cargando Salón...</p>
+                <p className="text-slate-400 font-black uppercase tracking-widest text-xs">{t('loadingFloor')}</p>
             </div>
         );
     }
@@ -102,7 +104,7 @@ export default function TablesPage() {
                             <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">{restaurantName || 'OrderPoint'}</span>
                         </div>
                         <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">
-                            Selecciona <span className="text-emerald-500">Mesa</span>
+                            {t('select')} <span className="text-emerald-500">{t('table')}</span>
                         </h2>
                     </div>
                     <button
@@ -111,7 +113,7 @@ export default function TablesPage() {
                             router.push('/login');
                         }}
                         className="p-3 bg-red-500/10 text-red-500 rounded-2xl border border-red-500/20 active:scale-90 transition-transform group"
-                        title="Cerrar Sesión"
+                        title={t('signOut')}
                     >
                         <LogOut className="w-6 h-6 group-hover:rotate-12 transition-transform" />
                     </button>
@@ -121,7 +123,7 @@ export default function TablesPage() {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                     <input
                         type="text"
-                        placeholder="Buscar mesa..."
+                        placeholder={t('searchTablePlaceholder')}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full bg-slate-800 border-none rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
@@ -134,7 +136,7 @@ export default function TablesPage() {
             {tables.length === 0 && !loading && (
                 <div className="text-center py-20 bg-slate-800/20 rounded-[32px] border-2 border-dashed border-slate-800">
                     <p className="text-slate-500 font-black uppercase tracking-widest text-xs italic">
-                        No hay mesas configuradas
+                        {t('noTables')}
                     </p>
                 </div>
             )}

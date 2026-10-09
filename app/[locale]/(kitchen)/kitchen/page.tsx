@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { supabase } from '@/lib/supabase/client';
 import { formatPrice, formatOrderNumber } from '@/lib/utils';
-import { Clock, ChefHat, LogOut, Utensils, ShoppingBag } from 'lucide-react';
+import { Clock, ChefHat, LogOut, Utensils, ShoppingBag, Smartphone, Monitor, User } from 'lucide-react';
 import type { Database } from '@/lib/supabase/types';
 import { use } from 'react';
 import { useRouter } from '@/i18n/routing';
@@ -14,6 +14,9 @@ type Order = Database['public']['Tables']['orders']['Row'] & {
     order_type?: 'dine_in' | 'takeout';
     table?: { number: string } | null;
     tables?: { number: string } | null;
+    waitress?: { full_name: string } | null;
+    waitress_id?: string | null;
+    source?: string | null;
 };
 type OrderItem = Database['public']['Tables']['order_items']['Row'];
 
@@ -82,6 +85,9 @@ export default function KitchenPage({ params }: { params: Promise<{ locale: stri
           *,
           table:tables (
             number
+          ),
+          waitress:profiles!waitress_id (
+            full_name
           ),
           order_items (
             *,
@@ -355,6 +361,10 @@ function OrderCard({
         (Date.now() - new Date(order.created_at).getTime()) / 60000
     ) : 0;
 
+    const isExoServer = order.source === 'exo_server' || order.source === 'exo_server_closed' || Boolean(order.waitress_id || order.waitress || order.table_id || order.table);
+    const waitressName = order.waitress?.full_name;
+    const tableNumber = order.table?.number || (order as any).tables?.number;
+
     return (
         <div className="bg-secondary-900/40 backdrop-blur-md rounded-[2.5rem] p-7 shadow-2xl border border-secondary-800/50 hover:border-primary-500/50 transition-all duration-500 group animate-scale-in">
             {/* Order Header */}
@@ -370,8 +380,38 @@ function OrderCard({
                         <span>{t('ago', { time: timeSinceOrder })}</span>
                     </div>
 
-                    {/* Order Type & Table Badges */}
+                    {/* Origin, Order Type & Table Badges */}
                     <div className="flex flex-wrap items-center gap-2 mt-2">
+                        {/* Origin Badge */}
+                        {isExoServer ? (
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black uppercase tracking-widest bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                                <Smartphone className="w-3 h-3 text-purple-400" />
+                                <span>{t('sourceExoServer')}</span>
+                            </div>
+                        ) : (
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black uppercase tracking-widest bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                <Monitor className="w-3 h-3 text-amber-400" />
+                                <span>{t('sourceKiosk')} • {t('orderNumberPrefix', { number: order.order_number })}</span>
+                            </div>
+                        )}
+
+                        {/* Waitress Badge (if Exo Server) */}
+                        {isExoServer && waitressName && (
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black uppercase tracking-widest bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                                <User className="w-3 h-3 text-indigo-400" />
+                                <span>{t('waitress', { name: waitressName })}</span>
+                            </div>
+                        )}
+
+                        {/* Table Badge */}
+                        {tableNumber && (
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                <Utensils className="w-3 h-3 text-emerald-400" />
+                                <span>{t('table', { number: tableNumber })}</span>
+                            </div>
+                        )}
+
+                        {/* Dine In / Takeout Badge */}
                         <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-xl text-xs font-black uppercase tracking-widest ${order.order_type === 'takeout'
                             ? 'bg-orange-500/10 text-orange-500 border border-orange-500/20'
                             : 'bg-primary-500/10 text-primary-500 border border-primary-500/20'
@@ -388,12 +428,6 @@ function OrderCard({
                                 </>
                             )}
                         </div>
-
-                        {(order.table?.number || (order as any).tables?.number) && (
-                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                <span>{t('table', { number: order.table?.number || (order as any).tables?.number })}</span>
-                            </div>
-                        )}
                     </div>
                 </div>
                 <div className={`

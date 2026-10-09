@@ -8,10 +8,11 @@ import ModifierModal from './ModifierModal';
 import { cn, getLocalizedValue } from '@/lib/utils';
 import { Search } from 'lucide-react';
 import { useParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 interface Category {
     id: string;
-    name: string;
+    name: string | { [key: string]: string };
 }
 
 interface QuickOrderMenuProps {
@@ -20,6 +21,7 @@ interface QuickOrderMenuProps {
 }
 
 export default function QuickOrderMenu({ categories, products }: QuickOrderMenuProps) {
+    const t = useTranslations('exo');
     const params = useParams();
     const locale = (params?.locale as string) || 'es';
     const [selectedCategoryId, setSelectedCategoryId] = useState<string>(categories[0]?.id || '');
@@ -71,7 +73,7 @@ export default function QuickOrderMenu({ categories, products }: QuickOrderMenuP
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                 <input
                     type="text"
-                    placeholder="¿Qué desea el cliente?..."
+                    placeholder={t('searchMenuPlaceholder')}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full bg-slate-800 border-none rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
@@ -89,7 +91,7 @@ export default function QuickOrderMenu({ categories, products }: QuickOrderMenuP
                             : "bg-slate-800 border-slate-700 text-slate-400"
                     )}
                 >
-                    Todo
+                    {t('categoryAll')}
                 </button>
                 {categories.map((cat) => (
                     <button
@@ -102,7 +104,7 @@ export default function QuickOrderMenu({ categories, products }: QuickOrderMenuP
                                 : "bg-slate-800 border-slate-700 text-slate-400"
                         )}
                     >
-                        {cat.name}
+                        {getLocalizedValue(cat.name, locale)}
                     </button>
                 ))}
             </div>
@@ -123,7 +125,7 @@ export default function QuickOrderMenu({ categories, products }: QuickOrderMenuP
                 {filteredProducts.length === 0 && (
                     <div className="text-center py-20 bg-slate-800/20 rounded-[32px] border-2 border-dashed border-slate-800">
                         <p className="text-slate-500 font-black uppercase tracking-widest text-xs italic">
-                            No se encontraron productos
+                            {t('noProductsFound')}
                         </p>
                     </div>
                 )}
