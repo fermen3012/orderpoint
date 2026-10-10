@@ -139,7 +139,7 @@ export default function ProductsPageContent({ restaurantId: propRestaurantId }: 
         setLoading(true);
         const [productsRes, categoriesRes, ingredientsRes] = await Promise.all([
             adminSupabase.from('products')
-                .select('*, categories(name)')
+                .select('*, categories(name), product_ingredients(ingredient_id, is_removable, ingredients(id, name))')
                 .eq('restaurant_id', restaurantId)
                 .order('created_at', { ascending: false }),
             adminSupabase.from('categories')
@@ -543,9 +543,31 @@ export default function ProductsPageContent({ restaurantId: propRestaurantId }: 
                                         {formatPrice(product.price, 'es-SV')}
                                     </span>
                                 </div>
-                                <p className="text-slate-500 font-bold text-xs line-clamp-2 mb-8 flex-1">
+                                <p className="text-slate-500 font-bold text-xs line-clamp-2 mb-4 flex-1">
                                     {getLocalized(product.description) || t('noDescription')}
                                 </p>
+
+                                {/* Removable Ingredients preview in card */}
+                                {product.product_ingredients && product.product_ingredients.some((pi: any) => pi.is_removable && pi.ingredients) && (
+                                    <div className="mb-6 flex flex-wrap gap-1.5 items-center">
+                                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mr-1">
+                                            Kiosko / Exo:
+                                        </span>
+                                        {product.product_ingredients
+                                            .filter((pi: any) => pi.is_removable && pi.ingredients)
+                                            .slice(0, 3)
+                                            .map((pi: any) => (
+                                                <span key={pi.ingredient_id} className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                                                    Sin {pi.ingredients.name}
+                                                </span>
+                                            ))}
+                                        {product.product_ingredients.filter((pi: any) => pi.is_removable && pi.ingredients).length > 3 && (
+                                            <span className="text-[9px] font-black text-slate-500 uppercase">
+                                                +{product.product_ingredients.filter((pi: any) => pi.is_removable && pi.ingredients).length - 3}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
 
                                 <div className="flex gap-3">
                                     <button
@@ -758,18 +780,63 @@ export default function ProductsPageContent({ restaurantId: propRestaurantId }: 
 
                                 {/* Ingredients Selection */}
                                 <div className="space-y-4">
-                                    <div className="flex justify-between items-center px-2">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('customizationIngredients')}</label>
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-2">
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse" />
+                                                <label className="text-xs font-black text-white uppercase tracking-wider">
+                                                    {t('customizationIngredients')}
+                                                </label>
+                                            </div>
+                                            <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                                                {t('customizationIngredientsDesc')}
+                                            </p>
+                                        </div>
                                         <button
                                             type="button"
                                             onClick={() => setIsNewIngredientModalOpen(true)}
-                                            className="px-4 py-1.5 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-slate-900 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all transition-colors flex items-center gap-2"
+                                            className="px-4 py-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-slate-900 border border-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 shrink-0 self-start sm:self-auto"
                                         >
-                                            <Plus className="w-3 h-3" />
+                                            <Plus className="w-3.5 h-3.5" />
                                             {t('newIngredient')}
                                         </button>
                                     </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-60 overflow-y-auto pr-4 custom-scrollbar">
+
+                                    {/* Real-time Summary Box of what will be shown in Kiosk and Exo */}
+                                    <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800/80 space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                                {t('kioskAndExoRemovableSummary')}
+                                            </span>
+                                            <span className="text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30">
+                                                {selectedIngredients.filter(si => si.is_removable).length} para Kiosko & Exo
+                                            </span>
+                                        </div>
+                                        {selectedIngredients.some(si => si.is_removable) ? (
+                                            <div className="flex flex-wrap gap-2 pt-1">
+                                                {selectedIngredients
+                                                    .filter(si => si.is_removable)
+                                                    .map(si => {
+                                                        const ing = allIngredients.find(ai => ai.id === si.ingredient_id);
+                                                        return (
+                                                            <span
+                                                                key={si.ingredient_id}
+                                                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-orange-500/10 text-orange-400 border border-orange-500/25 text-[10px] font-black uppercase tracking-wider shadow-sm"
+                                                            >
+                                                                <span>✕</span>
+                                                                <span>Sin {ing?.name || 'Ingrediente'}</span>
+                                                            </span>
+                                                        );
+                                                    })}
+                                            </div>
+                                        ) : (
+                                            <p className="text-[11px] text-slate-500 font-medium italic">
+                                                {t('noRemovableIngredientsNotice')}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-h-72 overflow-y-auto pr-2 custom-scrollbar">
                                         {allIngredients.map((ing) => {
                                             const isSelected = selectedIngredients.some(si => si.ingredient_id === ing.id);
                                             const selectedIng = selectedIngredients.find(si => si.ingredient_id === ing.id);
@@ -777,53 +844,78 @@ export default function ProductsPageContent({ restaurantId: propRestaurantId }: 
                                             return (
                                                 <div
                                                     key={ing.id}
-                                                    className={`p-5 rounded-3xl border transition-all flex flex-col gap-4 ${isSelected
-                                                        ? 'bg-emerald-500/10 border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.1)]'
-                                                        : 'bg-slate-950 border-slate-800'
+                                                    className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${isSelected
+                                                        ? 'bg-slate-900 border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.08)]'
+                                                        : 'bg-slate-950/80 border-slate-800/80 hover:border-slate-700'
                                                         }`}
                                                 >
-                                                    <div className="flex items-center gap-4">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={isSelected}
-                                                            onChange={(e) => {
-                                                                const isChecked = e.target.checked;
-                                                                setSelectedIngredients(prev => isChecked
-                                                                    ? [...prev, { ingredient_id: ing.id, is_removable: true }]
-                                                                    : prev.filter(si => si.ingredient_id !== ing.id)
-                                                                );
-                                                            }}
-                                                            className="w-6 h-6 rounded-lg border-slate-800 bg-slate-900 text-emerald-500 focus:ring-emerald-500/20"
-                                                        />
-                                                        <span className={`font-black uppercase tracking-widest text-[10px] ${isSelected ? 'text-emerald-500' : 'text-slate-500'}`}>
-                                                            {ing.name}
-                                                        </span>
-                                                    </div>
-                                                    {isSelected && (
-                                                        <div className="flex items-center gap-3 pl-10 border-t border-emerald-500/10 pt-4">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <label className="flex items-center gap-3 cursor-pointer select-none flex-1">
                                                             <input
                                                                 type="checkbox"
-                                                                id={`rem-${ing.id}`}
-                                                                checked={selectedIng?.is_removable}
+                                                                checked={isSelected}
                                                                 onChange={(e) => {
                                                                     const isChecked = e.target.checked;
-                                                                    setSelectedIngredients(prev => prev.map(si =>
-                                                                        si.ingredient_id === ing.id ? { ...si, is_removable: isChecked } : si
-                                                                    ));
+                                                                    setSelectedIngredients(prev => isChecked
+                                                                        ? [...prev, { ingredient_id: ing.id, is_removable: true }]
+                                                                        : prev.filter(si => si.ingredient_id !== ing.id)
+                                                                    );
                                                                 }}
-                                                                className="w-4 h-4 rounded border-emerald-500/30 bg-slate-900 text-emerald-500"
+                                                                className="w-5 h-5 rounded-lg border-slate-800 bg-slate-950 text-emerald-500 focus:ring-emerald-500/20 cursor-pointer"
                                                             />
-                                                            <label htmlFor={`rem-${ing.id}`} className="text-[9px] font-black uppercase text-emerald-500/60 tracking-wider cursor-pointer">
-                                                                {t('waiterCanRemove')}
+                                                            <span className={`font-black uppercase tracking-wider text-xs ${isSelected ? 'text-white' : 'text-slate-400'}`}>
+                                                                {ing.name}
+                                                            </span>
+                                                        </label>
+
+                                                        {isSelected && (
+                                                            <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                                                {t('includedInDish')}
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {isSelected && (
+                                                        <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-slate-800/80">
+                                                            <label
+                                                                htmlFor={`rem-${ing.id}`}
+                                                                className="flex items-center gap-2.5 cursor-pointer select-none"
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    id={`rem-${ing.id}`}
+                                                                    checked={selectedIng?.is_removable}
+                                                                    onChange={(e) => {
+                                                                        const isChecked = e.target.checked;
+                                                                        setSelectedIngredients(prev => prev.map(si =>
+                                                                            si.ingredient_id === ing.id ? { ...si, is_removable: isChecked } : si
+                                                                        ));
+                                                                    }}
+                                                                    className="w-4 h-4 rounded border-orange-500/40 bg-slate-950 text-orange-500 focus:ring-orange-500/20 cursor-pointer"
+                                                                />
+                                                                <span className="text-[9px] font-black uppercase text-orange-400 tracking-wider">
+                                                                    {t('waiterCanRemove')}
+                                                                </span>
                                                             </label>
+
+                                                            <span className="text-[8px] font-bold text-slate-500">
+                                                                {selectedIng?.is_removable ? 'Visible en menú' : 'No removible'}
+                                                            </span>
                                                         </div>
                                                     )}
                                                 </div>
                                             );
                                         })}
                                         {allIngredients.length === 0 && (
-                                            <div className="col-span-2 p-8 text-center bg-slate-950 rounded-3xl border border-slate-800 italic text-slate-600 text-xs">
-                                                {t('noIngredientsRegistered')}
+                                            <div className="col-span-2 p-8 text-center bg-slate-950 rounded-3xl border border-dashed border-slate-800 text-slate-500 text-xs font-bold">
+                                                <p className="mb-3">{t('noIngredientsRegistered')}</p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsNewIngredientModalOpen(true)}
+                                                    className="px-5 py-2.5 bg-emerald-500 text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all"
+                                                >
+                                                    {t('newIngredient')}
+                                                </button>
                                             </div>
                                         )}
                                     </div>
