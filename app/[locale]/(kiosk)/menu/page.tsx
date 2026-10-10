@@ -13,7 +13,7 @@ import { buildEscPosReceipt, KioskReceiptData } from '@/lib/escpos';
 import { getModifiersByProduct } from '@/actions/modifiers';
 import { getMenuWithSchedule } from '@/actions/products';
 import LanguageSwitcher from '@/components/kiosk/LanguageSwitcher';
-import { Globe, ShoppingBag, ArrowLeft, Utensils, Search, CheckCircle2, Sparkles, Printer } from 'lucide-react';
+import { Globe, ShoppingBag, ArrowLeft, Utensils, Search, CheckCircle2, Sparkles, Printer, SlidersHorizontal } from 'lucide-react';
 import { useRouter, usePathname } from '@/i18n/routing';
 import { useSearchParams } from 'next/navigation';
 import type { Database } from '@/lib/supabase/types';
@@ -259,6 +259,46 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
         }
     };
 
+    const handleOpenCustomization = async (product: DBProduct) => {
+        setLoading(true);
+        try {
+            const { data: productWithModifiers } = await getModifiersByProduct(product.id);
+            const modifierGroups: UIModifierGroup[] = productWithModifiers?.product_modifier_groups?.map((pmg: any) => {
+                const group = pmg.modifier_groups;
+                return {
+                    id: group.id,
+                    name: group.name,
+                    min_selections: group.min_selections,
+                    max_selections: group.max_selections,
+                    is_required: group.is_required,
+                    options: (group.modifiers || []).map((m: any) => ({
+                        id: m.id,
+                        name: m.name,
+                        price: Number(m.price_extra),
+                        is_available: m.is_available
+                    }))
+                };
+            }) || [];
+
+            const uiProduct: UIProduct = {
+                id: product.id,
+                restaurant_id: product.restaurant_id,
+                category_id: product.category_id,
+                name: product.name,
+                description: product.description,
+                price: Number(product.price),
+                image_url: product.image_url,
+                is_available: product.is_available ?? true,
+                modifier_groups: modifierGroups
+            };
+            setCustomizingProduct(uiProduct);
+        } catch (err) {
+            console.error('Error opening product customization:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleConfirmAdd = (product: any, selectedModifiers: SelectedModifier[], quantity: number, removedIngredients: { id: string; name: string }[]) => {
         addToCart(product, selectedModifiers, quantity, removedIngredients);
         setCustomizingProduct(null);
@@ -432,7 +472,7 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                         {filteredProducts.map((product, idx) => (
                             <div key={product.id} className="animate-in fade-in slide-in-from-bottom-5 duration-700 fill-mode-backwards" style={{ animationDelay: `${idx * 50}ms` }}>
                                 <div
-                                    onClick={() => product.is_available && handleAddToCart(product)}
+                                    onClick={() => product.is_available && handleOpenCustomization(product)}
                                     className="group bg-white rounded-[2.5rem] p-4 shadow-xl shadow-slate-200/50 hover:shadow-2xl hover:shadow-primary-500/10 hover:-translate-y-1 transition-all duration-300 border border-slate-100 h-full flex flex-col cursor-pointer"
                                 >
                                     <div className="relative aspect-square rounded-[2rem] overflow-hidden mb-4 bg-slate-100">
@@ -461,6 +501,7 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                                             }}
                                             disabled={!product.is_available}
                                             className="absolute bottom-4 right-4 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg text-slate-900 group-hover:bg-primary-500 group-hover:text-white transition-all disabled:opacity-0 disabled:pointer-events-none transform translate-y-20 group-hover:translate-y-0 duration-300"
+                                            title={t('addToCart')}
                                         >
                                             <span className="font-bold text-xl">+</span>
                                         </button>
@@ -472,10 +513,23 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                                         <p className="text-sm text-slate-500 font-medium leading-relaxed mb-4 line-clamp-2 flex-1">
                                             {getLocalizedValue(product.description, locale)}
                                         </p>
-                                        <div className="flex items-end justify-between mt-auto pt-4 border-t border-slate-50">
+                                        <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-50 gap-2">
                                             <span className="text-2xl font-black text-slate-900 tracking-tight">
                                                 ${Number(product.price).toFixed(2)}
                                             </span>
+                                            {product.is_available && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleOpenCustomization(product);
+                                                    }}
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 border border-orange-500/20 text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm"
+                                                >
+                                                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                                                    <span>{t('customize')}</span>
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

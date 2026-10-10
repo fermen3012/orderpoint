@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { X, Check, Minus, Plus, ShoppingCart, Info, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
-import { formatPrice, getLocalizedValue } from '@/lib/utils';
+import { cn, formatPrice, getLocalizedValue } from '@/lib/utils';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -19,6 +19,17 @@ import {
     DialogFooter,
     DialogClose,
 } from '@/components/ui/dialog';
+
+const DEFAULT_QUICK_INGREDIENTS = [
+    'Cebolla',
+    'Cilantro',
+    'Salsa',
+    'Picante',
+    'Tomate',
+    'Mayonesa',
+    'Queso',
+    'Sal'
+];
 
 interface ProductModalProps {
     product: Product;
@@ -50,22 +61,41 @@ export function ProductModal({
 
     // --- EFFECTS ---
 
-    // 1. Fetch Ingredients (Removable)
+    // 1. Fetch Ingredients (Removable - with Exo Server fallback parity)
     useEffect(() => {
         if (open && product.id) {
             const fetchIngredients = async () => {
-                const { data } = await supabase
-                    .from('product_ingredients')
-                    .select('*, ingredients(id, name)')
-                    .eq('product_id', product.id)
-                    .eq('is_removable', true);
+                try {
+                    const { data } = await supabase
+                        .from('product_ingredients')
+                        .select('*, ingredients(id, name)')
+                        .eq('product_id', product.id)
+                        .eq('is_removable', true);
 
-                if (data) {
-                    const formattedIngredients = data.map((pi: any) => ({
-                        id: pi.ingredient_id,
-                        name: pi.ingredients.name
-                    }));
-                    setIngredients(formattedIngredients);
+                    if (data && data.length > 0) {
+                        const formattedIngredients = data.map((pi: any) => ({
+                            id: pi.ingredient_id || pi.ingredients?.id || pi.ingredients?.name,
+                            name: pi.ingredients?.name || 'Ingrediente'
+                        }));
+                        setIngredients(formattedIngredients);
+                    } else if (product.removable_ingredients && product.removable_ingredients.length > 0) {
+                        setIngredients(product.removable_ingredients.map((ri: any) => ({
+                            id: ri.id || ri.name,
+                            name: ri.name
+                        })));
+                    } else {
+                        // Respaldo de ingredientes rápidos predeterminados idéntico a Exo Server
+                        setIngredients(DEFAULT_QUICK_INGREDIENTS.map(name => ({
+                            id: name,
+                            name: name
+                        })));
+                    }
+                } catch (err) {
+                    console.error('Error fetching removable ingredients:', err);
+                    setIngredients(DEFAULT_QUICK_INGREDIENTS.map(name => ({
+                        id: name,
+                        name: name
+                    })));
                 }
             };
             fetchIngredients();
@@ -73,7 +103,7 @@ export function ProductModal({
             setQuantity(1);
             setErrorGroup(null);
         }
-    }, [open, product.id]);
+    }, [open, product.id, product.removable_ingredients]);
 
     // 2. Initialize Modifiers State
     useEffect(() => {
@@ -232,44 +262,51 @@ export function ProductModal({
 
                     {/* Removable Ingredients */}
                     {ingredients.length > 0 && (
-                        <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
-                            <div className="flex items-baseline justify-between">
-                                <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">
-                                    {t('customizeTitle')}
-                                </h3>
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                                    {t('optional')}
-                                </span>
+                        <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2.5">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                                    <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">
+                                        {t('removeIngredientsTitle')}
+                                    </h3>
+                                </div>
+                                {removedIngredients.length > 0 ? (
+                                    <span className="text-[11px] font-black uppercase tracking-wider text-red-500 bg-red-100 px-3 py-1 rounded-full border border-red-200 animate-in zoom-in-50">
+                                        {t('removedCount', { count: removedIngredients.length })}
+                                    </span>
+                                ) : (
+                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                        {t('optional')}
+                                    </span>
+                                )}
                             </div>
+                            <p className="text-xs text-slate-500 font-medium">
+                                {t('customizeDesc', { product: getLocalizedValue(product.name, locale) })}
+                            </p>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="flex flex-wrap gap-2.5 pt-1">
                                 {ingredients.map((ing) => {
                                     const isRemoved = removedIngredients.includes(ing.id);
                                     return (
-                                        <div
+                                        <button
                                             key={ing.id}
+                                            type="button"
                                             onClick={() => toggleIngredient(ing.id)}
-                                            className={`
-                                                relative flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer active:scale-[0.98]
-                                                ${isRemoved
-                                                    ? 'bg-red-50 border-red-200 shadow-none grayscale opacity-80'
-                                                    : 'bg-white border-slate-200 hover:border-primary-400 shadow-sm'
-                                                }
-                                            `}
+                                            className={cn(
+                                                "px-4 py-3 rounded-2xl font-black text-sm uppercase tracking-wider transition-all duration-200 flex items-center gap-2.5 border active:scale-95 shadow-sm touch-target",
+                                                isRemoved
+                                                    ? "bg-red-50 border-red-400 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)] line-through"
+                                                    : "bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-400 hover:bg-white"
+                                            )}
                                         >
-                                            <div className="flex items-center gap-3">
-                                                <div className={`
-                                                    w-6 h-6 rounded-full flex items-center justify-center border-2 transition-colors
-                                                    ${isRemoved ? 'border-red-400 bg-red-100' : 'border-primary-500 bg-primary-500'}
-                                                `}>
-                                                    {!isRemoved ? <Check className="w-3 h-3 text-white stroke-[4]" /> : <Minus className="w-3 h-3 text-red-500 stroke-[4]" />}
-                                                </div>
-                                                <span className={`font-bold text-base ${isRemoved ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
-                                                    {ing.name}
-                                                </span>
-                                            </div>
-                                            {isRemoved && <span className="text-[10px] font-black text-red-500 uppercase tracking-wider">{t('removed')}</span>}
-                                        </div>
+                                            <span className={cn(
+                                                "w-5 h-5 rounded-full flex items-center justify-center text-xs font-black shrink-0 transition-colors",
+                                                isRemoved ? "bg-red-500 text-white" : "bg-emerald-500 text-white"
+                                            )}>
+                                                {isRemoved ? '✕' : '✓'}
+                                            </span>
+                                            <span>{isRemoved ? t('without', { name: ing.name }) : ing.name}</span>
+                                        </button>
                                     );
                                 })}
                             </div>

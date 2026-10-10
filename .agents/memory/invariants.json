@@ -64,6 +64,10 @@
     },
     "nextjs_runtime_stability": {
       "rule": "Next.js 15 App Router. Respetar la frontera entre Server Actions y componentes de cliente ('use client'). Asegurar tipado TypeScript estricto en tipos de base de datos."
+    },
+    "orchestrator_transparency_golden_rule": {
+      "unbreakable_rule": true,
+      "rule": "REGLA DE ORO INQUEBRANTABLE: El orquestador SIEMPRE debe mostrar de forma explícita al usuario quién hizo la tarea y a quién asignó la tarea solicitada (identificando claramente el especialista/subagente delegado o si fue ejecutada directamente por el Orquestador Senior), detallando el rol y las acciones realizadas en cada entrega."
     }
   }
 }
