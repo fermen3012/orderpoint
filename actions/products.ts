@@ -169,10 +169,10 @@ export async function getMenuWithSchedule(restaurantId: string, dayOfWeek: numbe
     const supabase = await createClient();
     console.log(`[getMenuWithSchedule] Fetching for Restaurant: ${restaurantId}, Day: ${dayOfWeek}`);
 
-    // 1. Get ALL active products for the restaurant
+    // 1. Get ALL active products with modifier groups and ingredients in a single optimized batch query
     const { data: products, error: prodError } = await (supabase
         .from('products') as any)
-        .select('*')
+        .select('*, modifier_groups:product_modifier_groups(modifier_group:modifier_groups(*, options:modifiers(*))), ingredients:product_ingredients(ingredient_id, is_removable, ingredient:ingredients(id, name))')
         .eq('restaurant_id', restaurantId)
         .eq('is_available', true);
 
@@ -195,7 +195,7 @@ export async function getMenuWithSchedule(restaurantId: string, dayOfWeek: numbe
     // - If it HAS records, check if there is a record for THIS day with is_active=true.
     console.log(`[getMenuWithSchedule] Validating ${products.length} products against ${schedules?.length || 0} rules.`);
 
-    const validProducts = products.filter((product: any) => {
+    const validProducts = (products as any[]).filter((product: any) => {
         const productSchedules = (schedules || []).filter((s: any) => s.product_id === product.id);
 
         // Case A: No schedule at all -> Available
@@ -211,8 +211,32 @@ export async function getMenuWithSchedule(restaurantId: string, dayOfWeek: numbe
         return isKept;
     });
 
-    console.log(`[getMenuWithSchedule] Returning ${validProducts.length} products.`);
-    return validProducts;
+    // Format modifier_groups and removable_ingredients for instant Zero-Lag usage on client
+    const formattedProducts = validProducts.map((p: any) => ({
+        ...p,
+        modifier_groups: p.modifier_groups?.map((pmg: any) => ({
+            id: pmg.modifier_group?.id,
+            name: pmg.modifier_group?.name,
+            min_selections: pmg.modifier_group?.min_selections ?? 0,
+            max_selections: pmg.modifier_group?.max_selections ?? null,
+            is_required: !!pmg.modifier_group?.is_required,
+            options: (pmg.modifier_group?.options || []).map((m: any) => ({
+                id: m.id,
+                name: m.name,
+                price: Number(m.price_extra || 0),
+                is_available: m.is_available ?? true
+            }))
+        })) || [],
+        removable_ingredients: p.ingredients
+            ?.filter((pi: any) => pi.is_removable && pi.ingredient)
+            ?.map((pi: any) => ({
+                id: pi.ingredient.id,
+                name: pi.ingredient.name
+            })) || []
+    }));
+
+    console.log(`[getMenuWithSchedule] Returning ${formattedProducts.length} pre-formatted products.`);
+    return formattedProducts;
 }
 
 export async function createCategoryAction(name: string, restaurantId: string): Promise<any> {

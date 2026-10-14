@@ -61,48 +61,62 @@ export function ProductModal({
 
     // --- EFFECTS ---
 
-    // 1. Fetch Ingredients (Removable - with Exo Server fallback parity)
+    // 1. Fetch Ingredients (Removable - with Zero-Network memory-first parity)
     useEffect(() => {
-        if (open && product.id) {
-            const fetchIngredients = async () => {
-                try {
-                    const { data } = await supabase
-                        .from('product_ingredients')
-                        .select('*, ingredients(id, name)')
-                        .eq('product_id', product.id)
-                        .eq('is_removable', true);
+        if (!open || !product.id) return;
 
-                    if (data && data.length > 0) {
-                        const formattedIngredients = data.map((pi: any) => ({
-                            id: pi.ingredient_id || pi.ingredients?.id || pi.ingredients?.name,
-                            name: pi.ingredients?.name || 'Ingrediente'
-                        }));
-                        setIngredients(formattedIngredients);
-                    } else if (product.removable_ingredients && product.removable_ingredients.length > 0) {
-                        setIngredients(product.removable_ingredients.map((ri: any) => ({
-                            id: ri.id || ri.name,
-                            name: ri.name
-                        })));
-                    } else {
-                        // Respaldo de ingredientes rápidos predeterminados idéntico a Exo Server
-                        setIngredients(DEFAULT_QUICK_INGREDIENTS.map(name => ({
-                            id: name,
-                            name: name
-                        })));
-                    }
-                } catch (err) {
-                    console.error('Error fetching removable ingredients:', err);
+        setRemovedIngredients([]);
+        setQuantity(1);
+        setErrorGroup(null);
+
+        // Si ya vienen precargados en memoria desde getMenuWithSchedule o el Kiosko, usarlos al instante (0ms, 0 requests)
+        if (product.removable_ingredients !== undefined) {
+            if (product.removable_ingredients.length > 0) {
+                setIngredients(product.removable_ingredients.map((ri: any) => ({
+                    id: ri.id || ri.name,
+                    name: ri.name
+                })));
+            } else {
+                setIngredients(DEFAULT_QUICK_INGREDIENTS.map(name => ({
+                    id: name,
+                    name: name
+                })));
+            }
+            return;
+        }
+
+        // Fallback de seguridad por red solo si no vinieran precargados
+        const fetchIngredients = async () => {
+            try {
+                const { data } = await supabase
+                    .from('product_ingredients')
+                    .select('*, ingredients(id, name)')
+                    .eq('product_id', product.id)
+                    .eq('is_removable', true);
+
+                if (data && data.length > 0) {
+                    const formattedIngredients = data.map((pi: any) => ({
+                        id: pi.ingredient_id || pi.ingredients?.id || pi.ingredients?.name,
+                        name: pi.ingredients?.name || 'Ingrediente'
+                    }));
+                    setIngredients(formattedIngredients);
+                } else {
+                    // Respaldo de ingredientes rápidos predeterminados idéntico a Exo Server
                     setIngredients(DEFAULT_QUICK_INGREDIENTS.map(name => ({
                         id: name,
                         name: name
                     })));
                 }
-            };
-            fetchIngredients();
-            setRemovedIngredients([]);
-            setQuantity(1);
-            setErrorGroup(null);
-        }
+            } catch (err) {
+                console.error('Error fetching removable ingredients:', err);
+                setIngredients(DEFAULT_QUICK_INGREDIENTS.map(name => ({
+                    id: name,
+                    name: name
+                })));
+            }
+        };
+
+        fetchIngredients();
     }, [open, product.id, product.removable_ingredients]);
 
     // 2. Initialize Modifiers State

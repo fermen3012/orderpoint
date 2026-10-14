@@ -11,6 +11,7 @@ import type { Database } from '@/lib/supabase/types';
 import Image from 'next/image';
 
 import { getMenuWithSchedule } from '@/actions/products';
+import { useKioskMenuCache } from '@/store/kiosk-menu-cache';
 
 type Category = Database['public']['Tables']['categories']['Row'];
 
@@ -28,15 +29,25 @@ export default function CategoriesPage({ params }: { params: Promise<{ locale: s
     useEffect(() => {
         async function loadCategories() {
             if (!restaurantId) return;
+
+            // 1. Verificación de Caché en Memoria (Zero-Lag / 0 peticiones al servidor si ya está en caché)
+            const cache = useKioskMenuCache.getState();
+            if (cache.isCacheValid(restaurantId)) {
+                setCategories(cache.categories);
+                setLoading(false);
+                return;
+            }
+
             try {
-                // Fetch categories and available products (today)
-                const [categoriesRes, productsRes] = await Promise.all([
+                // Fetch categories, products and restaurant info in parallel
+                const [categoriesRes, productsRes, restRes] = await Promise.all([
                     (supabase
                         .from('categories') as any)
                         .select('*')
                         .eq('restaurant_id', restaurantId)
                         .order('sort_order'),
-                    getMenuWithSchedule(restaurantId, new Date().getDay())
+                    getMenuWithSchedule(restaurantId, new Date().getDay()),
+                    (supabase.from('restaurants') as any).select('name').eq('id', restaurantId).single()
                 ]);
 
                 if (categoriesRes.data && productsRes) {
@@ -45,6 +56,26 @@ export default function CategoriesPage({ params }: { params: Promise<{ locale: s
 
                     const visibleCategories = (categoriesRes.data as any[]).filter(cat => activeCategoryIds.has(cat.id));
                     setCategories(visibleCategories);
+
+                    // Mapeo de ingredientes quitables
+                    const map: Record<string, any[]> = {};
+                    (productsRes as any[]).forEach((p: any) => {
+                        if (p.removable_ingredients && p.removable_ingredients.length > 0) {
+                            map[p.id] = p.removable_ingredients.map((ri: any) => ({
+                                is_removable: true,
+                                ingredients: { name: ri.name, id: ri.id }
+                            }));
+                        }
+                    });
+
+                    // Poblar la caché del Kiosko para que al navegar a /menu la carga sea de 0ms
+                    useKioskMenuCache.getState().setKioskMenuCache({
+                        restaurantId,
+                        restaurantName: restRes?.data?.name || null,
+                        categories: visibleCategories,
+                        products: productsRes,
+                        productIngredientsMap: map
+                    });
                 }
             } catch (error) {
                 console.error(error);

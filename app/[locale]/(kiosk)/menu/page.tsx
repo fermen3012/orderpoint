@@ -10,8 +10,10 @@ import CartFloatingBar from '@/components/kiosk/CartFloatingBar';
 import { ProductModal } from '@/components/kiosk/ProductModal';
 import { useBluetoothPrinter } from '@/hooks/useBluetoothPrinter';
 import { buildEscPosReceipt, KioskReceiptData } from '@/lib/escpos';
+import { printWithRawBT } from '@/lib/rawbt';
 import { getModifiersByProduct } from '@/actions/modifiers';
 import { getMenuWithSchedule } from '@/actions/products';
+import { useKioskMenuCache } from '@/store/kiosk-menu-cache';
 import LanguageSwitcher from '@/components/kiosk/LanguageSwitcher';
 import { Globe, ShoppingBag, ArrowLeft, Utensils, Search, CheckCircle2, Sparkles, Printer, SlidersHorizontal } from 'lucide-react';
 import { useRouter, usePathname } from '@/i18n/routing';
@@ -101,6 +103,30 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
         printBuffer,
     } = useBluetoothPrinter();
 
+    const lastReceiptDataRef = useRef<KioskReceiptData | null>(null);
+
+    // Función universal de impresión: intenta Web Bluetooth si está conectado, o delega a la app RawBT en Android
+    const sendTicketToPrinter = async (receiptData: KioskReceiptData) => {
+        try {
+            const receiptBytes = buildEscPosReceipt(receiptData, 48);
+
+            // 1. Si Web Bluetooth nativo está conectado activamente, intentar por ahí
+            if (printerStatus === 'connected') {
+                const res = await printBuffer(receiptBytes);
+                if (res.success) {
+                    console.log('[Printer] Impreso exitosamente vía Web Bluetooth.');
+                    return;
+                }
+                console.warn('[Printer] Web Bluetooth falló, haciendo fallback a RawBT...');
+            }
+
+            // 2. Si no hay conexión Web Bluetooth directa, enviar a RawBT (app instalada en tablet Android)
+            await printWithRawBT(receiptBytes);
+        } catch (err) {
+            console.error('[Printer] Error al enviar ticket a la impresora:', err);
+        }
+    };
+
     // Handle category selection from URL
     useEffect(() => {
         const categoryId = searchParams.get('category_id');
@@ -112,52 +138,62 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
     useEffect(() => {
         async function loadData() {
             if (!restaurantId) return;
+
+            // 1. Verificación de Caché en Memoria (Zero-Lag / 0 peticiones al servidor si es reciente)
+            const cache = useKioskMenuCache.getState();
+            if (cache.isCacheValid(restaurantId)) {
+                setCategories(cache.categories);
+                setProducts(cache.products);
+                setProductIngredientsMap(cache.productIngredientsMap);
+                if (cache.restaurantName) setRestaurantName(cache.restaurantName);
+                setLoading(false);
+                return;
+            }
+
             setLoading(true);
             try {
-                const [categoriesRes, productsData] = await Promise.all([
+                // 2. Carga unificada en paralelo: categorías, menú con modificadores/ingredientes y restaurante en 1 solo viaje
+                const [categoriesRes, productsData, restRes] = await Promise.all([
                     (supabase.from('categories') as any).select('*').eq('restaurant_id', restaurantId).order('sort_order'),
-                    getMenuWithSchedule(restaurantId, new Date().getDay())
+                    getMenuWithSchedule(restaurantId, new Date().getDay()),
+                    (supabase.from('restaurants') as any).select('name').eq('id', restaurantId).single()
                 ]);
+
+                if (restRes?.data?.name) {
+                    setRestaurantName(restRes.data.name);
+                }
 
                 if (productsData) {
                     setProducts(productsData);
 
-                    // Filter categories that have at least one product
+                    // Filtrar categorías con al menos un producto activo
+                    let validCategories: Category[] = [];
                     if (categoriesRes.data) {
                         const activeCategoryIds = new Set((productsData as any[]).map(p => p.category_id));
-                        const nonEmptyCategories = (categoriesRes.data as any[]).filter((c: any) => activeCategoryIds.has(c.id));
-
-                        console.log(`[MENU] Filtering Categories:`);
-                        console.log(`- Products: ${productsData.length}`);
-                        console.log(`- Active Category IDs:`, Array.from(activeCategoryIds));
-                        console.log(`- Total Categories: ${categoriesRes.data.length}`);
-                        console.log(`- Valid Categories: ${nonEmptyCategories.length}`);
-
-                        setCategories(nonEmptyCategories);
+                        validCategories = (categoriesRes.data as any[]).filter((c: any) => activeCategoryIds.has(c.id));
+                        setCategories(validCategories);
                     }
 
-                    const productIds = (productsData as any[]).map((p: any) => p.id);
-                    if (productIds.length > 0) {
-                        const { data: ingredientsData, error: ingError } = await (supabase
-                            .from('product_ingredients') as any)
-                            .select('*, ingredients(name), is_removable')
-                            .in('product_id', productIds);
-
-                        if (ingError) {
-                            console.error("Error loading ingredients:", ingError);
+                    // Mapeo de ingredientes quitables indexado por ID de producto
+                    const map: Record<string, any[]> = {};
+                    (productsData as any[]).forEach((p: any) => {
+                        if (p.removable_ingredients && p.removable_ingredients.length > 0) {
+                            map[p.id] = p.removable_ingredients.map((ri: any) => ({
+                                is_removable: true,
+                                ingredients: { name: ri.name, id: ri.id }
+                            }));
                         }
+                    });
+                    setProductIngredientsMap(map);
 
-                        if (ingredientsData) {
-                            const map: Record<string, any[]> = {};
-                            ingredientsData.forEach((pi: any) => {
-                                if (!map[pi.product_id]) map[pi.product_id] = [];
-                                map[pi.product_id].push(pi);
-                            });
-                            setProductIngredientsMap(map);
-                        }
-                    } else {
-                        setProductIngredientsMap({});
-                    }
+                    // Guardar en la caché en memoria para navegación instantánea
+                    useKioskMenuCache.getState().setKioskMenuCache({
+                        restaurantId,
+                        restaurantName: restRes?.data?.name || null,
+                        categories: validCategories,
+                        products: productsData,
+                        productIngredientsMap: map
+                    });
                 }
             } catch (error) {
                 console.error('Error loading kiosk data:', error);
@@ -168,135 +204,53 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
         loadData();
     }, [restaurantId]);
 
-    useEffect(() => {
-        async function loadRestaurant() {
-            if (!restaurantId) return;
-            const { data } = await (supabase.from('restaurants') as any).select('name').eq('id', restaurantId).single();
-            if (data) setRestaurantName(data.name);
-        }
-        loadRestaurant();
-    }, [restaurantId]);
+    const handleAddToCart = async (product: any) => {
+        // Zero-Lag: Los modificadores e ingredientes ya están en memoria precargados
+        const modifierGroups: UIModifierGroup[] = product.modifier_groups || [];
+        const removableIngredients = product.removable_ingredients || [];
+        const hasRemovableIngredients = removableIngredients.length > 0 || (productIngredientsMap[product.id]?.some((pi: any) => !!pi.is_removable) || false);
 
-    const handleAddToCart = async (product: DBProduct) => {
-        setLoading(true);
-        try {
-            const { data: productWithModifiers, error } = await getModifiersByProduct(product.id);
-            if (error) {
-                console.error('Error fetching modifiers:', error);
+        const uiProduct: UIProduct = {
+            id: product.id,
+            restaurant_id: product.restaurant_id,
+            category_id: product.category_id,
+            name: product.name,
+            description: product.description,
+            price: Number(product.price),
+            image_url: product.image_url,
+            is_available: product.is_available ?? true,
+            modifier_groups: modifierGroups,
+            removable_ingredients: removableIngredients
+        };
 
-                const hasRemovableIngredients = productIngredientsMap[product.id]?.some((pi: any) => !!pi.is_removable) || false;
-
-                const uiProduct: UIProduct = {
-                    id: product.id,
-                    restaurant_id: product.restaurant_id,
-                    category_id: product.category_id,
-                    name: product.name,
-                    description: product.description,
-                    price: Number(product.price),
-                    image_url: product.image_url,
-                    is_available: product.is_available ?? true,
-                    modifier_groups: []
-                };
-
-                if (hasRemovableIngredients) {
-                    setCustomizingProduct(uiProduct);
-                } else {
-                    addToCart(uiProduct, [], 1);
-                }
-                return;
-            }
-
-            const modifierGroups: UIModifierGroup[] = productWithModifiers?.product_modifier_groups?.map((pmg: any) => {
-                const group = pmg.modifier_groups;
-                return {
-                    id: group.id,
-                    name: group.name,
-                    min_selections: group.min_selections,
-                    max_selections: group.max_selections,
-                    is_required: group.is_required,
-                    options: (group.modifiers || []).map((m: any) => ({
-                        id: m.id,
-                        name: m.name,
-                        price: Number(m.price_extra),
-                        is_available: m.is_available
-                    }))
-                };
-            }) || [];
-
-            const hasRemovableIngredients = productIngredientsMap[product.id]?.some((pi: any) => !!pi.is_removable) || false;
-
-            if (modifierGroups.length > 0 || hasRemovableIngredients) {
-                const uiProduct: UIProduct = {
-                    id: product.id,
-                    restaurant_id: product.restaurant_id,
-                    category_id: product.category_id,
-                    name: product.name,
-                    description: product.description,
-                    price: Number(product.price),
-                    image_url: product.image_url,
-                    is_available: product.is_available ?? true,
-                    modifier_groups: modifierGroups
-                };
-                setCustomizingProduct(uiProduct);
-            } else {
-                const uiProduct: UIProduct = {
-                    id: product.id,
-                    restaurant_id: product.restaurant_id,
-                    category_id: product.category_id,
-                    name: product.name,
-                    description: product.description,
-                    price: Number(product.price),
-                    image_url: product.image_url,
-                    is_available: product.is_available ?? true,
-                    modifier_groups: []
-                };
-                addToCart(uiProduct, [], 1);
-            }
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
+        // Si tiene modificadores obligatorios/opcionales o ingredientes quitables, abrir personalización de inmediato (0ms)
+        if (modifierGroups.length > 0 || hasRemovableIngredients) {
+            setCustomizingProduct(uiProduct);
+        } else {
+            // Agregar al carrito instantáneamente (0ms)
+            addToCart(uiProduct, [], 1);
         }
     };
 
-    const handleOpenCustomization = async (product: DBProduct) => {
-        setLoading(true);
-        try {
-            const { data: productWithModifiers } = await getModifiersByProduct(product.id);
-            const modifierGroups: UIModifierGroup[] = productWithModifiers?.product_modifier_groups?.map((pmg: any) => {
-                const group = pmg.modifier_groups;
-                return {
-                    id: group.id,
-                    name: group.name,
-                    min_selections: group.min_selections,
-                    max_selections: group.max_selections,
-                    is_required: group.is_required,
-                    options: (group.modifiers || []).map((m: any) => ({
-                        id: m.id,
-                        name: m.name,
-                        price: Number(m.price_extra),
-                        is_available: m.is_available
-                    }))
-                };
-            }) || [];
+    const handleOpenCustomization = async (product: any) => {
+        // Zero-Lag: Abrir modal de personalización instantáneamente sin llamadas de red ni bloqueo de pantalla
+        const modifierGroups: UIModifierGroup[] = product.modifier_groups || [];
+        const removableIngredients = product.removable_ingredients || [];
 
-            const uiProduct: UIProduct = {
-                id: product.id,
-                restaurant_id: product.restaurant_id,
-                category_id: product.category_id,
-                name: product.name,
-                description: product.description,
-                price: Number(product.price),
-                image_url: product.image_url,
-                is_available: product.is_available ?? true,
-                modifier_groups: modifierGroups
-            };
-            setCustomizingProduct(uiProduct);
-        } catch (err) {
-            console.error('Error opening product customization:', err);
-        } finally {
-            setLoading(false);
-        }
+        const uiProduct: UIProduct = {
+            id: product.id,
+            restaurant_id: product.restaurant_id,
+            category_id: product.category_id,
+            name: product.name,
+            description: product.description,
+            price: Number(product.price),
+            image_url: product.image_url,
+            is_available: product.is_available ?? true,
+            modifier_groups: modifierGroups,
+            removable_ingredients: removableIngredients
+        };
+
+        setCustomizingProduct(uiProduct);
     };
 
     const handleConfirmAdd = (product: any, selectedModifiers: SelectedModifier[], quantity: number, removedIngredients: { id: string; name: string }[]) => {
@@ -373,10 +327,11 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                 }))
             };
 
-            const receiptBytes = buildEscPosReceipt(receiptData, 48);
-            printBuffer(receiptBytes).catch((pErr) => {
-                console.warn('Error imprimiendo ticket por Bluetooth:', pErr);
-            });
+            // Guardar ref para posible reimpresión desde el modal
+            lastReceiptDataRef.current = receiptData;
+
+            // Enviar a la impresora (Web Bluetooth si está emparejada, o RawBT en Android)
+            sendTicketToPrinter(receiptData);
 
             setLastPlacedOrder(ticketData);
             clearCart();
@@ -437,11 +392,39 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                     </div>
 
                     <div className="flex items-center gap-4">
-                        {/* Indicador / Botón de Impresora Bluetooth */}
+                        {/* Indicador / Botón de Impresora (RawBT en Android o Web Bluetooth) */}
                         <button
                             type="button"
-                            onClick={() => {
-                                if (printerStatus !== 'connected') connectPrinter();
+                            onClick={async () => {
+                                if (printerStatus === 'connected') {
+                                    // Test por Web Bluetooth
+                                    const testReceipt: KioskReceiptData = {
+                                        restaurantName: restaurantName || 'ORDERPOINT KIOSK',
+                                        orderNumber: 1,
+                                        orderType: 'TEST',
+                                        createdAt: new Date().toISOString(),
+                                        totalAmount: 0,
+                                        items: [{ name: 'Test Impresion Bluetooth', quantity: 1, price: 0 }],
+                                        footerText: 'PRUEBA BLUETOOTH EXITOSA'
+                                    };
+                                    sendTicketToPrinter(testReceipt);
+                                } else {
+                                    // Si no está emparejado por Web Bluetooth, intentar conectar o enviar test directo a RawBT
+                                    const connected = await connectPrinter();
+                                    if (!connected) {
+                                        const testReceipt: KioskReceiptData = {
+                                            restaurantName: restaurantName || 'ORDERPOINT KIOSK',
+                                            orderNumber: 1,
+                                            orderType: 'TEST',
+                                            createdAt: new Date().toISOString(),
+                                            totalAmount: 0,
+                                            items: [{ name: 'Test Impresion RawBT', quantity: 1, price: 0 }],
+                                            footerText: 'PRUEBA RAWBT EXITOSA'
+                                        };
+                                        const testBytes = buildEscPosReceipt(testReceipt, 48);
+                                        await printWithRawBT(testBytes);
+                                    }
+                                }
                             }}
                             className={cn(
                                 "p-3 rounded-2xl flex items-center gap-2 font-bold text-xs shadow-sm border transition-all active:scale-95",
@@ -449,11 +432,11 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                                     ? "bg-emerald-50 border-emerald-200 text-emerald-700"
                                     : "bg-white border-slate-200/60 text-slate-600 hover:border-orange-300"
                             )}
-                            title={printerStatus === 'connected' ? `Impresora: ${printerDeviceName}` : "Emparejar Impresora Bluetooth"}
+                            title={printerStatus === 'connected' ? `Conectado: ${printerDeviceName}` : "Impresora Térmica (RawBT / Bluetooth)"}
                         >
                             <Printer className="w-5 h-5 text-orange-500" />
                             <span className="hidden md:inline">
-                                {printerStatus === 'connected' ? printerDeviceName || 'Impresora 80mm' : 'Emparejar Impresora'}
+                                {printerStatus === 'connected' ? printerDeviceName || 'Impresora Lista' : 'Impresora (RawBT / BT)'}
                             </span>
                         </button>
                         <LanguageSwitcher />
@@ -669,11 +652,25 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                             </div>
                         )}
 
-                        <div className="p-8 bg-slate-50 border-t border-slate-100 flex-none">
+                        <div className="p-8 bg-slate-50 border-t border-slate-100 flex-none space-y-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (lastReceiptDataRef.current) {
+                                        sendTicketToPrinter(lastReceiptDataRef.current);
+                                    }
+                                }}
+                                className="w-full py-4 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 border border-orange-500/30 rounded-[2rem] font-black uppercase tracking-wider text-sm transition-all active:scale-95 flex items-center justify-center gap-2 shadow-sm"
+                            >
+                                <Printer className="w-5 h-5 text-orange-500" />
+                                <span>{t('printTicket')}</span>
+                            </button>
+
                             <button
                                 onClick={() => {
                                     setIsSuccessModalOpen(false);
                                     setLastPlacedOrder(null);
+                                    lastReceiptDataRef.current = null;
                                     router.push('/categories');
                                 }}
                                 className="w-full py-5 bg-primary-500 hover:bg-primary-600 text-white rounded-[2rem] font-black uppercase tracking-widest text-lg transition-all active:scale-95 shadow-[0_15px_30px_rgba(16,185,129,0.3)]"
