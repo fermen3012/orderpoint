@@ -100,30 +100,44 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
         status: printerStatus,
         deviceName: printerDeviceName,
         connectPrinter,
+        autoConnect,
         printBuffer,
     } = useBluetoothPrinter();
 
     const lastReceiptDataRef = useRef<KioskReceiptData | null>(null);
 
-    // Función universal de impresión: intenta Web Bluetooth si está conectado, o delega a la app RawBT en Android
-    const sendTicketToPrinter = async (receiptData: KioskReceiptData) => {
+    // Función universal de impresión para Kiosko PWA y Android App Pinning
+    const sendTicketToPrinter = async (receiptData: KioskReceiptData, userInitiated: boolean = false) => {
         try {
             const receiptBytes = buildEscPosReceipt(receiptData, 48);
 
-            // 1. Si Web Bluetooth nativo está conectado activamente, intentar por ahí
-            if (printerStatus === 'connected') {
-                const res = await printBuffer(receiptBytes);
-                if (res.success) {
-                    console.log('[Printer] Impreso exitosamente vía Web Bluetooth.');
-                    return;
-                }
-                console.warn('[Printer] Web Bluetooth falló, haciendo fallback a RawBT...');
+            // 1. Verificar o restaurar conexión Web Bluetooth
+            let isConnected = printerStatus === 'connected';
+            if (!isConnected) {
+                // Intentar reconectar automáticamente con la impresora guardada en memoria
+                isConnected = await autoConnect();
             }
 
-            // 2. Si no hay conexión Web Bluetooth directa, enviar a RawBT (app instalada en tablet Android)
-            await printWithRawBT(receiptBytes);
-        } catch (err) {
+            // Si el usuario presionó el botón y la impresora no estaba lista, abrir el selector nativo
+            if (!isConnected && userInitiated) {
+                isConnected = await connectPrinter();
+            }
+
+            if (isConnected) {
+                const res = await printBuffer(receiptBytes);
+                if (res.success) {
+                    console.log('[Printer] Impreso exitosamente vía Web Bluetooth en PWA.');
+                    return { success: true };
+                }
+                console.warn('[Printer] Falló transmisión Web Bluetooth:', res.error);
+            }
+
+            // 2. Si no es posible Web Bluetooth, intentar RawBT (si WebSocket local está activo)
+            const rawOk = await printWithRawBT(receiptBytes);
+            return { success: rawOk };
+        } catch (err: any) {
             console.error('[Printer] Error al enviar ticket a la impresora:', err);
+            return { success: false, error: err.message };
         }
     };
 
@@ -397,7 +411,7 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                             type="button"
                             onClick={async () => {
                                 if (printerStatus === 'connected') {
-                                    // Test por Web Bluetooth
+                                    // Test por Web Bluetooth si ya está conectada
                                     const testReceipt: KioskReceiptData = {
                                         restaurantName: restaurantName || 'ORDERPOINT KIOSK',
                                         orderNumber: 1,
@@ -407,11 +421,23 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                                         items: [{ name: 'Test Impresion Bluetooth', quantity: 1, price: 0 }],
                                         footerText: 'PRUEBA BLUETOOTH EXITOSA'
                                     };
-                                    sendTicketToPrinter(testReceipt);
+                                    await sendTicketToPrinter(testReceipt, true);
                                 } else {
-                                    // Si no está emparejado por Web Bluetooth, intentar conectar o enviar test directo a RawBT
+                                    // Conectar activamente por Web Bluetooth
                                     const connected = await connectPrinter();
-                                    if (!connected) {
+                                    if (connected) {
+                                        const testReceipt: KioskReceiptData = {
+                                            restaurantName: restaurantName || 'ORDERPOINT KIOSK',
+                                            orderNumber: 1,
+                                            orderType: 'TEST',
+                                            createdAt: new Date().toISOString(),
+                                            totalAmount: 0,
+                                            items: [{ name: 'Test Impresion Bluetooth', quantity: 1, price: 0 }],
+                                            footerText: 'IMPRESORA VINCULADA CON EXITO'
+                                        };
+                                        await sendTicketToPrinter(testReceipt, true);
+                                    } else {
+                                        // Si no se vinculó Bluetooth, enviar test a RawBT como alternativa
                                         const testReceipt: KioskReceiptData = {
                                             restaurantName: restaurantName || 'ORDERPOINT KIOSK',
                                             orderNumber: 1,
@@ -430,13 +456,23 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                                 "p-3 rounded-2xl flex items-center gap-2 font-bold text-xs shadow-sm border transition-all active:scale-95",
                                 printerStatus === 'connected'
                                     ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                                    : "bg-white border-slate-200/60 text-slate-600 hover:border-orange-300"
+                                    : "bg-white border-orange-200 text-orange-600 hover:border-orange-400"
                             )}
-                            title={printerStatus === 'connected' ? `Conectado: ${printerDeviceName}` : "Impresora Térmica (RawBT / Bluetooth)"}
+                            title={printerStatus === 'connected' ? `Conectado: ${printerDeviceName}` : "Toca para conectar tu impresora Bluetooth"}
                         >
                             <Printer className="w-5 h-5 text-orange-500" />
-                            <span className="hidden md:inline">
-                                {printerStatus === 'connected' ? printerDeviceName || 'Impresora Lista' : 'Impresora (RawBT / BT)'}
+                            <span className="hidden md:inline flex items-center gap-1.5">
+                                {printerStatus === 'connected' ? (
+                                    <>
+                                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                        <span>{printerDeviceName || 'Impresora Lista'}</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
+                                        <span>Conectar Impresora</span>
+                                    </>
+                                )}
                             </span>
                         </button>
                         <LanguageSwitcher />
@@ -655,15 +691,15 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                         <div className="p-8 bg-slate-50 border-t border-slate-100 flex-none space-y-3">
                             <button
                                 type="button"
-                                onClick={() => {
+                                onClick={async () => {
                                     if (lastReceiptDataRef.current) {
-                                        sendTicketToPrinter(lastReceiptDataRef.current);
+                                        await sendTicketToPrinter(lastReceiptDataRef.current, true);
                                     }
                                 }}
                                 className="w-full py-4 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 border border-orange-500/30 rounded-[2rem] font-black uppercase tracking-wider text-sm transition-all active:scale-95 flex items-center justify-center gap-2 shadow-sm"
                             >
                                 <Printer className="w-5 h-5 text-orange-500" />
-                                <span>{t('printTicket')}</span>
+                                <span>{printerStatus === 'connected' ? t('printTicket') : 'Vincular Impresora e Imprimir'}</span>
                             </button>
 
                             <button

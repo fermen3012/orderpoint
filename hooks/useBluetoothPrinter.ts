@@ -2,6 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 
+// Claves de persistencia en memoria local
+const STORAGE_PRINTER_ID = 'orderpoint_bt_printer_id';
+const STORAGE_PRINTER_NAME = 'orderpoint_bt_printer_name';
+
 // UUIDs de servicios de impresoras térmicas Bluetooth más comunes (SPP / Custom Thermal Services)
 const KNOWN_PRINTER_SERVICES = [
     '000018f0-0000-1000-8000-00023093c0e0', // Servicio estándar POS
@@ -26,19 +30,25 @@ export interface UseBluetoothPrinterReturn {
     errorMessage: string | null;
     isSupported: boolean;
     autoConnect: () => Promise<boolean>;
-    connectPrinter: () => Promise<boolean>;
+    connectPrinter: (param?: boolean | any) => Promise<boolean>;
     disconnectPrinter: () => void;
     printBuffer: (data: Uint8Array) => Promise<{ success: boolean; error?: string }>;
 }
 
 export function useBluetoothPrinter(): UseBluetoothPrinterReturn {
     const [status, setStatus] = useState<PrinterStatus>('idle');
-    const [deviceName, setDeviceName] = useState<string | null>(null);
+    const [deviceName, setDeviceName] = useState<string | null>(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem(STORAGE_PRINTER_NAME);
+        }
+        return null;
+    });
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isSupported, setIsSupported] = useState<boolean>(true);
 
     const deviceRef = useRef<BluetoothDevice | null>(null);
     const characteristicRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
+    const isConnectingRef = useRef<boolean>(false);
 
     // Comprobar compatibilidad con Web Bluetooth al montar
     useEffect(() => {
@@ -51,9 +61,9 @@ export function useBluetoothPrinter(): UseBluetoothPrinterReturn {
         }
     }, []);
 
-    // Manejar evento de desconexión del servidor GATT
+    // Manejar evento de desconexión del servidor GATT (no borra la memoria para permitir reconexión)
     const handleDisconnected = useCallback(() => {
-        console.warn('Impresora Bluetooth desconectada.');
+        console.warn('[Bluetooth] Impresora desconectada temporalmente.');
         setStatus('disconnected');
         characteristicRef.current = null;
     }, []);
@@ -86,15 +96,29 @@ export function useBluetoothPrinter(): UseBluetoothPrinterReturn {
     };
 
     /**
-     * Establece la conexión GATT con un dispositivo Bluetooth previa o recién seleccionado.
+     * Establece la conexión GATT con un dispositivo Bluetooth y guarda sus datos en memoria persistente
      */
     const setupGattConnection = async (device: BluetoothDevice): Promise<boolean> => {
+        if (isConnectingRef.current) return false;
+        isConnectingRef.current = true;
+
         try {
             setStatus('connecting');
             setErrorMessage(null);
 
             deviceRef.current = device;
-            setDeviceName(device.name || 'Impresora Bluetooth');
+            const name = device.name || 'Impresora Térmica';
+            setDeviceName(name);
+
+            // Guardar permanentemente en memoria local para que persista entre recargas
+            if (typeof window !== 'undefined') {
+                try {
+                    localStorage.setItem(STORAGE_PRINTER_ID, device.id);
+                    localStorage.setItem(STORAGE_PRINTER_NAME, name);
+                } catch (storeErr) {
+                    console.debug('Error guardando en localStorage:', storeErr);
+                }
+            }
 
             // Suscribir listener de desconexión
             device.removeEventListener('gattserverdisconnected', handleDisconnected);
@@ -118,18 +142,22 @@ export function useBluetoothPrinter(): UseBluetoothPrinterReturn {
 
             characteristicRef.current = char;
             setStatus('connected');
+            console.log(`[Bluetooth] Impresora '${name}' conectada y lista.`);
             return true;
         } catch (err: any) {
-            console.error('Error al conectar con la impresora Bluetooth:', err);
-            setStatus('error');
-            setErrorMessage(err.message || 'Fallo en la conexión GATT con la impresora.');
+            console.warn('[Bluetooth] Fallo en la conexión GATT:', err.message || err);
+            setStatus('disconnected');
+            setErrorMessage(err.message || 'Fallo al conectar con la impresora guardada.');
             return false;
+        } finally {
+            isConnectingRef.current = false;
         }
     };
 
     /**
-     * Re-conexión Silenciosa (Auto-reconnect Zero-Dialog):
-     * Utiliza navigator.bluetooth.getDevices() para intentar conectar sin abrir diálogo.
+     * Re-conexión Silenciosa en Memoria (Auto-reconnect Zero-Dialog):
+     * Utiliza navigator.bluetooth.getDevices() y el ID guardado en localStorage
+     * para reconectar automáticamente sin pedir seleccionar la impresora de nuevo.
      */
     const autoConnect = useCallback(async (): Promise<boolean> => {
         if (typeof window === 'undefined' || !navigator.bluetooth || !navigator.bluetooth.getDevices) {
@@ -137,41 +165,90 @@ export function useBluetoothPrinter(): UseBluetoothPrinterReturn {
         }
 
         try {
-            setStatus('searching');
             const devices = await navigator.bluetooth.getDevices();
-
             if (!devices || devices.length === 0) {
                 setStatus('disconnected');
                 return false;
             }
 
-            // Seleccionar el primer dispositivo autorizado previamente
-            const authorizedDevice = devices[0];
-            return await setupGattConnection(authorizedDevice);
+            const savedId = localStorage.getItem(STORAGE_PRINTER_ID);
+            // Si hay un ID guardado en memoria, reconectar exactamente a ese
+            const targetDevice = (savedId ? devices.find((d) => d.id === savedId) : null) || devices[0];
+
+            if (targetDevice) {
+                return await setupGattConnection(targetDevice);
+            }
+
+            setStatus('disconnected');
+            return false;
         } catch (err: any) {
-            console.warn('Auto-reconexión silenciosa fallida o denegada:', err);
+            console.debug('[Bluetooth] Auto-reconexión silenciosa inicial pausada:', err);
             setStatus('disconnected');
             return false;
         }
-    }, []);
+    }, [handleDisconnected]);
 
-    // Ejecutar intento de auto-reconexión silenciosa al cargar la página en el kiosco
+    // Intento 1: Auto-reconexión inmediata al montar la página
     useEffect(() => {
         if (isSupported) {
             autoConnect();
         }
     }, [isSupported, autoConnect]);
 
+    // Intento 2: Reconexión silenciosa al primer toque de pantalla (User Gesture)
+    // En Chrome Android, el navegador requiere interacción del usuario para reconectar Bluetooth
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const handleFirstInteraction = async () => {
+            window.removeEventListener('pointerdown', handleFirstInteraction);
+            window.removeEventListener('touchstart', handleFirstInteraction);
+
+            // Si aún no está conectado y tenemos una impresora guardada en memoria, reconectar al instante
+            if (status !== 'connected' && localStorage.getItem(STORAGE_PRINTER_ID)) {
+                await autoConnect();
+            }
+        };
+
+        window.addEventListener('pointerdown', handleFirstInteraction, { passive: true });
+        window.addEventListener('touchstart', handleFirstInteraction, { passive: true });
+
+        return () => {
+            window.removeEventListener('pointerdown', handleFirstInteraction);
+            window.removeEventListener('touchstart', handleFirstInteraction);
+        };
+    }, [status, autoConnect]);
+
     /**
-     * Emparejamiento Manual (Requiere User Gesture / onClick):
-     * Solicita la selección de la impresora mostrando el selector estándar del navegador (solo 1 vez).
+     * Conectar Impresora:
+     * Si ya existe un dispositivo guardado en memoria y autorizado, se reconecta en 0 segundos
+     * SIN MOSTRAR EL SELECTOR NATIVO. Solo si no hay ninguno o forceNewDialog=true, abre el selector.
      */
-    const connectPrinter = async (): Promise<boolean> => {
+    const connectPrinter = async (param?: boolean | any): Promise<boolean> => {
+        const forceNewDialog = typeof param === 'boolean' ? param : (param && typeof param === 'object' && 'forceNewDialog' in param ? !!param.forceNewDialog : false);
+
         if (typeof window === 'undefined' || !navigator.bluetooth) {
             setErrorMessage('Web Bluetooth no soportado');
             return false;
         }
 
+        // 1. Si no se fuerza un nuevo diálogo, intentar reconectar con el dispositivo guardado en memoria
+        if (!forceNewDialog && navigator.bluetooth.getDevices) {
+            try {
+                const devices = await navigator.bluetooth.getDevices();
+                const savedId = localStorage.getItem(STORAGE_PRINTER_ID);
+                const matched = (savedId ? devices.find((d) => d.id === savedId) : null) || devices[0];
+
+                if (matched) {
+                    const connected = await setupGattConnection(matched);
+                    if (connected) return true;
+                }
+            } catch (reconErr) {
+                console.debug('[Bluetooth] Intento de reconexión previa:', reconErr);
+            }
+        }
+
+        // 2. Si no hay dispositivo previo o se solicitó explícitamente, abrir el selector nativo
         try {
             setStatus('searching');
             setErrorMessage(null);
@@ -183,7 +260,7 @@ export function useBluetoothPrinter(): UseBluetoothPrinterReturn {
 
             return await setupGattConnection(device);
         } catch (err: any) {
-            console.error('Solicitud de dispositivo cancelada o fallida:', err);
+            console.warn('[Bluetooth] Selección cancelada o fallida:', err);
             setStatus('disconnected');
             if (err.name !== 'NotFoundError') {
                 setErrorMessage(err.message || 'Cancelado por el usuario.');
@@ -193,12 +270,24 @@ export function useBluetoothPrinter(): UseBluetoothPrinterReturn {
     };
 
     /**
-     * Desconectar impresora activamente
+     * Desconectar y olvidar impresora de la memoria (solo si el usuario lo pide explícitamente)
      */
     const disconnectPrinter = () => {
         if (deviceRef.current && deviceRef.current.gatt && deviceRef.current.gatt.connected) {
-            deviceRef.current.gatt.disconnect();
+            try {
+                deviceRef.current.gatt.disconnect();
+            } catch {}
         }
+
+        // Limpiar memoria
+        if (typeof window !== 'undefined') {
+            try {
+                localStorage.removeItem(STORAGE_PRINTER_ID);
+                localStorage.removeItem(STORAGE_PRINTER_NAME);
+            } catch {}
+        }
+
+        deviceRef.current = null;
         characteristicRef.current = null;
         setStatus('disconnected');
         setDeviceName(null);
@@ -209,7 +298,7 @@ export function useBluetoothPrinter(): UseBluetoothPrinterReturn {
      */
     const printBuffer = async (data: Uint8Array): Promise<{ success: boolean; error?: string }> => {
         if (status !== 'connected' || !characteristicRef.current) {
-            // Intentar auto-reconectar si está en estado desconectado
+            // Intentar auto-reconectar usando el dispositivo guardado en memoria
             const reconnected = await autoConnect();
             if (!reconnected || !characteristicRef.current) {
                 return {
@@ -243,7 +332,7 @@ export function useBluetoothPrinter(): UseBluetoothPrinterReturn {
             setStatus('connected');
             return { success: true };
         } catch (err: any) {
-            console.error('Error durante la transmisión de impresión:', err);
+            console.error('[Bluetooth] Error durante la transmisión de impresión:', err);
             setStatus('error');
             setErrorMessage('Error enviando datos a la impresora.');
             return {
