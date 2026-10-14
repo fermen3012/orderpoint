@@ -8,6 +8,12 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "OrderPoint - Restaurant Ordering System",
     description: "Modern restaurant ordering kiosk, kitchen display, and admin system",
+    manifest: "/manifest.json",
+    appleWebApp: {
+        capable: true,
+        statusBarStyle: "black-translucent",
+        title: "OrderPoint",
+    },
 };
 
 export default async function RootLayout({
