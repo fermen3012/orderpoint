@@ -132,12 +132,14 @@ export interface KioskReceiptData {
     items: TicketItem[];
     totalAmount: number;
     footerText?: string;
+    locale?: string;
 }
 
 /**
  * Convierte un arreglo de cadenas y comandos a un único buffer Uint8Array listo para enviar a la impresora Bluetooth.
  */
 export function buildEscPosReceipt(ticket: KioskReceiptData, width: number = 48): Uint8Array {
+    const isEn = (ticket.locale || 'es').toLowerCase().startsWith('en');
     const encoder = new TextEncoder();
     const buffers: Uint8Array[] = [];
 
@@ -157,24 +159,31 @@ export function buildEscPosReceipt(ticket: KioskReceiptData, width: number = 48)
     append(ESC_POS_COMMANDS.SIZE_NORMAL);
     append(ESC_POS_COMMANDS.BOLD_OFF);
 
-    // Fecha y Hora
+    // Fecha y Hora formateada según locale
     const dateStr = ticket.createdAt
-        ? new Date(ticket.createdAt).toLocaleString()
-        : new Date().toLocaleString();
+        ? new Date(ticket.createdAt).toLocaleString(isEn ? 'en-US' : 'es-ES')
+        : new Date().toLocaleString(isEn ? 'en-US' : 'es-ES');
     appendText(dateStr);
 
     // Línea separadora
     appendText(formatDashedLine('=', width));
 
-    // 3. Tipo de Orden (Para Comer / Para Llevar)
+    // 3. Tipo de Orden (Dine In / To Go)
     append(ESC_POS_COMMANDS.BOLD_ON);
-    const typeLabel = ticket.orderType === 'DINE_IN' ? '*** PARA COMER AQUI ***' : '*** PARA LLEVAR ***';
+    let typeLabel = '';
+    if (ticket.orderType === 'DINE_IN') {
+        typeLabel = isEn ? '*** DINE IN ***' : '*** PARA COMER AQUI ***';
+    } else if (ticket.orderType === 'TEST') {
+        typeLabel = isEn ? '*** TEST TICKET ***' : '*** TICKET DE PRUEBA ***';
+    } else {
+        typeLabel = isEn ? '*** TO GO ***' : '*** PARA LLEVAR ***';
+    }
     appendText(typeLabel);
     append(ESC_POS_COMMANDS.BOLD_OFF);
 
     // 4. Número de Pedido Gigante (Destacado para Cocina/Kiosco)
     appendText(formatDashedLine('-', width));
-    appendText('NUMERO DE ORDEN');
+    appendText(isEn ? 'ORDER NUMBER' : 'NUMERO DE ORDEN');
     append(ESC_POS_COMMANDS.BOLD_ON);
     append(ESC_POS_COMMANDS.SIZE_ORDER_NUM);
     const orderNumPadded = `#${String(ticket.orderNumber).padStart(3, '0')}`;
@@ -187,7 +196,7 @@ export function buildEscPosReceipt(ticket: KioskReceiptData, width: number = 48)
     append(ESC_POS_COMMANDS.ALIGN_LEFT);
 
     // Encabezado de columnas
-    const colHeader = formatItemLine('CANT / PRODUCTO', 'SUBTOTAL', width)[0];
+    const colHeader = formatItemLine(isEn ? 'QTY / ITEM' : 'CANT / PRODUCTO', 'SUBTOTAL', width)[0];
     append(ESC_POS_COMMANDS.BOLD_ON);
     appendText(colHeader);
     append(ESC_POS_COMMANDS.BOLD_OFF);
@@ -206,7 +215,7 @@ export function buildEscPosReceipt(ticket: KioskReceiptData, width: number = 48)
         // Modificadores / Extras / Quitar ingredientes
         if (item.modifiers && item.modifiers.length > 0) {
             item.modifiers.forEach((mod) => {
-                const modPrefix = mod.type === 'removal' ? '   [SIN] ' : '   + ';
+                const modPrefix = mod.type === 'removal' ? (isEn ? '   [NO] ' : '   [SIN] ') : '   + ';
                 const modText = `${modPrefix}${sanitizeText(mod.name)}`;
                 const extraPriceStr = mod.priceExtra && mod.priceExtra > 0 ? `+$${mod.priceExtra.toFixed(2)}` : '';
                 const modLines = formatItemLine(modText, extraPriceStr, width);
@@ -229,7 +238,8 @@ export function buildEscPosReceipt(ticket: KioskReceiptData, width: number = 48)
     // 7. Pie de Página
     append(ESC_POS_COMMANDS.ALIGN_CENTER);
     appendText(formatDashedLine('-', width));
-    appendText(ticket.footerText || 'GRACIAS POR SU COMPRA');
+    const defaultFooter = isEn ? 'THANK YOU FOR YOUR PURCHASE' : 'GRACIAS POR SU COMPRA';
+    appendText(ticket.footerText || defaultFooter);
     appendText('Powered by OrderPoint Kiosk');
     append(ESC_POS_COMMANDS.FEED_3_LINES);
 

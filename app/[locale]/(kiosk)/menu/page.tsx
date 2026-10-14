@@ -314,9 +314,13 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                     quantity: item.quantity,
                     price: item.unitPrice,
                     modifiers: [
-                        ...item.selectedModifiers.flatMap(group => group.options.map(opt => ({ name: opt.name, price_extra: Number(opt.price), type: 'extra' as const }))),
+                        ...item.selectedModifiers.flatMap(group => group.options.map(opt => ({ 
+                            name: getLocalizedValue(opt.name, locale), 
+                            price_extra: Number(opt.price), 
+                            type: 'extra' as const 
+                        }))),
                         ...(item.removedIngredients || []).map(ri => ({
-                            name: ri.name,
+                            name: getLocalizedValue(ri.name, locale),
                             type: 'removal' as const
                         }))
                     ]
@@ -329,14 +333,22 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                 orderNumber: order.order_number,
                 orderType: orderType,
                 createdAt: order.created_at,
+                locale: locale,
                 totalAmount: Number(order.total_amount),
                 items: items.map(item => ({
                     name: getLocalizedValue(item.product.name, locale),
                     quantity: item.quantity,
                     price: item.unitPrice,
                     modifiers: [
-                        ...item.selectedModifiers.flatMap(group => group.options.map(opt => ({ name: opt.name, priceExtra: Number(opt.price), type: 'extra' as const }))),
-                        ...(item.removedIngredients || []).map(ri => ({ name: ri.name, type: 'removal' as const }))
+                        ...item.selectedModifiers.flatMap(group => group.options.map(opt => ({ 
+                            name: getLocalizedValue(opt.name, locale), 
+                            priceExtra: Number(opt.price), 
+                            type: 'extra' as const 
+                        }))),
+                        ...(item.removedIngredients || []).map(ri => ({ 
+                            name: getLocalizedValue(ri.name, locale), 
+                            type: 'removal' as const 
+                        }))
                     ]
                 }))
             };
@@ -410,16 +422,18 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                         <button
                             type="button"
                             onClick={async () => {
+                                const isEn = locale.toLowerCase().startsWith('en');
                                 if (printerStatus === 'connected') {
                                     // Test por Web Bluetooth si ya está conectada
                                     const testReceipt: KioskReceiptData = {
-                                        restaurantName: restaurantName || 'ORDERPOINT KIOSK',
+                                        restaurantName: restaurantName || (isEn ? 'ORDERPOINT KIOSK' : 'ORDERPOINT KIOSCO'),
                                         orderNumber: 1,
                                         orderType: 'TEST',
                                         createdAt: new Date().toISOString(),
+                                        locale: locale,
                                         totalAmount: 0,
-                                        items: [{ name: 'Test Impresion Bluetooth', quantity: 1, price: 0 }],
-                                        footerText: 'PRUEBA BLUETOOTH EXITOSA'
+                                        items: [{ name: isEn ? 'Bluetooth Print Test' : 'Test Impresion Bluetooth', quantity: 1, price: 0 }],
+                                        footerText: isEn ? 'BLUETOOTH TEST SUCCESSFUL' : 'PRUEBA BLUETOOTH EXITOSA'
                                     };
                                     await sendTicketToPrinter(testReceipt, true);
                                 } else {
@@ -427,25 +441,27 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                                     const connected = await connectPrinter();
                                     if (connected) {
                                         const testReceipt: KioskReceiptData = {
-                                            restaurantName: restaurantName || 'ORDERPOINT KIOSK',
+                                            restaurantName: restaurantName || (isEn ? 'ORDERPOINT KIOSK' : 'ORDERPOINT KIOSCO'),
                                             orderNumber: 1,
                                             orderType: 'TEST',
                                             createdAt: new Date().toISOString(),
+                                            locale: locale,
                                             totalAmount: 0,
-                                            items: [{ name: 'Test Impresion Bluetooth', quantity: 1, price: 0 }],
-                                            footerText: 'IMPRESORA VINCULADA CON EXITO'
+                                            items: [{ name: isEn ? 'Bluetooth Print Test' : 'Test Impresion Bluetooth', quantity: 1, price: 0 }],
+                                            footerText: isEn ? 'PRINTER PAIRED SUCCESSFULLY' : 'IMPRESORA VINCULADA CON EXITO'
                                         };
                                         await sendTicketToPrinter(testReceipt, true);
                                     } else {
                                         // Si no se vinculó Bluetooth, enviar test a RawBT como alternativa
                                         const testReceipt: KioskReceiptData = {
-                                            restaurantName: restaurantName || 'ORDERPOINT KIOSK',
+                                            restaurantName: restaurantName || (isEn ? 'ORDERPOINT KIOSK' : 'ORDERPOINT KIOSCO'),
                                             orderNumber: 1,
                                             orderType: 'TEST',
                                             createdAt: new Date().toISOString(),
+                                            locale: locale,
                                             totalAmount: 0,
-                                            items: [{ name: 'Test Impresion RawBT', quantity: 1, price: 0 }],
-                                            footerText: 'PRUEBA RAWBT EXITOSA'
+                                            items: [{ name: isEn ? 'RawBT Print Test' : 'Test Impresion RawBT', quantity: 1, price: 0 }],
+                                            footerText: isEn ? 'RAWBT TEST SUCCESSFUL' : 'PRUEBA RAWBT EXITOSA'
                                         };
                                         const testBytes = buildEscPosReceipt(testReceipt, 48);
                                         await printWithRawBT(testBytes);
