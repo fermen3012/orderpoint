@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/browser';
 import TableGrid from '@/components/exo/TableGrid';
 import { Loader2, Search, LogOut } from 'lucide-react';
@@ -9,10 +10,13 @@ import { useExoCartStore } from '@/store/exo-cart-store';
 import { useRouter } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';
 
-export default function TablesPage() {
+function TablesPageContent() {
     const t = useTranslations('exo');
     const supabase = createClient();
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const paramRestaurantId = searchParams?.get('restaurant_id');
+
     const { restaurantName, setRestaurant } = useRestaurantStore();
     const { setWaitressId, resetStore } = useExoCartStore();
     const [currentWaitress, setCurrentWaitress] = useState<string | null>(null);
@@ -29,7 +33,7 @@ export default function TablesPage() {
 
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('restaurant_id, full_name, restaurants(name)')
+                    .select('restaurant_id, full_name, is_super_admin, role, restaurants(name)')
                     .eq('id', session.user.id)
                     .single() as { data: any; error: any };
 
@@ -38,18 +42,33 @@ export default function TablesPage() {
                 }
                 setWaitressId(session.user.id);
 
-                if (!profile?.restaurant_id) return;
+                let targetRestaurantId = profile?.restaurant_id;
 
-                // Set restaurant name in store if missing
-                if (profile.restaurants?.name) {
-                    setRestaurant(profile.restaurant_id, profile.restaurants.name);
+                // Permitir al Super Admin o Admin simular/probar un restaurante específico vía URL
+                if ((profile?.is_super_admin || profile?.role === 'admin') && paramRestaurantId) {
+                    targetRestaurantId = paramRestaurantId;
+                    const { data: restData } = await (supabase
+                        .from('restaurants' as any) as any)
+                        .select('name')
+                        .eq('id', paramRestaurantId)
+                        .single();
+                    if (restData && (restData as any).name) {
+                        setRestaurant(paramRestaurantId, (restData as any).name);
+                    }
+                } else if (profile?.restaurants?.name && targetRestaurantId) {
+                    setRestaurant(targetRestaurantId, profile.restaurants.name);
+                }
+
+                if (!targetRestaurantId) {
+                    setLoading(false);
+                    return;
                 }
 
                 // Fetch tables from database with waiter profile
                 const { data, error } = await supabase
                     .from('tables')
                     .select('*, waitress:profiles!waitress_id(full_name)')
-                    .eq('restaurant_id', profile.restaurant_id)
+                    .eq('restaurant_id', targetRestaurantId)
                     .order('number');
 
                 if (error) {
@@ -159,5 +178,17 @@ export default function TablesPage() {
                 </div>
             )}
         </div>
+    );
+}
+
+export default function TablesPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+                <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
+            </div>
+        }>
+            <TablesPageContent />
+        </Suspense>
     );
 }

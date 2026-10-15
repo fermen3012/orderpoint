@@ -124,6 +124,12 @@
         "description": "Términos y Condiciones Legales B2B SaaS con Cumplimiento de Leyes de Florida: Rediseño profesional y exhaustivo del contrato legal para propietarios (Admin Owner) al aceptar su invitación (set-password/page.tsx y legal/terms/page.tsx). Incorpora validez de firma electrónica (Florida UETA, Fla. Stat. § 668.50), deslinde de responsabilidad sanitaria y alérgenos (Florida DBPR / Dept of Health), Merchant of Record y retención de Florida Sales Tax (Fla. Stat. Cap. 212), protección de datos (Florida FIPA, Fla. Stat. § 501.171), limitación de responsabilidad, renuncia a juicio por jurado y renuncia a demandas colectivas (Class Action Waiver) con jurisdicción exclusiva en el Estado de Florida. Bilingüe (Español / Inglés).",
         "status": "COMPLETED",
         "verification": "tsc --noEmit exit 0; endpoints /es/legal/terms y /en/legal/terms respondiendo 200 OK; registro de terms_version: 'v2.0-FL' en base de datos."
+      },
+      {
+        "id": "M21",
+        "description": "Agente Especialista en Crecimiento SaaS, Pricing y Marketing Digital: Registro de saas_growth_marketing_strategist y creación de la skill saas-growth-marketing en .agents/skills/. Estructuración y generación del Folleto Comercial One-Pager en PDF vectorial de alta resolución (OrderPoint-One-Pager.pdf) y web (one-pager.html) con oferta dual integrada: 1) Módulo Salón & Cocina Exo Server BYOD ($450 Setup único + $99/mes) para restaurantes con meseros y 2) Kiosko de Autoservicio Pro con Samsung Tab A9+ 11\" y soporte antirrobo ($799 pago único + $99/mes o $150 Setup BYOD), con datos de contacto directo de Ofer Mendoza en Florida.",
+        "status": "COMPLETED",
+        "verification": "PDF generado en public/OrderPoint-One-Pager.pdf (763 KB), vista web en public/one-pager.html, tsc --noEmit exit 0."
       }
     ],
     "active_priorities": [

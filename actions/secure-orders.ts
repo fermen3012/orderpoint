@@ -44,6 +44,21 @@ export async function createSecureOrder(input: CreateOrderInput) {
 
         const supabase = await createClient();
 
+        // 0. Kill-Switch / Suspensión: Verificar que el restaurante esté activo en el sistema
+        const { data: restaurant, error: restError } = await (supabase
+            .from('restaurants' as any) as any)
+            .select('is_active, name')
+            .eq('id', finalRestaurantId)
+            .single();
+
+        if (restError || !restaurant) {
+            throw new Error("No se encontró el restaurante asociado a la orden.");
+        }
+
+        if (restaurant.is_active === false) {
+            throw new Error("El servicio de este restaurante se encuentra temporalmente suspendido por administración.");
+        }
+
         // 1. Obtener IDs para consultas masivas
         const productIds = input.items.map(i => i.product_id);
         const allModifierIds = input.items.flatMap(i => i.modifier_option_ids);

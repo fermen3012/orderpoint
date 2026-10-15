@@ -5,7 +5,9 @@ import { useSearchParams } from 'next/navigation';
 import {
     Search, Users, MoreHorizontal, Download, ExternalLink,
     CreditCard, Calendar, CheckCircle, AlertTriangle, ChevronDown,
-    Mail, Send, Loader2, Copy
+    Mail, Send, Loader2, Copy, Plus, Edit3, Trash2, Layers,
+    Tv, Utensils, Smartphone, Sparkles, ShieldCheck, Check, DollarSign,
+    QrCode, RefreshCw
 } from 'lucide-react';
 import {
     getAllCustomersBilling,
@@ -19,7 +21,17 @@ import {
     logClientError,
     BillingCustomer
 } from '@/actions/stripe-admin';
-import { formatPrice } from '@/lib/utils';
+import {
+    getSubscriptionPlans,
+    saveSubscriptionPlan,
+    deleteSubscriptionPlan,
+    assignPlanToRestaurant
+} from '@/actions/plans-admin';
+import {
+    SubscriptionPlan,
+    DEFAULT_SUBSCRIPTION_PLANS
+} from '@/lib/subscription-plans';
+import { formatPrice, cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -27,6 +39,10 @@ import {
 } from '@/components/ui/dialog';
 
 export default function SuperAdminBillingPage() {
+    // Pestaña activa: 'plans' (Planes del SaaS) o 'customers' (Facturación de Restaurantes)
+    const [activeTab, setActiveTab] = useState<'plans' | 'customers'>('plans');
+
+    // Estado de Clientes / Restaurantes
     const [customers, setCustomers] = useState<BillingCustomer[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedCustomer, setSelectedCustomer] = useState<BillingCustomer | null>(null);
@@ -44,6 +60,36 @@ export default function SuperAdminBillingPage() {
     const [updatingEmail, setUpdatingEmail] = useState(false);
     const [updatingQuantity, setUpdatingQuantity] = useState(false);
 
+    // Estado de Planes de Pago (Subscription Plans)
+    const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+    const [loadingPlans, setLoadingPlans] = useState(true);
+    const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+    const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
+    const [savingPlan, setSavingPlan] = useState(false);
+    const [syncStripeOption, setSyncStripeOption] = useState(false);
+
+    // Modal de asignación de plan a restaurante
+    const [assignModalOpen, setAssignModalOpen] = useState(false);
+    const [planToAssign, setPlanToAssign] = useState<SubscriptionPlan | null>(null);
+    const [targetRestaurantId, setTargetRestaurantId] = useState<string>('');
+    const [assigningPlan, setAssigningPlan] = useState(false);
+
+    // Campos del formulario de plan
+    const [formName, setFormName] = useState('');
+    const [formDescription, setFormDescription] = useState('');
+    const [formCategory, setFormCategory] = useState<SubscriptionPlan['category']>('salon');
+    const [formMonthlyPrice, setFormMonthlyPrice] = useState('99');
+    const [formSetupFee, setFormSetupFee] = useState('450');
+    const [formMaxScreens, setFormMaxScreens] = useState('0');
+    const [formExtraScreenPrice, setFormExtraScreenPrice] = useState('10.99');
+    const [formModKiosk, setFormModKiosk] = useState(false);
+    const [formModKds, setFormModKds] = useState(true);
+    const [formModWaitress, setFormModWaitress] = useState(true);
+    const [formModQr, setFormModQr] = useState(true);
+    const [formFeaturesText, setFormFeaturesText] = useState('');
+    const [formIsActive, setFormIsActive] = useState(true);
+    const [formIsPopular, setFormIsPopular] = useState(false);
+
     const loadBillingData = async () => {
         setLoading(true);
         try {
@@ -53,6 +99,175 @@ export default function SuperAdminBillingPage() {
             console.error('Error loading billing data', err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadPlansData = async () => {
+        setLoadingPlans(true);
+        try {
+            const data = await getSubscriptionPlans();
+            setPlans(data);
+        } catch (err) {
+            console.error('Error loading plans:', err);
+        } finally {
+            setLoadingPlans(false);
+        }
+    };
+
+    useEffect(() => {
+        loadBillingData();
+        loadPlansData();
+    }, []);
+
+    const openCreatePlanModal = () => {
+        setEditingPlan(null);
+        setFormName('');
+        setFormDescription('');
+        setFormCategory('salon');
+        setFormMonthlyPrice('99');
+        setFormSetupFee('450');
+        setFormMaxScreens('0');
+        setFormExtraScreenPrice('10.99');
+        setFormModKiosk(false);
+        setFormModKds(true);
+        setFormModWaitress(true);
+        setFormModQr(true);
+        setFormFeaturesText('Comandeo móvil para meseros (BYOD)\nPantalla de Cocina (KDS) en tiempo real\nDigitalización completa del menú');
+        setFormIsActive(true);
+        setFormIsPopular(false);
+        setSyncStripeOption(false);
+        setIsPlanModalOpen(true);
+    };
+
+    const openEditPlanModal = (plan: SubscriptionPlan) => {
+        setEditingPlan(plan);
+        setFormName(plan.name);
+        setFormDescription(plan.description);
+        setFormCategory(plan.category);
+        setFormMonthlyPrice(plan.monthly_price.toString());
+        setFormSetupFee(plan.setup_fee.toString());
+        setFormMaxScreens(plan.max_screens.toString());
+        setFormExtraScreenPrice(plan.extra_screen_price?.toString() || '10.99');
+        setFormModKiosk(plan.modules.kiosk);
+        setFormModKds(plan.modules.kds);
+        setFormModWaitress(plan.modules.waitress_exo);
+        setFormModQr(plan.modules.qr_menu);
+        setFormFeaturesText((plan.features || []).join('\n'));
+        setFormIsActive(plan.is_active);
+        setFormIsPopular(plan.is_popular || false);
+        setSyncStripeOption(false);
+        setIsPlanModalOpen(true);
+    };
+
+    const handleSavePlanSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!formName.trim()) {
+            alert('Por favor ingresa un nombre para el plan.');
+            return;
+        }
+
+        const monthlyPriceNum = parseFloat(formMonthlyPrice);
+        if (isNaN(monthlyPriceNum) || monthlyPriceNum < 0) {
+            alert('El precio mensual debe ser un número válido mayor o igual a 0.');
+            return;
+        }
+
+        const setupFeeNum = parseFloat(formSetupFee) || 0;
+        const maxScreensNum = parseInt(formMaxScreens) || 0;
+        const extraScreenPriceNum = parseFloat(formExtraScreenPrice) || 10.99;
+
+        const featuresArray = formFeaturesText
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0);
+
+        const planId = editingPlan ? editingPlan.id : `plan_${formName.toLowerCase().replace(/[^a-z0-9]+/g, '_')}_${Date.now().toString().slice(-4)}`;
+
+        const planData: SubscriptionPlan = {
+            id: planId,
+            name: formName.trim(),
+            description: formDescription.trim(),
+            monthly_price: monthlyPriceNum,
+            setup_fee: setupFeeNum,
+            annual_price: Math.round(monthlyPriceNum * 10), // 2 meses gratis por año
+            stripe_product_id: editingPlan?.stripe_product_id,
+            stripe_price_id: editingPlan?.stripe_price_id,
+            modules: {
+                kiosk: formModKiosk,
+                kds: formModKds,
+                waitress_exo: formModWaitress,
+                qr_menu: formModQr,
+            },
+            max_screens: maxScreensNum,
+            extra_screen_price: extraScreenPriceNum,
+            features: featuresArray,
+            is_active: formIsActive,
+            is_popular: formIsPopular,
+            category: formCategory,
+            created_at: editingPlan?.created_at,
+        };
+
+        setSavingPlan(true);
+        try {
+            const res = await saveSubscriptionPlan(planData, syncStripeOption);
+            if (res.success) {
+                alert(editingPlan ? 'Plan actualizado exitosamente.' : 'Nuevo plan de pago creado exitosamente.');
+                setIsPlanModalOpen(false);
+                await loadPlansData();
+            } else {
+                alert('Error al guardar el plan: ' + res.error);
+            }
+        } catch (err: any) {
+            console.error('Error saving plan:', err);
+            alert('Ocurrió un error inesperado al guardar el plan.');
+        } finally {
+            setSavingPlan(false);
+        }
+    };
+
+    const handleDeletePlanClick = async (plan: SubscriptionPlan) => {
+        if (!confirm(`¿Estás seguro de que deseas eliminar el plan "${plan.name}"?`)) {
+            return;
+        }
+        try {
+            const res = await deleteSubscriptionPlan(plan.id);
+            if (res.success) {
+                alert('Plan eliminado correctamente.');
+                await loadPlansData();
+            } else {
+                alert('Error al eliminar: ' + res.error);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Error al eliminar el plan');
+        }
+    };
+
+    const openAssignModal = (plan: SubscriptionPlan) => {
+        setPlanToAssign(plan);
+        if (customers.length > 0) {
+            setTargetRestaurantId(customers[0].id);
+        }
+        setAssignModalOpen(true);
+    };
+
+    const handleAssignPlanSubmit = async () => {
+        if (!planToAssign || !targetRestaurantId) return;
+        setAssigningPlan(true);
+        try {
+            const res = await assignPlanToRestaurant(targetRestaurantId, planToAssign.id);
+            if (res.success) {
+                alert(`Plan "${res.planName}" asignado exitosamente al restaurante.`);
+                setAssignModalOpen(false);
+                await loadBillingData();
+            } else {
+                alert('Error al asignar el plan: ' + res.error);
+            }
+        } catch (err: any) {
+            console.error(err);
+            alert('Error al asignar el plan.');
+        } finally {
+            setAssigningPlan(false);
         }
     };
 
@@ -175,9 +390,6 @@ export default function SuperAdminBillingPage() {
         }
     };
 
-    useEffect(() => {
-        loadBillingData();
-    }, []);
 
     const onUpdateQuantity = async (customer: BillingCustomer, newQty: number) => {
         if (newQty < 1) return;
@@ -255,29 +467,323 @@ export default function SuperAdminBillingPage() {
     return (
         <div className="space-y-10 animate-in fade-in duration-700">
             {/* Header Section */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
                 <div>
                     <div className="flex items-center gap-2 mb-2">
                         <span className="w-8 h-1 bg-emerald-500 rounded-full"></span>
                         <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Gestión Financiera Central</span>
                     </div>
                     <h1 className="text-4xl lg:text-5xl font-black text-white italic tracking-tighter uppercase leading-none">
-                        Facturación de Restaurantes
+                        {activeTab === 'plans' ? 'Planes de Pago SaaS' : 'Facturación de Restaurantes'}
                     </h1>
                 </div>
 
-                <div className="relative group w-full lg:w-96">
-                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-emerald-500 transition-colors" />
-                    <input
-                        type="text"
-                        placeholder="BUSCAR RESTAURANTE..."
-                        className="w-full pl-16 pr-8 py-5 bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-[2rem] focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-white text-xs uppercase tracking-widest shadow-inner placeholder:text-slate-700"
-                    // In a real application, you'd use usePathname + useRouter to update URL search params
-                    />
+                {/* Tabs Switcher */}
+                <div className="flex flex-wrap items-center gap-2 bg-slate-900/80 p-2 rounded-[2rem] border border-slate-800 shadow-xl">
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('plans')}
+                        className={cn(
+                            "px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center gap-2.5 transition-all",
+                            activeTab === 'plans'
+                                ? "bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20"
+                                : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                        )}
+                    >
+                        <Layers className="w-4 h-4" />
+                        <span>Planes de Pago</span>
+                        <span className={cn(
+                            "text-[10px] px-2 py-0.5 rounded-full font-black",
+                            activeTab === 'plans' ? "bg-slate-950/20 text-slate-950" : "bg-slate-800 text-slate-400"
+                        )}>
+                            {plans.length}
+                        </span>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('customers')}
+                        className={cn(
+                            "px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center gap-2.5 transition-all",
+                            activeTab === 'customers'
+                                ? "bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20"
+                                : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                        )}
+                    >
+                        <Users className="w-4 h-4" />
+                        <span>Facturación & Clientes</span>
+                        <span className={cn(
+                            "text-[10px] px-2 py-0.5 rounded-full font-black",
+                            activeTab === 'customers' ? "bg-slate-950/20 text-slate-950" : "bg-slate-800 text-slate-400"
+                        )}>
+                            {customers.length}
+                        </span>
+                    </button>
                 </div>
+
+                {activeTab === 'customers' ? (
+                    <div className="relative group w-full lg:w-80">
+                        <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-emerald-500 transition-colors" />
+                        <input
+                            type="text"
+                            placeholder="BUSCAR RESTAURANTE..."
+                            className="w-full pl-16 pr-8 py-4 bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-[2rem] focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-white text-xs uppercase tracking-widest shadow-inner placeholder:text-slate-700"
+                        />
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={loadPlansData}
+                            disabled={loadingPlans}
+                            className="p-4 bg-slate-900/80 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white rounded-2xl transition-all active:scale-95 shadow-lg"
+                            title="Recargar planes"
+                        >
+                            <RefreshCw className={cn("w-4 h-4", loadingPlans && "animate-spin")} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={openCreatePlanModal}
+                            className="px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black rounded-2xl shadow-xl shadow-emerald-500/20 flex items-center gap-2 text-xs uppercase tracking-widest active:scale-95 transition-all"
+                        >
+                            <Plus className="w-4 h-4 stroke-[3]" />
+                            <span>Nuevo Plan de Pago</span>
+                        </button>
+                    </div>
+                )}
             </div>
 
-            {/* Metrics Cards */}
+            {/* TAB 1: PLANES DE PAGO SAAS */}
+            {activeTab === 'plans' && (
+                <div className="space-y-8 animate-in fade-in duration-300">
+                    {/* Commercial Banner Info */}
+                    <div className="bg-gradient-to-r from-slate-900 via-slate-900/90 to-slate-900 p-8 rounded-[3rem] border border-slate-800 relative overflow-hidden shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="space-y-2 max-w-2xl">
+                            <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-2">
+                                <Sparkles className="w-4 h-4" />
+                                Estructura de Precios Oficial (Florida Market)
+                            </span>
+                            <h2 className="text-2xl font-black text-white italic tracking-tight uppercase">
+                                Suscripciones Base $99/mes + Hardware / Setup
+                            </h2>
+                            <p className="text-xs text-slate-400 font-medium leading-relaxed">
+                                Planes comerciales listos para asignar a clientes o sincronizar con Stripe. Cada pantalla adicional fuera del paquete base añade <strong className="text-emerald-400 font-black">$10.99/mes</strong> a la factura mensual del restaurante.
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                            <span className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl font-black text-[10px] uppercase tracking-wider">
+                                {plans.filter(p => p.is_active).length} Planes Activos
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Plans Grid */}
+                    {loadingPlans ? (
+                        <div className="p-32 text-center bg-slate-900/20 rounded-[3rem] border border-slate-800">
+                            <Loader2 className="w-12 h-12 text-emerald-500 animate-spin mx-auto mb-4" />
+                            <p className="text-xs font-black text-slate-500 uppercase tracking-widest">Cargando catálogo de planes...</p>
+                        </div>
+                    ) : plans.length === 0 ? (
+                        <div className="p-32 text-center bg-slate-900/20 rounded-[3rem] border border-dashed border-slate-800">
+                            <Layers className="w-16 h-16 text-slate-800 mx-auto mb-6" />
+                            <h2 className="text-2xl font-black text-slate-700 uppercase italic tracking-tighter">Sin Planes Registrados</h2>
+                            <button
+                                onClick={openCreatePlanModal}
+                                className="mt-4 px-6 py-3 bg-emerald-500 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider"
+                            >
+                                Crear Primer Plan
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                            {plans.map(plan => {
+                                const isSalon = plan.category === 'salon';
+                                const isKiosk = plan.category === 'kiosk';
+                                const isByod = plan.category === 'byod';
+                                const isAddon = plan.category === 'addon';
+
+                                return (
+                                    <div
+                                        key={plan.id}
+                                        className={cn(
+                                            "bg-slate-900/50 backdrop-blur-md p-8 rounded-[3rem] border transition-all duration-300 relative group flex flex-col justify-between overflow-hidden shadow-2xl",
+                                            plan.is_popular
+                                                ? "border-orange-500/60 shadow-orange-500/10 ring-1 ring-orange-500/30"
+                                                : "border-slate-800 hover:border-slate-700"
+                                        )}
+                                    >
+                                        {/* Top Glow */}
+                                        <div className={cn(
+                                            "absolute -right-12 -top-12 w-40 h-40 rounded-full blur-3xl opacity-20 pointer-events-none transition-all",
+                                            plan.is_popular ? "bg-orange-500" : isSalon ? "bg-amber-500" : isKiosk ? "bg-sky-500" : "bg-emerald-500"
+                                        )} />
+
+                                        <div>
+                                            {/* Badges Bar */}
+                                            <div className="flex items-center justify-between gap-3 mb-6">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={cn(
+                                                        "px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider border flex items-center gap-1.5",
+                                                        isSalon && "bg-amber-500/10 text-amber-400 border-amber-500/20",
+                                                        isKiosk && "bg-sky-500/10 text-sky-400 border-sky-500/20",
+                                                        isByod && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+                                                        isAddon && "bg-purple-500/10 text-purple-400 border-purple-500/20",
+                                                        !isSalon && !isKiosk && !isByod && !isAddon && "bg-slate-500/10 text-slate-400 border-slate-500/20"
+                                                    )}>
+                                                        {isSalon && <Utensils className="w-3 h-3" />}
+                                                        {isKiosk && <Tv className="w-3 h-3" />}
+                                                        {isByod && <Smartphone className="w-3 h-3" />}
+                                                        {isAddon && <Tv className="w-3 h-3" />}
+                                                        {plan.category === 'salon' ? 'Salón & Meseros' : plan.category === 'kiosk' ? 'Kiosko Autoservicio' : plan.category === 'byod' ? 'BYOD Meseros' : plan.category === 'addon' ? 'Pantalla Extra' : 'Personalizado'}
+                                                    </span>
+
+                                                    <span className={cn(
+                                                        "px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider",
+                                                        plan.is_active ? "text-emerald-400 bg-emerald-500/10" : "text-slate-500 bg-slate-800"
+                                                    )}>
+                                                        {plan.is_active ? 'Activo' : 'Inactivo'}
+                                                    </span>
+                                                </div>
+
+                                                {plan.is_popular && (
+                                                    <span className="px-3 py-1 bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 rounded-full font-black text-[9px] uppercase tracking-widest shadow-md">
+                                                        ★ Popular
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Name & Description */}
+                                            <h3 className="text-2xl font-black text-white italic tracking-tight uppercase leading-tight">
+                                                {plan.name}
+                                            </h3>
+                                            <p className="text-xs text-slate-400 font-medium mt-2 line-clamp-2 leading-relaxed">
+                                                {plan.description || 'Sin descripción comercial.'}
+                                            </p>
+
+                                            {/* Pricing Box */}
+                                            <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80 my-6 space-y-2">
+                                                <div className="flex items-baseline gap-2">
+                                                    <span className="text-4xl font-black text-white italic tracking-tighter">
+                                                        {formatPrice(plan.monthly_price, 'en-US')}
+                                                    </span>
+                                                    <span className="text-xs font-black text-slate-500 uppercase tracking-widest">
+                                                        / mes
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex flex-wrap items-center justify-between text-[10px] font-bold gap-2 pt-2 border-t border-slate-800">
+                                                    <span className="text-amber-400 uppercase tracking-wider">
+                                                        Setup: {plan.setup_fee > 0 ? formatPrice(plan.setup_fee, 'en-US') : 'Incluido'}
+                                                    </span>
+                                                    <span className="text-slate-400 uppercase tracking-wider">
+                                                        {plan.max_screens === 0 ? 'Pantallas ilimitadas' : `${plan.max_screens} pantalla base`}
+                                                    </span>
+                                                </div>
+                                                {plan.extra_screen_price && plan.extra_screen_price > 0 && (
+                                                    <p className="text-[9px] text-slate-500 font-medium">
+                                                        +${plan.extra_screen_price}/mes c/pantalla adicional
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            {/* Modules Badges */}
+                                            <div className="space-y-2 mb-6">
+                                                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block">
+                                                    Módulos Habilitados:
+                                                </span>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {plan.modules.waitress_exo && (
+                                                        <span className="px-2.5 py-1 bg-slate-950 rounded-lg border border-slate-800 text-[10px] font-bold text-amber-400 flex items-center gap-1.5">
+                                                            <Smartphone className="w-3 h-3" /> Meseros
+                                                        </span>
+                                                    )}
+                                                    {plan.modules.kds && (
+                                                        <span className="px-2.5 py-1 bg-slate-950 rounded-lg border border-slate-800 text-[10px] font-bold text-emerald-400 flex items-center gap-1.5">
+                                                            <Utensils className="w-3 h-3" /> Cocina KDS
+                                                        </span>
+                                                    )}
+                                                    {plan.modules.kiosk && (
+                                                        <span className="px-2.5 py-1 bg-slate-950 rounded-lg border border-slate-800 text-[10px] font-bold text-sky-400 flex items-center gap-1.5">
+                                                            <Tv className="w-3 h-3" /> Kiosko Touch
+                                                        </span>
+                                                    )}
+                                                    {plan.modules.qr_menu && (
+                                                        <span className="px-2.5 py-1 bg-slate-950 rounded-lg border border-slate-800 text-[10px] font-bold text-teal-400 flex items-center gap-1.5">
+                                                            <QrCode className="w-3 h-3" /> Menú QR
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Features List */}
+                                            {plan.features && plan.features.length > 0 && (
+                                                <ul className="space-y-2 mb-6 border-t border-slate-800/60 pt-4">
+                                                    {plan.features.map((feat, idx) => (
+                                                        <li key={idx} className="flex items-start gap-2 text-xs text-slate-300 font-medium">
+                                                            <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                                                            <span>{feat}</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+
+                                            {/* Stripe Badge */}
+                                            <div className="pt-2 pb-4">
+                                                {plan.stripe_product_id ? (
+                                                    <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg inline-flex items-center gap-1.5">
+                                                        <Check className="w-3 h-3" />
+                                                        Stripe Product ID: {plan.stripe_product_id.slice(0, 14)}...
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-[9px] font-bold text-slate-500 bg-slate-800/40 px-2.5 py-1 rounded-lg inline-block">
+                                                        Solo Configuración Local
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Action Buttons */}
+                                        <div className="space-y-2 pt-4 border-t border-slate-800/80">
+                                            <button
+                                                type="button"
+                                                onClick={() => openAssignModal(plan)}
+                                                className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-2 active:scale-95"
+                                            >
+                                                <Users className="w-3.5 h-3.5 stroke-[2.5]" />
+                                                <span>Asignar a Restaurante</span>
+                                            </button>
+
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openEditPlanModal(plan)}
+                                                    className="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-black rounded-xl text-[10px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+                                                >
+                                                    <Edit3 className="w-3 h-3" />
+                                                    <span>Editar</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeletePlanClick(plan)}
+                                                    className="py-2.5 bg-slate-800/40 hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 font-black rounded-xl text-[10px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+                                                >
+                                                    <Trash2 className="w-3 h-3" />
+                                                    <span>Eliminar</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* TAB 2: FACTURACIÓN Y CLIENTES */}
+            {activeTab === 'customers' && (
+                <div className="space-y-10 animate-in fade-in duration-300">
+                    {/* Metrics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <MetricCard
                     title="Ingreso Recurrente (MRR)"
@@ -508,6 +1014,8 @@ export default function SuperAdminBillingPage() {
                 <div className="p-32 text-center bg-slate-900/20 rounded-[3rem] border border-dashed border-slate-800">
                     <CreditCard className="w-16 h-16 text-slate-800 mx-auto mb-6" />
                     <h2 className="text-2xl font-black text-slate-700 uppercase italic tracking-tighter">Sin Suscripciones Encontradas</h2>
+                </div>
+            )}
                 </div>
             )}
 
@@ -786,6 +1294,340 @@ export default function SuperAdminBillingPage() {
                                     ))
                                 )}
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Crear / Editar Plan de Pago */}
+            {isPlanModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl animate-in fade-in duration-300">
+                    <div className="bg-slate-900 border border-slate-800 rounded-[3rem] w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="p-8 border-b border-slate-800/80 bg-slate-950/40 flex items-center justify-between">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="w-6 h-1 bg-emerald-500 rounded-full"></span>
+                                    <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">
+                                        {editingPlan ? 'Editar Plan Existente' : 'Nuevo Nivel Comercial'}
+                                    </span>
+                                </div>
+                                <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter">
+                                    {editingPlan ? `Editar: ${editingPlan.name}` : 'Crear Plan de Pago SaaS'}
+                                </h2>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsPlanModalOpen(false)}
+                                className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-all"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        {/* Form Body */}
+                        <form onSubmit={handleSavePlanSubmit} className="p-8 space-y-6 overflow-y-auto custom-scrollbar flex-1">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                                        Nombre del Plan *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formName}
+                                        onChange={e => setFormName(e.target.value)}
+                                        placeholder="ej. Exo Server Salón & Cocina"
+                                        className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl px-4 py-3 text-white text-xs font-black uppercase tracking-wider focus:border-emerald-500 outline-none"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                                        Categoría Comercial
+                                    </label>
+                                    <select
+                                        value={formCategory}
+                                        onChange={e => setFormCategory(e.target.value as any)}
+                                        className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl px-4 py-3 text-white text-xs font-black uppercase tracking-wider focus:border-emerald-500 outline-none"
+                                    >
+                                        <option value="salon">Salón & Comandas (Exo Server)</option>
+                                        <option value="kiosk">Kiosko Autoservicio Touch</option>
+                                        <option value="byod">BYOD (Meseros con Móvil)</option>
+                                        <option value="addon">Hardware / Pantalla Adicional</option>
+                                        <option value="custom">Plan Personalizado</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                                    Descripción Comercial
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formDescription}
+                                    onChange={e => setFormDescription(e.target.value)}
+                                    placeholder="ej. Sistema integral para salón con comandeo móvil y cocina KDS"
+                                    className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl px-4 py-3 text-white text-xs font-medium focus:border-emerald-500 outline-none"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                                        Precio Mensual (USD) *
+                                    </label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-black text-sm">$</span>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            value={formMonthlyPrice}
+                                            onChange={e => setFormMonthlyPrice(e.target.value)}
+                                            className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl pl-8 pr-4 py-3 text-white text-xs font-black tracking-wider focus:border-emerald-500 outline-none"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                                        Setup / Instalación Única (USD)
+                                    </label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-black text-sm">$</span>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            value={formSetupFee}
+                                            onChange={e => setFormSetupFee(e.target.value)}
+                                            className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl pl-8 pr-4 py-3 text-white text-xs font-black tracking-wider focus:border-emerald-500 outline-none"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                                        Pantallas Incluidas (0 = Ilimitadas)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={formMaxScreens}
+                                        onChange={e => setFormMaxScreens(e.target.value)}
+                                        className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl px-4 py-3 text-white text-xs font-black tracking-wider focus:border-emerald-500 outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                                        Precio por Pantalla Extra (USD/mes)
+                                    </label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-black text-sm">$</span>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            value={formExtraScreenPrice}
+                                            onChange={e => setFormExtraScreenPrice(e.target.value)}
+                                            className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl pl-8 pr-4 py-3 text-white text-xs font-black tracking-wider focus:border-emerald-500 outline-none"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Módulos Habilitados */}
+                            <div className="bg-slate-950/50 p-5 rounded-2xl border border-slate-800">
+                                <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest block mb-3">
+                                    Módulos Incluidos en el Plan
+                                </label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <label className="flex items-center gap-3 p-3 bg-slate-900/60 rounded-xl border border-slate-800 hover:border-slate-700 cursor-pointer transition-all">
+                                        <input
+                                            type="checkbox"
+                                            checked={formModWaitress}
+                                            onChange={e => setFormModWaitress(e.target.checked)}
+                                            className="w-4 h-4 rounded text-emerald-500 focus:ring-0"
+                                        />
+                                        <span className="text-xs font-black text-white uppercase tracking-wider">Comandeo Meseros</span>
+                                    </label>
+                                    <label className="flex items-center gap-3 p-3 bg-slate-900/60 rounded-xl border border-slate-800 hover:border-slate-700 cursor-pointer transition-all">
+                                        <input
+                                            type="checkbox"
+                                            checked={formModKds}
+                                            onChange={e => setFormModKds(e.target.checked)}
+                                            className="w-4 h-4 rounded text-emerald-500 focus:ring-0"
+                                        />
+                                        <span className="text-xs font-black text-white uppercase tracking-wider">Cocina KDS</span>
+                                    </label>
+                                    <label className="flex items-center gap-3 p-3 bg-slate-900/60 rounded-xl border border-slate-800 hover:border-slate-700 cursor-pointer transition-all">
+                                        <input
+                                            type="checkbox"
+                                            checked={formModKiosk}
+                                            onChange={e => setFormModKiosk(e.target.checked)}
+                                            className="w-4 h-4 rounded text-emerald-500 focus:ring-0"
+                                        />
+                                        <span className="text-xs font-black text-white uppercase tracking-wider">Kiosko Autoservicio</span>
+                                    </label>
+                                    <label className="flex items-center gap-3 p-3 bg-slate-900/60 rounded-xl border border-slate-800 hover:border-slate-700 cursor-pointer transition-all">
+                                        <input
+                                            type="checkbox"
+                                            checked={formModQr}
+                                            onChange={e => setFormModQr(e.target.checked)}
+                                            className="w-4 h-4 rounded text-emerald-500 focus:ring-0"
+                                        />
+                                        <span className="text-xs font-black text-white uppercase tracking-wider">Menú QR Digital</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            {/* Features */}
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                                    Características y Beneficios (un ítem por línea)
+                                </label>
+                                <textarea
+                                    rows={3}
+                                    value={formFeaturesText}
+                                    onChange={e => setFormFeaturesText(e.target.value)}
+                                    placeholder="Comandeo móvil para meseros&#10;Pantalla de Cocina KDS en tiempo real&#10;Digitalización completa del menú"
+                                    className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl px-4 py-3 text-white text-xs font-medium focus:border-emerald-500 outline-none resize-none"
+                                />
+                            </div>
+
+                            {/* Flags & Stripe */}
+                            <div className="space-y-3 bg-slate-950/40 p-5 rounded-2xl border border-slate-800">
+                                <label className="flex items-center justify-between cursor-pointer">
+                                    <span className="text-xs font-black text-white uppercase tracking-wider">Plan Activo y Disponible</span>
+                                    <input
+                                        type="checkbox"
+                                        checked={formIsActive}
+                                        onChange={e => setFormIsActive(e.target.checked)}
+                                        className="w-4 h-4 rounded text-emerald-500"
+                                    />
+                                </label>
+                                <label className="flex items-center justify-between cursor-pointer">
+                                    <span className="text-xs font-black text-white uppercase tracking-wider">Marcar como Más Popular / Recomendado</span>
+                                    <input
+                                        type="checkbox"
+                                        checked={formIsPopular}
+                                        onChange={e => setFormIsPopular(e.target.checked)}
+                                        className="w-4 h-4 rounded text-orange-500"
+                                    />
+                                </label>
+                                <label className="flex items-center justify-between cursor-pointer pt-2 border-t border-slate-800">
+                                    <div>
+                                        <span className="text-xs font-black text-emerald-400 uppercase tracking-wider block">Sincronizar con Stripe</span>
+                                        <span className="text-[10px] text-slate-500 font-medium">Crea o actualiza el Product y Price recurrente en Stripe</span>
+                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        checked={syncStripeOption}
+                                        onChange={e => setSyncStripeOption(e.target.checked)}
+                                        className="w-4 h-4 rounded text-emerald-500"
+                                    />
+                                </label>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsPlanModalOpen(false)}
+                                    className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-black rounded-xl text-xs uppercase tracking-wider transition-all"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={savingPlan}
+                                    className="px-8 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95"
+                                >
+                                    {savingPlan && <Loader2 className="w-4 h-4 animate-spin" />}
+                                    <span>{savingPlan ? 'Guardando...' : (editingPlan ? 'Actualizar Plan' : 'Guardar Plan')}</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Asignar Plan a Restaurante */}
+            {assignModalOpen && planToAssign && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl animate-in fade-in duration-300">
+                    <div className="bg-slate-900 border border-slate-800 rounded-[3rem] w-full max-w-lg p-8 overflow-hidden shadow-2xl space-y-6 animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                            <div>
+                                <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest block mb-1">
+                                    Asignación Comercial
+                                </span>
+                                <h2 className="text-xl font-black text-white italic uppercase tracking-tight">
+                                    Asignar Plan a Restaurante
+                                </h2>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setAssignModalOpen(false)}
+                                className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-all"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        {/* Plan Info Card */}
+                        <div className="bg-slate-950/80 p-5 rounded-2xl border border-slate-800">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-black text-white uppercase">{planToAssign.name}</span>
+                                <span className="text-emerald-400 font-black text-sm">${planToAssign.monthly_price}/mes</span>
+                            </div>
+                            <p className="text-[11px] text-slate-400">{planToAssign.description}</p>
+                            <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase">
+                                <span>Setup fee: ${planToAssign.setup_fee}</span>
+                                <span>Pantallas: {planToAssign.max_screens === 0 ? 'Ilimitadas' : planToAssign.max_screens}</span>
+                            </div>
+                        </div>
+
+                        {/* Select Restaurant */}
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                                Selecciona el Restaurante Cliente
+                            </label>
+                            <select
+                                value={targetRestaurantId}
+                                onChange={e => setTargetRestaurantId(e.target.value)}
+                                className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl px-4 py-3.5 text-white text-xs font-black uppercase tracking-wider focus:border-emerald-500 outline-none"
+                            >
+                                {customers.map(c => (
+                                    <option key={c.id} value={c.id}>
+                                        {c.name} ({c.email || 'Sin correo'}) — Costo actual: ${c.unit_price || 49}/mes
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="text-[10px] text-slate-500 mt-2">
+                                Al confirmar, se actualizará el costo unitario del restaurante en la base de datos a <strong className="text-emerald-400">${planToAssign.monthly_price}/mes</strong>.
+                            </p>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+                            <button
+                                type="button"
+                                onClick={() => setAssignModalOpen(false)}
+                                className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-black rounded-xl text-xs uppercase tracking-wider transition-all"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                disabled={assigningPlan || !targetRestaurantId}
+                                onClick={handleAssignPlanSubmit}
+                                className="px-8 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95"
+                            >
+                                {assigningPlan && <Loader2 className="w-4 h-4 animate-spin" />}
+                                <span>{assigningPlan ? 'Asignando...' : 'Confirmar Asignación'}</span>
+                            </button>
                         </div>
                     </div>
                 </div>

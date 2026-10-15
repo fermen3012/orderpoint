@@ -259,6 +259,21 @@
         "Visibilidad de alto contraste para Kitchen Display System (KDS)",
         "Preservación y replicación exacta del lenguaje visual del sistema"
       ]
+    },
+    {
+      "id": "node_growth_marketing",
+      "name": "Especialidad Marketing Digital, Pricing & Ventas SaaS (GTM)",
+      "type": "growth_subagent",
+      "files": [
+        ".agents/skills/saas-growth-marketing/SKILL.md",
+        ".agents/agents/saas_growth_marketing_strategist/agent.md"
+      ],
+      "responsibilities": [
+        "Definición y empaquetado de planes de precios SaaS (Pricing Tiers: Starter, Pro, Enterprise)",
+        "Estrategia de ventas consultivas directas y prospección local para dueños de restaurantes",
+        "Diseño de embudos de marketing digital hiperlocal (Meta Ads, WhatsApp Business, Local SEO)",
+        "Manejo de objeciones comerciales, demos en vivo (Live Demos) y mitigación de churn"
+      ]
     }
   ],
   "edges": [
@@ -276,7 +291,9 @@
     { "from": "node_security_guardian", "to": "node_billing_stripe", "relation": "verifies_webhook_signatures" },
     { "from": "node_backend_core", "to": "node_database_schema", "relation": "executes_server_business_logic" },
     { "from": "node_frontend_core", "to": "node_backend_core", "relation": "invokes_typed_server_actions" },
-    { "from": "node_ui_design", "to": "node_frontend_core", "relation": "applies_visual_styling_on_demand" }
+    { "from": "node_ui_design", "to": "node_frontend_core", "relation": "applies_visual_styling_on_demand" },
+    { "from": "node_growth_marketing", "to": "node_billing_stripe", "relation": "defines_subscription_tiers_and_pricing" },
+    { "from": "node_growth_marketing", "to": "node_kiosk", "relation": "optimizes_conversion_and_sales_pitch" }
   ],
   "token_efficiency_protocol": {
     "unbreakable_rule": true,

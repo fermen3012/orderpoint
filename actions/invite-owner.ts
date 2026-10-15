@@ -63,21 +63,50 @@ export async function inviteRestaurantOwner(email: string, restaurantId: string,
         const redirectPath = locale === 'es' ? '/set-password' : `/${locale}/set-password`;
         const redirectToUrl = `${siteUrl}${redirectPath}`;
 
-        // 2. Enviar invitación
-        const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-            data: {
-                role: 'owner',
-                restaurant_id: restaurantId
-            },
-            redirectTo: redirectToUrl,
+        // 2. Generar el enlace directo de invitación (Magic Link / Token seguro)
+        let inviteLink: string | null = null;
+        const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+            type: 'invite',
+            email,
+            options: {
+                data: {
+                    role: 'owner',
+                    restaurant_id: restaurantId
+                },
+                redirectTo: redirectToUrl
+            }
         });
 
-        if (error) {
-            console.error('Error inviting user:', error.message);
-            return { error: error.message };
+        if (!linkError && linkData?.properties?.action_link) {
+            inviteLink = linkData.properties.action_link;
         }
 
-        return { success: true };
+        // 3. También intentar enviar el correo por SMTP oficial
+        let emailSent = false;
+        try {
+            const { error: mailError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+                data: {
+                    role: 'owner',
+                    restaurant_id: restaurantId
+                },
+                redirectTo: redirectToUrl,
+            });
+            if (!mailError) {
+                emailSent = true;
+            }
+        } catch (mailErr) {
+            console.warn('Advertencia al enviar correo SMTP (se generó enlace manual):', mailErr);
+        }
+
+        if (!inviteLink && !emailSent) {
+            return { error: 'No se pudo generar la invitación. Verifica las credenciales de Supabase.' };
+        }
+
+        return {
+            success: true,
+            inviteLink,
+            emailSent
+        };
     } catch (err: any) {
         console.error('Unexpected error:', err);
         return { error: err.message || 'Ocurrió un error inesperado al enviar la invitación' };

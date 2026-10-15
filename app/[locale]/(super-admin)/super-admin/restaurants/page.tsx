@@ -19,27 +19,53 @@ import {
     Loader2,
     ChefHat,
     FileSpreadsheet,
-    FileText
+    FileText,
+    Layers,
+    Sparkles,
+    Smartphone,
+    Tv,
+    Utensils,
+    CreditCard
 } from 'lucide-react';
 import InviteOwnerModal from '@/components/super-admin/InviteOwnerModal';
 import RestaurantLogoModal from '@/components/super-admin/RestaurantLogoModal';
 import { useRouter, Link } from '@/i18n/routing';
-import { createRestaurant, toggleRestaurantStatus, getRestaurants, deleteRestaurant } from './actions';
+import {
+    createRestaurant,
+    toggleRestaurantStatus,
+    getRestaurants,
+    deleteRestaurant
+} from './actions';
+import { getSubscriptionPlans, updateRestaurantPlan } from '@/actions/plans-admin';
+import type { SubscriptionPlan } from '@/lib/subscription-plans';
 
 export default function SuperAdminRestaurants() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [restaurants, setRestaurants] = useState<any[]>([]);
+    const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [saving, setSaving] = useState(false);
 
+    // Estado del nuevo restaurante con plan asignado
     const [newRestaurant, setNewRestaurant] = useState({
         name: '',
         slug: '',
         logo_url: '',
-        is_active: true
+        is_active: true,
+        plan_id: 'plan_exo_salon',
+        custom_price: '',
+        owner_email: '',
+        seed_demo_data: true
     });
+
+    // Estado para modal de editar plan de restaurante existente
+    const [editPlanModalData, setEditPlanModalData] = useState<{ id: string; name: string; plan_id: string; unit_price: number } | null>(null);
+    const [selectedPlanToEdit, setSelectedPlanToEdit] = useState<string>('plan_exo_salon');
+    const [editCustomPrice, setEditCustomPrice] = useState<string>('99');
+    const [updatingPlan, setUpdatingPlan] = useState<boolean>(false);
+
     const [logoModalData, setLogoModalData] = useState<{ id: string, name: string, logo: string } | null>(null);
     const [inviteModalData, setInviteModalData] = useState<{ id: string, name: string } | null>(null);
     const [deleteModalData, setDeleteModalData] = useState<{ id: string, name: string } | null>(null);
@@ -84,14 +110,31 @@ export default function SuperAdminRestaurants() {
 
     const loadRestaurants = async () => {
         setLoading(true);
-        const { data, error } = await getRestaurants();
+        try {
+            const resResult = await getRestaurants();
 
-        if (error) {
-            console.error(error);
-        } else if (data) {
-            setRestaurants(data);
+            if (resResult.error) {
+                console.error('getRestaurants error:', resResult.error);
+            } else if (resResult.data) {
+                setRestaurants(resResult.data);
+            }
+
+            try {
+                const plansResult = await getSubscriptionPlans();
+                if (plansResult && plansResult.length > 0) {
+                    setPlans(plansResult);
+                    if (!newRestaurant.plan_id) {
+                        setNewRestaurant(prev => ({ ...prev, plan_id: plansResult[0].id }));
+                    }
+                }
+            } catch (plansErr) {
+                console.warn('Could not fetch subscription plans list:', plansErr);
+            }
+        } catch (err) {
+            console.error('Error loading restaurants and plans:', err);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const handleToggleActive = async (id: string, currentStatus: boolean) => {
@@ -116,11 +159,39 @@ export default function SuperAdminRestaurants() {
         setSaving(true);
 
         try {
-            const result = await createRestaurant(newRestaurant);
+            const customPriceNum = newRestaurant.custom_price ? parseFloat(newRestaurant.custom_price) : undefined;
+            const result = await createRestaurant({
+                name: newRestaurant.name,
+                slug: newRestaurant.slug,
+                logo_url: newRestaurant.logo_url,
+                plan_id: newRestaurant.plan_id,
+                custom_price: customPriceNum,
+                owner_email: newRestaurant.owner_email ? newRestaurant.owner_email.trim() : undefined,
+                seed_demo_data: newRestaurant.seed_demo_data,
+            });
 
             if (!result.error) {
                 setIsModalOpen(false);
-                setNewRestaurant({ name: '', slug: '', logo_url: '', is_active: true });
+                let msg = `¡Restaurante "${newRestaurant.name}" creado con éxito!`;
+                if (result.inviteResult) {
+                    if (result.inviteResult.error) {
+                        msg += `\n(Aviso sobre invitación: ${result.inviteResult.error})`;
+                    } else {
+                        msg += `\nInvitación registrada para ${newRestaurant.owner_email}.`;
+                    }
+                }
+                alert(msg);
+
+                setNewRestaurant({
+                    name: '',
+                    slug: '',
+                    logo_url: '',
+                    is_active: true,
+                    plan_id: plans[0]?.id || 'plan_exo_salon',
+                    custom_price: '',
+                    owner_email: '',
+                    seed_demo_data: true
+                });
                 loadRestaurants();
             } else {
                 alert('Error al crear el restaurante: ' + result.error);
@@ -132,9 +203,48 @@ export default function SuperAdminRestaurants() {
         }
     };
 
+    const handleOpenEditPlanModal = (res: any) => {
+        setEditPlanModalData({
+            id: res.id,
+            name: res.name,
+            plan_id: res.plan_id || 'plan_exo_salon',
+            unit_price: res.unit_price || 99
+        });
+        setSelectedPlanToEdit(res.plan_id || 'plan_exo_salon');
+        setEditCustomPrice((res.unit_price || 99).toString());
+    };
+
+    const handleSaveRestaurantPlan = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editPlanModalData) return;
+
+        setUpdatingPlan(true);
+        try {
+            const priceNum = parseFloat(editCustomPrice);
+            const res = await updateRestaurantPlan(
+                editPlanModalData.id,
+                selectedPlanToEdit,
+                isNaN(priceNum) ? undefined : priceNum
+            );
+
+            if (res.success) {
+                alert(`Plan "${res.planName}" asignado con éxito a ${editPlanModalData.name}.`);
+                setEditPlanModalData(null);
+                loadRestaurants();
+            } else {
+                alert('Error al actualizar el plan: ' + res.error);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Ocurrió un error inesperado al actualizar el plan.');
+        } finally {
+            setUpdatingPlan(false);
+        }
+    };
+
     const filteredRestaurants = restaurants.filter(r =>
-        r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.slug?.toLowerCase().includes(searchQuery.toLowerCase())
+        (r.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (r.slug || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     if (loading) {
@@ -189,6 +299,7 @@ export default function SuperAdminRestaurants() {
                             <tr>
                                 <th className="px-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Restaurante / Tenant</th>
                                 <th className="px-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Identificador</th>
+                                <th className="px-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Plan SaaS</th>
                                 <th className="px-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Estado</th>
                                 <th className="px-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-left">Alta</th>
                                 <th className="px-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] text-right">Controles</th>
@@ -219,6 +330,20 @@ export default function SuperAdminRestaurants() {
                                             <Globe className="w-4 h-4 text-emerald-500/50" />
                                             <span className="font-black text-xs uppercase tracking-widest">{res.slug || 'sin-slug'}</span>
                                         </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleOpenEditPlanModal(res)}
+                                            className="group/plan flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border bg-slate-900/90 hover:bg-slate-800 border-slate-800 hover:border-emerald-500/50 transition-all text-left shadow-sm"
+                                            title="Clic para editar plan"
+                                        >
+                                            <Layers className="w-4 h-4 text-emerald-400 group-hover/plan:rotate-12 transition-transform shrink-0" />
+                                            <div>
+                                                <span className="text-white block leading-tight truncate max-w-[150px]">{res.plan_name || 'Salón & Cocina'}</span>
+                                                <span className="text-emerald-400 font-mono text-[9px] block">${res.unit_price || 99}/mes</span>
+                                            </div>
+                                        </button>
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest w-fit border ${res.is_active
@@ -253,7 +378,7 @@ export default function SuperAdminRestaurants() {
                                             {openMenuId === res.id && (
                                                 <div 
                                                     onClick={(e) => e.stopPropagation()}
-                                                    className="absolute right-6 mt-10 w-52 bg-slate-950/95 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl z-50 py-2.5 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
+                                                    className="absolute right-6 mt-10 w-56 bg-slate-950/95 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl z-50 py-2.5 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
                                                 >
                                                     {/* Ver Menú */}
                                                     <Link
@@ -264,6 +389,30 @@ export default function SuperAdminRestaurants() {
                                                         <ChefHat className="w-4 h-4 text-emerald-500" />
                                                         Ver Menú
                                                     </Link>
+
+                                                    {/* Probar Salón (Exo Server) */}
+                                                    <a
+                                                        href={`/exo/tables?restaurant_id=${res.id}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        onClick={() => setOpenMenuId(null)}
+                                                        className="flex items-center gap-3 px-4 py-3 text-emerald-400 hover:text-emerald-300 hover:bg-slate-900/50 transition-colors text-xs font-bold uppercase tracking-wider"
+                                                    >
+                                                        <Smartphone className="w-4 h-4 text-emerald-400" />
+                                                        Probar Salón (Exo)
+                                                    </a>
+
+                                                    {/* Editar Plan SaaS */}
+                                                    <button
+                                                        onClick={() => {
+                                                            handleOpenEditPlanModal(res);
+                                                            setOpenMenuId(null);
+                                                        }}
+                                                        className="flex items-center gap-3 w-full px-4 py-3 text-amber-400 hover:text-amber-300 hover:bg-slate-900/50 transition-colors text-left text-xs font-bold uppercase tracking-wider"
+                                                    >
+                                                        <Layers className="w-4 h-4 text-amber-400" />
+                                                        Editar Plan SaaS
+                                                    </button>
 
 
 
@@ -378,6 +527,16 @@ export default function SuperAdminRestaurants() {
                                     <p className="text-xs font-black uppercase tracking-widest truncate">{new Date(res.created_at).toLocaleDateString()}</p>
                                 </div>
                             </div>
+                            <div className="bg-slate-950/50 p-4 rounded-2xl border border-slate-800 col-span-2 flex items-center justify-between">
+                                <div>
+                                    <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Plan de Suscripción</p>
+                                    <p className="text-xs font-black text-white uppercase flex items-center gap-1.5">
+                                        <Layers className="w-3.5 h-3.5 text-emerald-400" />
+                                        <span>{res.plan_name || 'Salón & Cocina'}</span>
+                                    </p>
+                                </div>
+                                <span className="text-xs font-mono font-black text-emerald-400">${res.unit_price || 99}/mes</span>
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-bottom duration-300">
@@ -387,6 +546,22 @@ export default function SuperAdminRestaurants() {
                             >
                                 <ChefHat className="w-4 h-4 text-emerald-500 group-hover:text-inherit" />
                                 Gestionar Menú
+                            </button>
+                            <a
+                                href={`/exo/tables?restaurant_id=${res.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="col-span-2 py-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-lg text-center"
+                            >
+                                <Smartphone className="w-4 h-4 text-emerald-400" />
+                                Probar Salón (Exo Server)
+                            </a>
+                            <button
+                                onClick={() => handleOpenEditPlanModal(res)}
+                                className="col-span-2 py-4 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-2xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-lg"
+                            >
+                                <Layers className="w-4 h-4" />
+                                Editar Plan SaaS
                             </button>
                             <button
                                 onClick={() => handleToggleActive(res.id, res.is_active)}
@@ -498,6 +673,119 @@ export default function SuperAdminRestaurants() {
                                 />
                             </div>
 
+                            {/* Plan de Pago SaaS Selector */}
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2 flex items-center gap-2">
+                                        <Layers className="w-3.5 h-3.5 text-emerald-400" />
+                                        <span>Plan de Pago SaaS Asignado *</span>
+                                    </label>
+                                    <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">
+                                        Suscripción Inicial
+                                    </span>
+                                </div>
+
+                                <select
+                                    value={newRestaurant.plan_id}
+                                    onChange={(e) => {
+                                        const pId = e.target.value;
+                                        const found = plans.find(p => p.id === pId);
+                                        setNewRestaurant({
+                                            ...newRestaurant,
+                                            plan_id: pId,
+                                            custom_price: found ? found.monthly_price.toString() : '99'
+                                        });
+                                    }}
+                                    className="w-full px-6 py-5 bg-slate-950 border border-slate-800 rounded-[2rem] focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-white text-xs uppercase tracking-wider"
+                                >
+                                    {plans.map(p => (
+                                        <option key={p.id} value={p.id}>
+                                            {p.name} — ${p.monthly_price}/mes (Setup: ${p.setup_fee})
+                                        </option>
+                                    ))}
+                                </select>
+
+                                {/* Plan Preview Box */}
+                                {(() => {
+                                    const selected = plans.find(p => p.id === newRestaurant.plan_id) || plans[0];
+                                    if (!selected) return null;
+                                    return (
+                                        <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800/80 space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-black text-white uppercase italic">{selected.name}</span>
+                                                <span className="text-emerald-400 font-black text-sm">${selected.monthly_price}/mes</span>
+                                            </div>
+                                            <p className="text-[11px] text-slate-400 leading-relaxed">{selected.description}</p>
+                                            <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-800/60 text-[9px] font-black uppercase tracking-wider text-slate-400">
+                                                <span className="text-amber-400">Setup: ${selected.setup_fee}</span>
+                                                <span>•</span>
+                                                <span>{selected.max_screens === 0 ? 'Pantallas ilimitadas' : `${selected.max_screens} pantalla base`}</span>
+                                                <span>•</span>
+                                                <span className="text-emerald-400">+${selected.extra_screen_price || 10.99}/mes extra</span>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5 pt-1">
+                                                {selected.modules.waitress_exo && (
+                                                    <span className="px-2 py-0.5 bg-slate-900 rounded border border-slate-800 text-[9px] font-bold text-amber-400">Meseros</span>
+                                                )}
+                                                {selected.modules.kds && (
+                                                    <span className="px-2 py-0.5 bg-slate-900 rounded border border-slate-800 text-[9px] font-bold text-emerald-400">Cocina KDS</span>
+                                                )}
+                                                {selected.modules.kiosk && (
+                                                    <span className="px-2 py-0.5 bg-slate-900 rounded border border-slate-800 text-[9px] font-bold text-sky-400">Kiosko Touch</span>
+                                                )}
+                                                {selected.modules.qr_menu && (
+                                                    <span className="px-2 py-0.5 bg-slate-900 rounded border border-slate-800 text-[9px] font-bold text-teal-400">Menú QR</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+
+                            {/* Correo del Dueño / Admin (Invitación Automática) */}
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2 flex items-center gap-2">
+                                        <UserPlus className="w-3.5 h-3.5 text-indigo-400" />
+                                        <span>Correo del Dueño / Admin (Opcional)</span>
+                                    </label>
+                                    <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">
+                                        Invitación Automática
+                                    </span>
+                                </div>
+                                <input
+                                    type="email"
+                                    value={newRestaurant.owner_email}
+                                    onChange={(e) => setNewRestaurant({ ...newRestaurant, owner_email: e.target.value })}
+                                    className="w-full px-8 py-5 bg-slate-950 border border-slate-800 rounded-[2rem] focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all font-black text-white text-sm shadow-inner placeholder:text-slate-800 placeholder:italic placeholder:font-normal"
+                                    placeholder="dueno@restaurante.com"
+                                />
+                                <p className="text-[9px] text-slate-500 font-bold px-2">
+                                    Se enviará invitación por correo y se generará enlace directo de activación para WhatsApp.
+                                </p>
+                            </div>
+
+                            {/* Semilla de Datos de Demostración */}
+                            <div 
+                                className="p-5 rounded-2xl bg-slate-950/60 border border-slate-800 flex items-center gap-4 cursor-pointer hover:border-slate-700 transition-colors"
+                                onClick={() => setNewRestaurant({ ...newRestaurant, seed_demo_data: !newRestaurant.seed_demo_data })}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={newRestaurant.seed_demo_data}
+                                    onChange={(e) => setNewRestaurant({ ...newRestaurant, seed_demo_data: e.target.checked })}
+                                    className="w-5 h-5 rounded-lg accent-emerald-500 cursor-pointer"
+                                />
+                                <div>
+                                    <p className="text-xs font-black text-white uppercase tracking-wider">
+                                        Inicializar Datos de Demostración (Recomendado)
+                                    </p>
+                                    <p className="text-[10px] text-slate-400 mt-0.5">
+                                        Crea automáticamente 6 Mesas de Salón (Mesas 1 a 6) y 3 Categorías base (Platos Principales, Bebidas, Postres).
+                                    </p>
+                                </div>
+                            </div>
+
                             <div className="flex flex-col sm:flex-row gap-6 pt-6">
                                 <button
                                     type="button"
@@ -588,6 +876,115 @@ export default function SuperAdminRestaurants() {
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Editar Plan de Suscripción del Restaurante */}
+            {editPlanModalData && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-2xl animate-in fade-in duration-500">
+                    <div className="bg-slate-900 w-full max-w-xl rounded-[3rem] border border-slate-800 shadow-2xl relative animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col overflow-hidden">
+                        <div className="p-8 md:p-10 border-b border-slate-800/50 flex justify-between items-center bg-slate-900/50 backdrop-blur-md rounded-t-[3rem] shrink-0">
+                            <div>
+                                <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest block mb-1">
+                                    Gestión de Suscripción
+                                </span>
+                                <h2 className="text-2xl md:text-3xl font-black text-white italic tracking-tighter uppercase leading-none">
+                                    Editar Plan: {editPlanModalData.name}
+                                </h2>
+                            </div>
+                            <button
+                                onClick={() => setEditPlanModalData(null)}
+                                className="p-4 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-2xl transition-all"
+                            >
+                                <CloseIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveRestaurantPlan} className="p-8 md:p-10 space-y-6 overflow-y-auto custom-scrollbar flex-1">
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">
+                                    Seleccionar Nuevo Plan
+                                </label>
+                                <select
+                                    value={selectedPlanToEdit}
+                                    onChange={(e) => {
+                                        const pId = e.target.value;
+                                        setSelectedPlanToEdit(pId);
+                                        const found = plans.find(p => p.id === pId);
+                                        if (found) setEditCustomPrice(found.monthly_price.toString());
+                                    }}
+                                    className="w-full px-6 py-5 bg-slate-950 border border-slate-800 rounded-2xl text-white font-black text-xs uppercase tracking-wider focus:border-emerald-500 outline-none"
+                                >
+                                    {plans.map(p => (
+                                        <option key={p.id} value={p.id}>
+                                            {p.name} — ${p.monthly_price}/mes (Setup: ${p.setup_fee})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Plan details preview */}
+                            {(() => {
+                                const planObj = plans.find(p => p.id === selectedPlanToEdit);
+                                if (!planObj) return null;
+                                return (
+                                    <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs font-black text-white uppercase">{planObj.name}</span>
+                                            <span className="text-emerald-400 font-black text-sm">${planObj.monthly_price}/mes</span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-400">{planObj.description}</p>
+                                        <div className="flex flex-wrap gap-2 pt-2 text-[9px] font-black text-slate-500 uppercase">
+                                            <span>Setup: ${planObj.setup_fee}</span>
+                                            <span>•</span>
+                                            <span>{planObj.max_screens === 0 ? 'Pantallas ilimitadas' : `${planObj.max_screens} pantalla base`}</span>
+                                            <span>•</span>
+                                            <span className="text-emerald-400">+${planObj.extra_screen_price || 10.99}/mes extra</span>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">
+                                    Precio Mensual Facturado (USD/mes)
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 font-black text-sm">$</span>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={editCustomPrice}
+                                        onChange={(e) => setEditCustomPrice(e.target.value)}
+                                        className="w-full pl-12 pr-6 py-4 bg-slate-950 border border-slate-800 rounded-2xl text-white font-black text-sm tracking-wider focus:border-emerald-500 outline-none"
+                                        required
+                                    />
+                                </div>
+                                <p className="text-[10px] text-slate-500 px-2">
+                                    Puedes ajustar un precio mensual personalizado o mantener la tarifa oficial del plan.
+                                </p>
+                            </div>
+
+                            <div className="flex gap-4 pt-4 border-t border-slate-800">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditPlanModalData(null)}
+                                    className="flex-1 py-4 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-2xl font-black uppercase tracking-widest text-xs transition-all"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={updatingPlan}
+                                    className="flex-[2] py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-900 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95"
+                                >
+                                    {updatingPlan && <Loader2 className="w-4 h-4 animate-spin" />}
+                                    <span>{updatingPlan ? 'Actualizando...' : 'Guardar Nuevo Plan'}</span>
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

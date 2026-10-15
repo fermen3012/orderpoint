@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { X, Send, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Send, Loader2, CheckCircle2, AlertCircle, Copy, Check, MessageSquare } from 'lucide-react';
 import { inviteRestaurantOwner } from '@/actions/invite-owner';
 
 interface InviteOwnerModalProps {
@@ -20,17 +20,19 @@ export default function InviteOwnerModal({
     const locale = params.locale as string;
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
+    const [copied, setCopied] = useState(false);
     const [status, setStatus] = useState<{
         type: 'success' | 'error' | null;
         message: string | null;
-    }>({ type: null, message: null });
+        inviteLink?: string | null;
+    }>({ type: null, message: null, inviteLink: null });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!email) return;
 
         setLoading(true);
-        setStatus({ type: null, message: null });
+        setStatus({ type: null, message: null, inviteLink: null });
 
         try {
             const result = await inviteRestaurantOwner(email, restaurantId, locale);
@@ -38,27 +40,33 @@ export default function InviteOwnerModal({
             if (result.error) {
                 setStatus({
                     type: 'error',
-                    message: result.error
+                    message: result.error,
+                    inviteLink: null
                 });
             } else {
                 setStatus({
                     type: 'success',
-                    message: `Invitación enviada exitosamente a ${email}`
+                    message: `Invitación registrada para ${email}`,
+                    inviteLink: result.inviteLink || null
                 });
                 setEmail('');
-                // Opcional: Cerrar después de un tiempo
-                setTimeout(() => {
-                    // onClose();
-                }, 3000);
             }
         } catch (error) {
             setStatus({
                 type: 'error',
-                message: 'Error al procesar la solicitud'
+                message: 'Error al procesar la solicitud',
+                inviteLink: null
             });
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleCopyLink = () => {
+        if (!status.inviteLink) return;
+        navigator.clipboard.writeText(status.inviteLink);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
     };
 
     return (
@@ -83,15 +91,49 @@ export default function InviteOwnerModal({
                 {/* Content */}
                 <div className="p-8 pt-2">
                     {status.type === 'success' ? (
-                        <div className="flex flex-col items-center justify-center py-6 text-center">
-                            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                                <CheckCircle2 className="w-8 h-8 text-green-600" />
+                        <div className="flex flex-col items-center justify-center py-4 text-center">
+                            <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mb-3">
+                                <CheckCircle2 className="w-7 h-7 text-green-600" />
                             </div>
-                            <p className="text-green-700 font-bold text-lg mb-2">¡Enviado!</p>
-                            <p className="text-slate-600 mb-6">{status.message}</p>
+                            <p className="text-green-700 font-bold text-lg mb-1">¡Invitación Registrada!</p>
+                            <p className="text-slate-600 text-xs mb-4">{status.message}</p>
+
+                            {status.inviteLink && (
+                                <div className="w-full bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-5 text-left">
+                                    <div className="flex items-center gap-1.5 mb-2 text-emerald-700">
+                                        <MessageSquare className="w-4 h-4 shrink-0" />
+                                        <span className="text-xs font-black uppercase tracking-wider">Acceso Directo (WhatsApp / SMS)</span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 mb-3">
+                                        Si el correo demora o no llega a su bandeja, envíale este enlace directo para que configure su contraseña:
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={handleCopyLink}
+                                        className={`w-full py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
+                                            copied
+                                                ? 'bg-emerald-600 text-white'
+                                                : 'bg-slate-900 hover:bg-slate-800 text-white shadow-md active:scale-95'
+                                        }`}
+                                    >
+                                        {copied ? (
+                                            <>
+                                                <Check className="w-4 h-4 text-white" />
+                                                <span>¡Enlace Copiado al Portapapeles!</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Copy className="w-4 h-4 text-emerald-400" />
+                                                <span>Copiar Enlace de Activación</span>
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
+
                             <button
                                 onClick={onClose}
-                                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold py-4 rounded-2xl transition-all"
+                                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold py-3.5 rounded-2xl transition-all text-xs uppercase tracking-wider"
                             >
                                 Cerrar
                             </button>

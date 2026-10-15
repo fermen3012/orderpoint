@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OrderPoint - Soluciones para Restaurantes (Salón, Meseros & Kiosko)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+
+        @page {
+            size: letter portrait;
+            margin: 0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        html {
+            background-color: #0b1120;
+            overflow-y: auto;
+            overflow-x: auto;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0b1120;
+            color: #0f172a;
+            margin: 0;
+            padding: 55px 20px 40px 20px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        /* Hoja de papel Carta centrada y con scroll natural */
+        .page-sheet {
+            background-color: #ffffff;
+            width: 8.5in;
+            min-height: 11in;
+            height: 11in;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(0, 0, 0, 0.25);
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 0.36in 0.44in;
+            position: relative;
+            box-sizing: border-box;
+            flex-shrink: 0;
+        }
+
+        /* Encabezado */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 0.10in;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .company-logo-img {
+            height: 38px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .brand-divider {
+            width: 1.5px;
+            height: 32px;
+            background-color: #cbd5e1;
+        }
+
+        .software-box {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+        .logo-box {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(249, 115, 22, 0.35);
+        }
+
+        .logo-box svg {
+            width: 20px;
+            height: 20px;
+            fill: #ffffff;
+        }
+
+        .brand-text h1 {
+            font-size: 21px;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            color: #0f172a;
+            line-height: 1;
+        }
+
+        .brand-text span {
+            color: #f97316;
+        }
+
+        .brand-text p {
+            font-size: 8.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        .badge-guarantee {
+            background: #fff7ed;
+            border: 1.5px solid #fdba74;
+            color: #c2410c;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Hero Pitch */
+        .hero {
+            margin-top: 0.12in;
+            text-align: center;
+        }
+
+        .hero h2 {
+            font-size: 23px;
+            font-weight: 900;
+            line-height: 1.2;
+            letter-spacing: -0.6px;
+            color: #020617;
+        }
+
+        .hero h2 span {
+            color: #f97316;
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 11px;
+            color: #475569;
+            margin-top: 4px;
+            font-weight: 500;
+            max-width: 6.8in;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.35;
+        }
+
+        /* Rejilla de las 2 Soluciones Principales */
+        .solutions-grid {
+            margin-top: 0.14in;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .solution-card {
+            border-radius: 16px;
+            padding: 15px 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        /* Solución Salón (Exo Server) */
+        .card-exo {
+            background: #0f172a;
+            color: #ffffff;
+            border: 2px solid #3b82f6;
+            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.2);
+        }
+
+        /* Solución Kiosko */
+        .card-kiosk {
+            background: #0f172a;
+            color: #ffffff;
+            border: 2px solid #f97316;
+            box-shadow: 0 10px 25px -5px rgba(249, 115, 22, 0.25);
+        }
+
+        .card-tag {
+            position: absolute;
+            top: -10px;
+            right: 16px;
+            color: #ffffff;
+            font-size: 8.5px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding: 3px 10px;
+            border-radius: 9999px;
+        }
+
+        .tag-blue {
+            background: #2563eb;
+        }
+
+        .tag-orange {
+            background: #f97316;
+        }
+
+        .sol-header h3 {
+            font-size: 15px;
+            font-weight: 900;
+            letter-spacing: -0.3px;
+        }
+
+        .sol-header p {
+            font-size: 9.8px;
+            color: #94a3b8;
+            margin-top: 2px;
+            margin-bottom: 7px;
+            font-weight: 500;
+        }
+
+        .sol-price-box {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            padding-bottom: 7px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .sol-price-big {
+            font-size: 29px;
+            font-weight: 900;
+            line-height: 1;
+            color: #ffffff;
+        }
+
+        .sol-price-details {
+            font-size: 10px;
+            font-weight: 700;
+            color: #cbd5e1;
+            line-height: 1.25;
+        }
+
+        .card-exo .sol-price-details span {
+            color: #60a5fa;
+            font-weight: 900;
+        }
+
+        .card-kiosk .sol-price-details span {
+            color: #f97316;
+            font-weight: 900;
+        }
+
+        /* Lista de Detalles con Tabulación Limpia y Continua */
+        .feature-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .f-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 7px;
+            font-size: 10.2px;
+            line-height: 1.35;
+        }
+
+        .f-item .chk {
+            font-weight: 900;
+            flex-shrink: 0;
+            margin-top: 1px;
+            font-size: 11px;
+        }
+
+        .card-exo .f-item .chk {
+            color: #60a5fa;
+        }
+
+        .card-kiosk .f-item .chk {
+            color: #f97316;
+        }
+
+        .f-text {
+            color: #cbd5e1;
+            font-weight: 500;
+        }
+
+        .f-text strong {
+            color: #ffffff;
+            font-weight: 800;
+        }
+
+        .sol-footer-badge {
+            margin-top: 9px;
+            padding-top: 6px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.15);
+            font-size: 9.2px;
+            font-weight: 600;
+            color: #94a3b8;
+        }
+
+        .card-exo .sol-footer-badge strong {
+            color: #34d399;
+        }
+
+        .card-kiosk .sol-footer-badge strong {
+            color: #fdba74;
+        }
+
+        /* Banner de Pantallas Adicionales */
+        .extra-screen-banner {
+            margin-top: 0.11in;
+            background: #eff6ff;
+            border: 1.5px solid #93c5fd;
+            border-radius: 12px;
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .extra-badge {
+            background: #1d4ed8;
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+
+        .extra-desc {
+            font-size: 10.2px;
+            color: #1e3a8a;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+
+        .extra-desc strong {
+            color: #1d4ed8;
+            font-weight: 800;
+        }
+
+        /* 3 Puntos Clave de Automatización */
+        .benefits-strip {
+            margin-top: 0.11in;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .benefit-mini {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 8px 10px;
+        }
+
+        .benefit-mini h4 {
+            font-size: 10.8px;
+            font-weight: 800;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .benefit-mini p {
+            font-size: 9.6px;
+            color: #64748b;
+            margin-top: 2px;
+            line-height: 1.3;
+        }
+
+        /* Tira Comparativa vs Competencia */
+        .comparison-strip {
+            margin-top: 0.11in;
+            background: #f1f5f9;
+            border-radius: 12px;
+            padding: 7px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .comp-item {
+            text-align: center;
+            flex: 1;
+        }
+
+        .comp-item:not(:last-child) {
+            border-right: 1px solid #cbd5e1;
+        }
+
+        .comp-title {
+            font-size: 8.8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #64748b;
+            letter-spacing: 0.5px;
+        }
+
+        .comp-val {
+            font-size: 12px;
+            font-weight: 900;
+            color: #0f172a;
+            margin-top: 1px;
+        }
+
+        .comp-val.win {
+            color: #16a34a;
+        }
+
+        .comp-val.bad {
+            color: #dc2626;
+            text-decoration: line-through;
+            font-size: 10.5px;
+            font-weight: 700;
+        }
+
+        /* Footer con Datos de Contacto Directo de Fernando Mendoza */
+        .cta-footer {
+            margin-top: 0.12in;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            border-radius: 14px;
+            padding: 11px 18px;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid #334155;
+        }
+
+        .cta-left h4 {
+            font-size: 13px;
+            font-weight: 900;
+            color: #f97316;
+            letter-spacing: -0.2px;
+        }
+
+        .cta-left p {
+            font-size: 9.8px;
+            color: #cbd5e1;
+            margin-top: 2px;
+            font-weight: 500;
+        }
+
+        .cta-contacts {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .contact-phone {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 6px;
+            font-size: 13.5px;
+            font-weight: 900;
+            color: #ffffff;
+            letter-spacing: 0.4px;
+        }
+
+        .contact-phone span {
+            color: #22c55e;
+            font-size: 14px;
+        }
+
+        .contact-email {
+            font-size: 11px;
+            font-weight: 700;
+            color: #f97316;
+            text-decoration: none;
+        }
+
+        .contact-agent {
+            font-size: 9.2px;
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+        }
+
+        /* Botón de impresión en vista de navegador */
+        .no-print-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #0f172a;
+            color: #ffffff;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 9999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .no-print-bar button {
+            background: #f97316;
+            color: #ffffff;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-weight: 800;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .no-print-bar button:hover {
+            background: #ea580c;
+        }
+
+        @media print {
+            .no-print-bar {
+                display: none !important;
+            }
+            html, body {
+                background-color: #ffffff !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+                width: 8.5in !important;
+                height: 11in !important;
+            }
+            .page-sheet {
+                width: 8.5in !important;
+                height: 11in !important;
+                margin: 0 !important;
+                padding: 0.36in 0.44in !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Barra de navegación en pantalla (Oculta al imprimir) -->
+    <div class="no-print-bar">
+        <span style="font-size: 13px; font-weight: 600;">📄 Folleto Comercial OrderPoint: Salón (Meseros & KDS) y Kiosko de Autoservicio</span>
+        <button onclick="window.print()">🖨️ Imprimir / Guardar en PDF</button>
+    </div>
+
+    <!-- Hoja de Papel con Scroll Libre en Pantalla -->
+    <div class="page-sheet">
+
+        <!-- Encabezado de Marca: Compañía Exo Advance & Software OrderPoint -->
+        <div class="header">
+            <div class="brand">
+                <img src="exo-advance-logo.png" alt="EXO Advance" class="company-logo-img" />
+                <div class="brand-divider"></div>
+                <div class="software-box">
+                    <div class="logo-box">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9v-2h2v2zm0-4H9V7h2v5zm4 4h-2v-6h2v6zm0-8h-2V7h2v1z"/>
+                        </svg>
+                    </div>
+                    <div class="brand-text">
+                        <h1>Order<span>Point</span></h1>
+                        <p>Restaurant Cloud POS & Kiosk</p>
+                    </div>
+                </div>
+            </div>
+            <div class="badge-guarantee">
+                ⭐ Sin Contratos Forzosos • 0% Comisiones
+            </div>
+        </div>
+
+        <!-- Hero Pitch -->
+        <div class="hero">
+            <h2>Elige la Solución Perfecta para <span>Automatizar tu Restaurante</span></h2>
+            <p>Ya sea que tengas servicio a la mesa con meseros o atención rápida en mostrador, OrderPoint conecta tu sala y tu cocina en tiempo real sin comprar terminales caras ni pagar licencias por pantalla.</p>
+        </div>
+
+        <!-- Las 2 Soluciones Principales: Salón (Exo + KDS) y Kiosko Autoservicio -->
+        <div class="solutions-grid">
+            
+            <!-- SOLUCIÓN 1: SALÓN Y MESEROS (EXO SERVER + KDS) -->
+            <div class="solution-card card-exo">
+                <div class="card-tag tag-blue">Para Restaurantes con Mesas</div>
+                <div>
+                    <div class="sol-header">
+                        <h3>Módulo Salón & Cocina (Exo Server)</h3>
+                        <p>Comandeo móvil para meseros y pantalla KDS de cocina</p>
+                    </div>
+
+                    <div class="sol-price-box">
+                        <div class="sol-price-big">$450</div>
+                        <div class="sol-price-details">USD Setup e Instalación Única<br>+ <span>$99 / mes</span> de Software</div>
+                    </div>
+
+                    <!-- Lista Tabulada de Forma Limpia y Continua -->
+                    <div class="feature-list">
+                        <div class="f-item">
+                            <span class="chk">✓</span>
+                            <div class="f-text"><strong>Modelo BYOD ($0 en Hardware):</strong> Tus meseros usan sus propios teléfonos (iPhone o Android).</div>
+                        </div>
+                        <div class="f-item">
+                            <span class="chk">✓</span>
+                            <div class="f-text"><strong>Pantalla de Cocina (KDS) en Vivo:</strong> Sincronizada en milisegundos con alertas visuales de comandas.</div>
+                        </div>
+                        <div class="f-item">
+                            <span class="chk">✓</span>
+                            <div class="f-text"><strong>Mapeo de Mesas Interactivo:</strong> Monitoreo de comandas activas y total acumulado por mesa.</div>
+                        </div>
+                        <div class="f-item">
+                            <span class="chk">✓</span>
+                            <div class="f-text"><strong>Personalizador de Comandas:</strong> Notas rápidas ("Sin Cebolla", "Término Medio", "Salsa Aparte").</div>
+                        </div>
+                        <div class="f-item">
+                            <span class="chk">✓</span>
+                            <div class="f-text"><strong>Digitalización 100% de tu Menú:</strong> Cargamos fotos, precios, ingredientes y categorías por ti.</div>
+                        </div>
+                        <div class="f-item">
+                            <span class="chk">✓</span>
+                            <div class="f-text"><strong>Capacitación Presencial:</strong> Entrenamiento en vivo a tu equipo de meseros y cocineros.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="sol-footer-badge">
+                    📱 <strong>Hardware $0:</strong> Usa las tablets, TVs o teléfonos que ya tienes.
+                </div>
+            </div>
+
+            <!-- SOLUCIÓN 2: KIOSKO DE AUTOSERVICIO PROFESIONAL -->
+            <div class="solution-card card-kiosk">
+                <div class="card-tag tag-orange">Para Mostrador & Fast Casual</div>
+                <div>
+                    <div class="sol-header">
+                        <h3>Kiosko de Autoservicio Pro 11"</h3>
+                        <p>Estación táctil que toma pedidos y cobra en mostrador</p>
+                    </div>
+
+                    <div class="sol-price-box">
+                        <div class="sol-price-big">$799</div>
+                        <div class="sol-price-details">USD Kit Llave en Mano Completo<br>+ <span>$99 / mes</span> de Software</div>
+                    </div>
+
+                    <!-- Lista Tabulada de Forma Limpia y Continua -->
+                    <div class="feature-list">
+                        <div class="f-item">
+                            <span class="chk">✓</span>
+                            <div class="f-text"><strong>Tablet Samsung Galaxy Tab A9+:</strong> 11" HD, alta resistencia para jornadas continuas de 12h.</div>
+                        </div>
+                        <div class="f-item">
+                            <span class="chk">✓</span>
+                            <div class="f-text"><strong>Soporte Metálico Antirrobo:</strong> Carcasa blindada de acero con cerradura de llave para mostrador.</div>
+                        </div>
+                        <div class="f-item">
+                            <span class="chk">✓</span>
+                            <div class="f-text"><strong>Impresora Térmica 80mm:</strong> Alto flujo con auto-corte de papel de comandas y Bluetooth.</div>
+                        </div>
+                        <div class="f-item">
+                            <span class="chk">✓</span>
+                            <div class="f-text"><strong>Venta Sugerida Automática:</strong> +22% en ticket promedio al ofrecer extras y bebidas.</div>
+                        </div>
+                        <div class="f-item">
+                            <span class="chk">✓</span>
+                            <div class="f-text"><strong>Envío Directo a Cocina:</strong> Comanda sincronizada a pantalla KDS o ticket impreso.</div>
+                        </div>
+                        <div class="f-item">
+                            <span class="chk">✓</span>
+                            <div class="f-text"><em>(Opción BYOD Kiosko disponible por solo $150 setup si ya tienes tu propia tablet).</em></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="sol-footer-badge">
+                    🔒 <strong>Hardware Industrial:</strong> El equipo es 100% tuyo sin rentas.
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Banner Destacado: Pantallas Adicionales -->
+        <div class="extra-screen-banner">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="extra-badge">📺 Pantallas Adicionales</span>
+                <span class="extra-desc">¿Necesitas más Kioskos o pantallas KDS de Cocina extra? <strong>Solo se cobra el costo del hardware + $10.99 USD / mes</strong> por cada pantalla extra.</span>
+            </div>
+            <div style="font-size: 9.5px; font-weight: 800; color: #1e40af; white-space: nowrap;">Sin cargos ocultos</div>
+        </div>
+
+        <!-- 3 Beneficios Clave de la Plataforma -->
+        <div class="benefits-strip">
+            <div class="benefit-mini">
+                <h4>⚡ Cero Filas & Cero Carreras</h4>
+                <p>Los meseros envían pedidos sin correr a la cocina; los comensales piden solos en el kiosko.</p>
+            </div>
+            <div class="benefit-mini">
+                <h4>🌐 Modo Bilingüe Automático</h4>
+                <p>Pantallas y tickets de comanda en Español e Inglés nativo para meseros y comensales.</p>
+            </div>
+            <div class="benefit-mini">
+                <h4>👨‍🍳 Cocina 100% Coordinada</h4>
+                <p>Adiós a las notas ilegibles en papel: cada plato sale en orden y con sus especificaciones exactas.</p>
+            </div>
+        </div>
+
+        <!-- Tira Comparativa vs Toast y Clover -->
+        <div class="comparison-strip">
+            <div class="comp-item">
+                <div class="comp-title">Comisión por Pedido</div>
+                <div class="comp-val win">0% (Cero comisiones)</div>
+            </div>
+            <div class="comp-item">
+                <div class="comp-title">Terminal Clover / Toast</div>
+                <div class="comp-val bad">$1,400 – $2,200 c/u</div>
+            </div>
+            <div class="comp-item">
+                <div class="comp-title">Pantallas Adicionales</div>
+                <div class="comp-val win">Hardware + $10.99/mes</div>
+            </div>
+            <div class="comp-item">
+                <div class="comp-title">Permanencia Obligatoria</div>
+                <div class="comp-val win">Sin Contrato Forzoso</div>
+            </div>
+        </div>
+
+        <!-- Footer con Datos de Contacto Directo de Fernando Mendoza -->
+        <div class="cta-footer">
+            <div class="cta-left">
+                <h4>¿Quieres ver una demostración en vivo de 10 minutos?</h4>
+                <p>Vamos a tu restaurante y te mostramos el sistema funcionando en tus propias mesas o mostrador.</p>
+            </div>
+            <div class="cta-contacts">
+                <div class="contact-phone">
+                    <span>●</span> (727) 307-2089
+                </div>
+                <a href="mailto:ofer.mendoza2021@gmail.com" class="contact-email">ofer.mendoza2021@gmail.com</a>
+                <div class="contact-agent">Atención Directa: Fernando Mendoza • Florida</div>
+            </div>
+        </div>
+
+    </div> <!-- Fin .page-sheet -->
+
+</body>
+</html>

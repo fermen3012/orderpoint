@@ -345,6 +345,16 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                     .eq('id', tableId);
             }
 
+            // Verificar si el restaurante está activo
+            const { data: restCheck } = await (supabase.from('restaurants' as any) as any)
+                .select('is_active')
+                .eq('id', finalRestaurantId)
+                .single();
+
+            if (restCheck && restCheck.is_active === false) {
+                throw new Error('El servicio de este restaurante se encuentra temporalmente suspendido por administración.');
+            }
+
             // 2. Prepare data for Supabase as requested (items as JSONB)
             const orderItems = currentCart.map(item => ({
                 product_id: item.product.id,
