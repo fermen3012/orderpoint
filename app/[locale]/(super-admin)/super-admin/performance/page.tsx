@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { requireSuperAdmin } from '@/lib/auth/guards';
 import { Activity, Database, Globe, Zap, Server, ChevronRight } from 'lucide-react';
 import { RefreshButton } from './RefreshButton';
 import { cn } from '@/lib/utils';
@@ -7,6 +8,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function PerformancePage() {
+    await requireSuperAdmin();
     const supabase = await createClient();
 
     // 1. Latency Ping (Simple Query)

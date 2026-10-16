@@ -1,6 +1,10 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Short-lived in-memory cache (60s TTL) to avoid querying public.profiles on every navigation
+const PROFILE_CACHE_TTL_MS = 60 * 1000;
+const profileRoleCache = new Map<string, { role: string | null; is_super_admin: boolean; expiresAt: number }>();
+
 export async function updateSession(request: NextRequest, response: NextResponse) {
     // Ensure we have the environment variables before proceeding
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
@@ -38,7 +42,7 @@ export async function updateSession(request: NextRequest, response: NextResponse
 
     let user = null;
     try {
-        const { data: userData, error: userError } = await supabase.auth.getUser();
+        const { data: userData } = await supabase.auth.getUser();
         if (userData?.user) {
             user = userData.user;
         } else {
@@ -87,21 +91,37 @@ export async function updateSession(request: NextRequest, response: NextResponse
                 return createRedirect(`/${locale}/login`);
             }
 
-            const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('role, is_super_admin')
-                .eq('id', user.id)
-                .single()
+            const now = Date.now();
+            const cachedProfile = profileRoleCache.get(user.id);
+            let isSuperAdmin = Boolean(user.app_metadata?.is_super_admin);
+            let userRole: string | null = (user.app_metadata?.role as string) || null;
 
-            let isSuperAdmin = Boolean(profile?.is_super_admin || user.app_metadata?.is_super_admin);
-            let userRole = profile?.role;
+            if (cachedProfile && cachedProfile.expiresAt > now) {
+                isSuperAdmin = Boolean(cachedProfile.is_super_admin || isSuperAdmin);
+                userRole = cachedProfile.role || userRole;
+            } else if (!userRole && !isSuperAdmin) {
+                const { data: profile, error } = await supabase
+                    .from('profiles')
+                    .select('role, is_super_admin')
+                    .eq('id', user.id)
+                    .single()
 
-            if (error || !profile) {
-                if (isSuperAdmin || userRole) {
-                    console.log('Middleware: Profile query failed/empty, but user allowed via token override:', { isSuperAdmin, userRole });
+                isSuperAdmin = Boolean(profile?.is_super_admin || user.app_metadata?.is_super_admin);
+                userRole = profile?.role || null;
+
+                if (error || !profile) {
+                    if (isSuperAdmin || userRole) {
+                        console.log('Middleware: Profile query failed/empty, but user allowed via token override:', { isSuperAdmin, userRole });
+                    } else {
+                        console.error('Middleware: Profile query failed. Redirecting to login:', error);
+                        return createRedirect(`/${locale}/login`);
+                    }
                 } else {
-                    console.error('Middleware: Profile query failed. Redirecting to login:', error);
-                    return createRedirect(`/${locale}/login`);
+                    profileRoleCache.set(user.id, {
+                        role: userRole,
+                        is_super_admin: isSuperAdmin,
+                        expiresAt: now + PROFILE_CACHE_TTL_MS
+                    });
                 }
             }
 
@@ -128,6 +148,13 @@ export async function updateSession(request: NextRequest, response: NextResponse
         }
     } catch (e) {
         console.error('Middleware Auth Error:', e)
+        const pathname = request.nextUrl.pathname
+        const isProtected = pathname.includes('/super-admin') || pathname.includes('/kitchen') || pathname.includes('/kiosk') || pathname.match(/\/(es|en)\/admin/) || pathname.includes('/exo')
+        if (isProtected) {
+            const localeMatch = pathname.match(/^\/(es|en)/);
+            const locale = (localeMatch ? localeMatch[0] : '/es').replace(/^\//, '');
+            return NextResponse.redirect(new URL(`/${locale}/login`, request.url));
+        }
     }
 
     return supabaseResponse

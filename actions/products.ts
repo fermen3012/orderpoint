@@ -169,47 +169,32 @@ export async function getMenuWithSchedule(restaurantId: string, dayOfWeek: numbe
     const supabase = await createClient();
     console.log(`[getMenuWithSchedule] Fetching for Restaurant: ${restaurantId}, Day: ${dayOfWeek}`);
 
-    // 1. Get ALL active products with modifier groups and ingredients in a single optimized batch query
-    const { data: products, error: prodError } = await (supabase
-        .from('products') as any)
-        .select('*, modifier_groups:product_modifier_groups(modifier_group:modifier_groups(*, options:modifiers(*))), ingredients:product_ingredients(ingredient_id, is_removable, ingredient:ingredients(id, name))')
-        .eq('restaurant_id', restaurantId)
-        .eq('is_available', true);
+    // 1. Fetch active products and today's scheduling rules in parallel (1 single network roundtrip)
+    const [prodRes, schedRes] = await Promise.all([
+        (supabase.from('products') as any)
+            .select('*, modifier_groups:product_modifier_groups(modifier_group:modifier_groups(*, options:modifiers(*))), ingredients:product_ingredients(ingredient_id, is_removable, ingredient:ingredients(id, name))')
+            .eq('restaurant_id', restaurantId)
+            .eq('is_available', true),
+        (supabase.from('product_availability' as any) as any)
+            .select('product_id, is_active')
+            .eq('restaurant_id', restaurantId)
+            .eq('day_of_week', dayOfWeek)
+    ]);
 
-    if (prodError) throw prodError;
+    if (prodRes.error) throw prodRes.error;
+    if (schedRes.error) throw schedRes.error;
 
-    // 2. Get scheduling rules for these products
-    const productIds = (products as any[]).map(p => p.id);
-    if (productIds.length === 0) return [];
+    const products = (prodRes.data as any[]) || [];
+    if (products.length === 0) return [];
 
-    const { data: schedules, error: schedError } = await (supabase
-        .from('product_availability' as any) as any)
-        .select('product_id, day_of_week, is_active')
-        .in('product_id', productIds);
+    // 2. Build O(1) Set of products explicitly disabled for today
+    const disabledTodayIds = new Set<string>(
+        ((schedRes.data as any[]) || [])
+            .filter((s: any) => s.is_active === false)
+            .map((s: any) => s.product_id)
+    );
 
-    if (schedError) throw schedError;
-
-    // 3. Filter in memory
-    // Rule:
-    // - If a product has NO records in 'product_availability', it is AVAILABLE.
-    // - If it HAS records, check if there is a record for THIS day with is_active=true.
-    console.log(`[getMenuWithSchedule] Validating ${products.length} products against ${schedules?.length || 0} rules.`);
-
-    const validProducts = (products as any[]).filter((product: any) => {
-        const productSchedules = (schedules || []).filter((s: any) => s.product_id === product.id);
-
-        // Case A: No schedule at all -> Available
-        if (productSchedules.length === 0) return true;
-
-        // Case B: Has schedule -> Check for today's record
-        const todayRule = productSchedules.find((s: any) => s.day_of_week === dayOfWeek);
-
-        const isKept = todayRule ? todayRule.is_active : true;
-        if (!isKept) {
-            console.log(`[getMenuWithSchedule] Hiding product ${product.name} (ID: ${product.id}) because is_active=${todayRule?.is_active} for day ${dayOfWeek}`);
-        }
-        return isKept;
-    });
+    const validProducts = products.filter((product: any) => !disabledTodayIds.has(product.id));
 
     // Format modifier_groups and removable_ingredients for instant Zero-Lag usage on client
     const formattedProducts = validProducts.map((p: any) => ({

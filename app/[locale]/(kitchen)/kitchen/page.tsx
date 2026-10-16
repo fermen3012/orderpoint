@@ -92,6 +92,10 @@ export default function KitchenPage({ params }: { params: Promise<{ locale: stri
     useEffect(() => {
         if (!restaurantId) return;
 
+        let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+        let followUpTimer: ReturnType<typeof setTimeout> | null = null;
+        let isInitialSubscribe = true;
+
         async function loadOrders() {
             const { data } = await (supabase
                 .from('orders') as any)
@@ -130,11 +134,18 @@ export default function KitchenPage({ params }: { params: Promise<{ locale: stri
             setLoading(false);
         }
 
+        const scheduleLoadOrders = (delayMs = 250) => {
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                loadOrders();
+            }, delayMs);
+        };
+
         loadOrders();
 
-        // Subscribe to real-time updates
+        // Subscribe to real-time updates strictly isolated by restaurant_id
         const channel = supabase
-            .channel('kitchen-orders')
+            .channel(`kitchen-orders-${restaurantId}`)
             .on(
                 'postgres_changes',
                 {
@@ -143,35 +154,63 @@ export default function KitchenPage({ params }: { params: Promise<{ locale: stri
                     table: 'orders',
                     filter: `restaurant_id=eq.${restaurantId}`,
                 },
-                () => {
-                    loadOrders();
-                }
-            )
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'order_items',
-                },
-                () => {
-                    loadOrders();
+                (payload: any) => {
+                    if (payload.eventType === 'UPDATE' && payload.new) {
+                        const updated = payload.new;
+                        if (updated.status === 'completed') {
+                            setOrders(prev => prev.filter(o => o.id !== updated.id));
+                            return;
+                        }
+                        setOrders(prev => {
+                            const exists = prev.some(o => o.id === updated.id);
+                            if (!exists) {
+                                scheduleLoadOrders(200);
+                                return prev;
+                            }
+                            return prev.map(o =>
+                                o.id === updated.id
+                                    ? {
+                                        ...o,
+                                        status: updated.status,
+                                        preparing_at: updated.preparing_at ?? o.preparing_at,
+                                        ready_at: updated.ready_at ?? o.ready_at,
+                                        completed_at: updated.completed_at ?? o.completed_at,
+                                    }
+                                    : o
+                            );
+                        });
+                    } else if (payload.eventType === 'DELETE' && payload.old?.id) {
+                        setOrders(prev => prev.filter(o => o.id !== payload.old.id));
+                    } else {
+                        // INSERT: debounce so order_items batch insert finishes, plus a safety sync
+                        scheduleLoadOrders(250);
+                        if (followUpTimer) clearTimeout(followUpTimer);
+                        followUpTimer = setTimeout(() => {
+                            loadOrders();
+                        }, 900);
+                    }
                 }
             )
             .subscribe((status) => {
                 if (status === 'SUBSCRIBED') {
-                    loadOrders();
+                    if (isInitialSubscribe) {
+                        isInitialSubscribe = false;
+                    } else {
+                        scheduleLoadOrders(150);
+                    }
                 }
             });
 
         // Resilience: Re-fetch when browser comes back online
         const handleOnline = () => {
             console.log('Browser online, re-fetching orders...');
-            loadOrders();
+            scheduleLoadOrders(100);
         };
         window.addEventListener('online', handleOnline);
 
         return () => {
+            if (debounceTimer) clearTimeout(debounceTimer);
+            if (followUpTimer) clearTimeout(followUpTimer);
             supabase.removeChannel(channel);
             window.removeEventListener('online', handleOnline);
         };
@@ -184,10 +223,18 @@ export default function KitchenPage({ params }: { params: Promise<{ locale: stri
         if (newStatus === 'ready') updates.ready_at = new Date().toISOString();
         if (newStatus === 'completed') updates.completed_at = new Date().toISOString();
 
+        // Actualización optimista en memoria para respuesta inmediata en KDS
+        setOrders(prev =>
+            newStatus === 'completed'
+                ? prev.filter(o => o.id !== orderId)
+                : prev.map(o => (o.id === orderId ? { ...o, ...updates } : o))
+        );
+
         await (supabase
             .from('orders') as any)
             .update(updates)
-            .eq('id', orderId);
+            .eq('id', orderId)
+            .eq('restaurant_id', restaurantId!);
     };
 
     const getNextStatus = (currentStatus: Order['status']): Order['status'] | null => {

@@ -44,13 +44,57 @@ export async function createSecureOrder(input: CreateOrderInput) {
 
         const supabase = await createClient();
 
-        // 0. Kill-Switch / Suspensión: Verificar que el restaurante esté activo en el sistema
-        const { data: restaurant, error: restError } = await (supabase
-            .from('restaurants' as any) as any)
-            .select('is_active, name')
-            .eq('id', finalRestaurantId)
-            .single();
+        // 1. Obtener IDs únicos para consultas masivas y validar UUIDs antes de consultar BD
+        const uniqueProductIds = Array.from(new Set(input.items.map(i => i.product_id)));
+        const uniqueModifierIds = Array.from(new Set(input.items.flatMap(i => i.modifier_option_ids)));
 
+        for (const prodId of uniqueProductIds) {
+            if (!prodId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                throw new Error("Invalid product ID format");
+            }
+        }
+
+        for (const modId of uniqueModifierIds) {
+            if (!modId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                throw new Error("Invalid modifier ID format");
+            }
+        }
+
+        // 2. Ejecutar validaciones de Restaurante, Productos, Modificadores y Correlativo en PARALELO (1 solo viaje de red)
+        const [restRes, prodRes, modsRes, numRes] = await Promise.all([
+            (supabase.from('restaurants' as any) as any)
+                .select('is_active, name')
+                .eq('id', finalRestaurantId)
+                .single(),
+            (supabase.from('products' as any) as any)
+                .select('id, name, price, is_available')
+                .in('id', uniqueProductIds)
+                .eq('restaurant_id', finalRestaurantId)
+                .eq('is_available', true),
+            uniqueModifierIds.length > 0
+                ? (supabase.from('modifiers' as any) as any)
+                    .select(`
+                        id,
+                        name,
+                        price_extra,
+                        group_id,
+                        modifier_groups (
+                            id,
+                            name,
+                            restaurant_id,
+                            product_modifier_groups (
+                                product_id
+                            )
+                        )
+                    `)
+                    .in('id', uniqueModifierIds)
+                : Promise.resolve({ data: [], error: null }),
+            (supabase.rpc as any)('get_next_order_number', {
+                p_restaurant_id: finalRestaurantId
+            })
+        ]);
+
+        const { data: restaurant, error: restError } = restRes;
         if (restError || !restaurant) {
             throw new Error("No se encontró el restaurante asociado a la orden.");
         }
@@ -59,57 +103,15 @@ export async function createSecureOrder(input: CreateOrderInput) {
             throw new Error("El servicio de este restaurante se encuentra temporalmente suspendido por administración.");
         }
 
-        // 1. Obtener IDs para consultas masivas
-        const productIds = input.items.map(i => i.product_id);
-        const allModifierIds = input.items.flatMap(i => i.modifier_option_ids);
-
-        // Validate product UUIDs
-        for (const prodId of productIds) {
-            if (!prodId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-                throw new Error("Invalid product ID format");
-            }
-        }
-
-        // 2. Consultar Productos (Fuente de Verdad de Precios) y verificar que pertenezcan al restaurante y estén disponibles
-        const { data: products, error: prodError } = await (supabase
-            .from('products' as any) as any)
-            .select('id, name, price, is_available')
-            .in('id', productIds)
-            .eq('restaurant_id', finalRestaurantId)
-            .eq('is_available', true);
-
-        if (prodError || !products || products.length !== productIds.length) {
+        const { data: products, error: prodError } = prodRes;
+        if (prodError || !products || products.length !== uniqueProductIds.length) {
             throw new Error("One or more products are unavailable or do not belong to this restaurant");
         }
 
-        // 3. Consultar Modificadores y sus Grupos (Fuente de Verdad)
+        // 3. Validar Modificadores y sus Grupos (Fuente de Verdad)
         let modifiersDB: any[] = [];
-        if (allModifierIds.length > 0) {
-            // Validate modifier UUIDs
-            for (const modId of allModifierIds) {
-                if (!modId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-                    throw new Error("Invalid modifier ID format");
-                }
-            }
-
-            const { data: mods, error: modError } = await (supabase
-                .from('modifiers' as any) as any)
-                .select(`
-                    id,
-                    name,
-                    price_extra,
-                    group_id,
-                    modifier_groups (
-                        id,
-                        name,
-                        restaurant_id,
-                        product_modifier_groups (
-                            product_id
-                        )
-                    )
-                `)
-                .in('id', allModifierIds);
-
+        if (uniqueModifierIds.length > 0) {
+            const { data: mods, error: modError } = modsRes;
             if (modError || !mods) throw new Error("Error fetching modifiers");
 
             // Validar que cada modificador pertenezca al restaurante y esté asignado al producto correspondiente
@@ -133,6 +135,9 @@ export async function createSecureOrder(input: CreateOrderInput) {
 
             modifiersDB = mods;
         }
+
+        const { data: nextNumber, error: numError } = numRes;
+        if (numError) throw numError;
 
         // 4. Calcular Totales y Construir JSON (Server-side price calculation)
         let calculatedTotal = 0;
@@ -186,13 +191,7 @@ export async function createSecureOrder(input: CreateOrderInput) {
             });
         }
 
-        // 5. Transacción de Base de Datos
-
-        // A. Obtener número de orden secuencial
-        const { data: nextNumber, error: numError } = await (supabase.rpc as any)('get_next_order_number', {
-            p_restaurant_id: finalRestaurantId
-        });
-        if (numError) throw numError;
+        // 5. Insertar Orden e Items
 
         // B. Insertar Orden (Con Server-Side Total)
         const { data: order, error: orderError } = await (supabase

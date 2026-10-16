@@ -97,11 +97,15 @@ export async function resetUserPassword(userId: string, newPassword: string) {
 
 export async function deleteUserAction(userId: string) {
     try {
-        await requireSuperAdmin();
+        const adminProfile = await requireSuperAdmin();
 
         // Validate inputs
         if (!userId || !userId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
             return { success: false, error: 'ID de usuario inválido' };
+        }
+
+        if (adminProfile.id === userId) {
+            return { success: false, error: 'Por seguridad, no puedes eliminar tu propia cuenta de Super Administrador.' };
         }
 
         const admin = getAdminClient();

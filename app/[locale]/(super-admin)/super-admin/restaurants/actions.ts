@@ -231,15 +231,26 @@ export async function uploadRestaurantLogo(formData: FormData) {
             return { error: 'ID de restaurante inválido' };
         }
 
+        const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+            return { error: 'Formato de archivo no permitido. Usa PNG, JPG o WEBP.' };
+        }
+
+        const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+        if (file.size > MAX_SIZE_BYTES) {
+            return { error: 'El archivo excede el tamaño máximo permitido de 5MB.' };
+        }
+
+        const ext = file.type === 'image/jpeg' ? 'jpg' : file.type === 'image/webp' ? 'webp' : 'png';
         const supabase = getAdminClient();
-        const fileName = `logos/${restaurantId}-${Date.now()}.png`;
+        const fileName = `logos/${restaurantId}-${Date.now()}.${ext}`;
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
         const { error: uploadError } = await supabase.storage
             .from('restaurants')
             .upload(fileName, buffer, {
-                contentType: 'image/png',
+                contentType: file.type,
                 upsert: true
             });
 

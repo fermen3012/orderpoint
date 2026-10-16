@@ -2,9 +2,11 @@ import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { supabaseAdmin } from '@/lib/supabase/server-admin';
-import { stripe } from '@/lib/stripe';
+import { getDynamicStripe, getDynamicWebhookSecret } from '@/lib/stripe';
 
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+// Idempotency cache to prevent replay/duplicate webhook execution within the server instance
+const processedWebhookEvents = new Set<string>();
+const WEBHOOK_TOLERANCE_SECONDS = 300; // Strict 5-minute replay window
 
 export async function GET() {
     return new NextResponse('Stripe Webhook Endpoint is active. Please use POST to send events.', { status: 200 });
@@ -13,20 +15,72 @@ export async function GET() {
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
-    const body = await request.text();
+    // 1. Read payload strictly as raw binary Buffer without prior JSON parsing
+    const rawArrayBuffer = await request.arrayBuffer();
+    const rawBody = Buffer.from(rawArrayBuffer);
     const sig = (await headers()).get('stripe-signature') as string;
 
     let event: Stripe.Event;
+    let stripe: Stripe;
 
     try {
-        if (!sig || !endpointSecret || !process.env.STRIPE_SECRET_KEY) {
-            console.error('Webhook Error: Configuration variables are missing');
-            return new NextResponse('Webhook Error: Configuration missing', { status: 400 });
+        stripe = await getDynamicStripe();
+        const endpointSecret = await getDynamicWebhookSecret();
+
+        if (!sig || !endpointSecret || rawBody.length === 0) {
+            console.error('Webhook Error: Missing signature, secret, or empty payload');
+            return new NextResponse('Webhook Error: Invalid request signature or configuration', { status: 400 });
         }
-        event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
+
+        // 2. Cryptographic signature verification with strict 300s timestamp tolerance against replay attacks
+        event = stripe.webhooks.constructEvent(rawBody, sig, endpointSecret, WEBHOOK_TOLERANCE_SECONDS);
+
+        const nowSeconds = Math.floor(Date.now() / 1000);
+        if (Math.abs(nowSeconds - event.created) > WEBHOOK_TOLERANCE_SECONDS) {
+            console.error(`Webhook Replay Blocked: Event ${event.id} timestamp drift exceeded ${WEBHOOK_TOLERANCE_SECONDS}s`);
+            return new NextResponse('Webhook Error: Event timestamp outside tolerance window', { status: 400 });
+        }
     } catch (err: any) {
         console.error(`Webhook Signature Verification Failed: ${err.message}`);
-        return new NextResponse(`Webhook Error: ${err.message}`, { status: 400 });
+        return new NextResponse('Webhook Error: Signature verification failed', { status: 400 });
+    }
+
+    // 3. Fast in-memory idempotency check
+    if (processedWebhookEvents.has(event.id)) {
+        return new NextResponse(JSON.stringify({ received: true, duplicate: true }), { status: 200 });
+    }
+
+    // 4. Persistent atomic DB-level idempotency check (prevents duplicate execution across serverless instances)
+    const idempotencyKey = `stripe_evt_${event.id}`;
+    try {
+        const { error: lockError } = await (supabaseAdmin
+            .from('system_settings' as any) as any)
+            .insert({
+                key: idempotencyKey,
+                value: JSON.stringify({
+                    event_id: event.id,
+                    type: event.type,
+                    processed_at: new Date().toISOString(),
+                }),
+                description: `Webhook Idempotency Lock: ${event.type}`,
+                updated_at: new Date().toISOString(),
+            });
+
+        if (lockError) {
+            // PostgreSQL 23505 = unique_violation (event.id already recorded by a previous or concurrent transaction)
+            if (lockError.code === '23505' || String(lockError.message).toLowerCase().includes('duplicate')) {
+                processedWebhookEvents.add(event.id);
+                return new NextResponse(JSON.stringify({ received: true, duplicate: true }), { status: 200 });
+            }
+        }
+    } catch (lockErr) {
+        console.warn('Webhook DB idempotency warning:', lockErr);
+    }
+
+    processedWebhookEvents.add(event.id);
+    if (processedWebhookEvents.size > 1000) {
+        const firstId = processedWebhookEvents.values().next().value;
+        if (firstId) processedWebhookEvents.delete(firstId);
     }
 
     try {
@@ -51,6 +105,7 @@ export async function POST(request: Request) {
 
                 let status = 'active';
                 let quantity = 1;
+                let unitPrice: number | undefined = undefined;
                 let currentPeriodEnd = new Date();
                 currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1); // Default backup date
 
@@ -60,21 +115,27 @@ export async function POST(request: Request) {
                         status = subscription.status;
                         currentPeriodEnd = new Date(subscription.current_period_end * 1000);
                         if (subscription.items?.data?.length > 0) {
-                            quantity = subscription.items.data[0].quantity || 1;
+                            const mainItem = subscription.items.data[0];
+                            quantity = mainItem.quantity || 1;
+                            if (typeof mainItem.price?.unit_amount === 'number') {
+                                unitPrice = mainItem.price.unit_amount / 100;
+                            }
                         }
                     } catch (stripeError) {
                         console.error('Error fetching subscription details from Stripe:', stripeError);
                     }
                 }
 
-                // Update Supabase
+                // Update Supabase and reactivate restaurant
                 const { error } = await (supabaseAdmin
                     .from('restaurants' as any) as any)
                     .update({
+                        is_active: true,
                         subscription_status: status,
                         stripe_customer_id: customerId,
                         stripe_subscription_id: subscriptionId,
                         plan_quantity: quantity,
+                        ...(unitPrice !== undefined ? { unit_price: unitPrice } : {}),
                         current_period_end: currentPeriodEnd.toISOString()
                     })
                     .eq('id', restaurantId);
@@ -96,9 +157,14 @@ export async function POST(request: Request) {
                 const status = subscription.status;
                 const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
                 let quantity = 1;
+                let unitPrice: number | undefined = undefined;
 
                 if (subscription.items?.data?.length > 0) {
-                    quantity = subscription.items.data[0].quantity || 1;
+                    const mainItem = subscription.items.data[0];
+                    quantity = mainItem.quantity || 1;
+                    if (typeof mainItem.price?.unit_amount === 'number') {
+                        unitPrice = mainItem.price.unit_amount / 100;
+                    }
                 }
 
                 // Sync with DB
@@ -108,6 +174,7 @@ export async function POST(request: Request) {
                         stripe_subscription_id: subscriptionId,
                         subscription_status: status,
                         plan_quantity: quantity,
+                        ...(unitPrice !== undefined ? { unit_price: unitPrice } : {}),
                         current_period_end: currentPeriodEnd.toISOString()
                     })
                     .eq('stripe_customer_id', customerId);
@@ -124,10 +191,11 @@ export async function POST(request: Request) {
                 const subscription = event.data.object as any;
                 const customerId = subscription.customer as string;
 
-                // Mark restaurant subscription status as canceled / inactive
+                // Mark restaurant subscription status as canceled and activate Kill-Switch (is_active: false)
                 const { error } = await (supabaseAdmin
                     .from('restaurants' as any) as any)
                     .update({
+                        is_active: false,
                         subscription_status: 'canceled',
                         plan_quantity: 0
                     })
@@ -136,7 +204,7 @@ export async function POST(request: Request) {
                 if (error) {
                     console.error(`❌ Failed to deactivate subscription for customer ${customerId}:`, error);
                 } else {
-                    console.log(`🚫 Subscription deleted for customer ${customerId}. Restaurant marked as canceled.`);
+                    console.log(`🚫 Subscription deleted for customer ${customerId}. Restaurant suspended (is_active: false).`);
                 }
                 break;
             }
@@ -161,6 +229,7 @@ export async function POST(request: Request) {
                 const { error } = await (supabaseAdmin
                     .from('restaurants' as any) as any)
                     .update({
+                        is_active: true,
                         subscription_status: 'active',
                         current_period_end: currentPeriodEnd.toISOString()
                     })
@@ -198,7 +267,13 @@ export async function POST(request: Request) {
         }
     } catch (error: any) {
         console.error('Error processing webhook event:', error);
-        return new NextResponse(`Internal Server Error: ${error.message}`, { status: 500 });
+        processedWebhookEvents.delete(event.id);
+        try {
+            await (supabaseAdmin.from('system_settings' as any) as any)
+                .delete()
+                .eq('key', idempotencyKey);
+        } catch {}
+        return new NextResponse('Internal Server Error', { status: 500 });
     }
 
     return new NextResponse(JSON.stringify({ received: true }), { status: 200 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import {
     LayoutDashboard,
@@ -31,6 +31,31 @@ export default function SuperAdminLayout({
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [authorized, setAuthorized] = useState(false);
+
+    useEffect(() => {
+        const verifySuperAdmin = async () => {
+            const supabase = createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                router.push('/login');
+                return;
+            }
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('is_super_admin')
+                .eq('id', user.id)
+                .single();
+
+            const isSuperAdmin = Boolean((profile as any)?.is_super_admin || user.app_metadata?.is_super_admin);
+            if (!isSuperAdmin) {
+                router.push('/login');
+                return;
+            }
+            setAuthorized(true);
+        };
+        verifySuperAdmin();
+    }, [router]);
 
     const handleLogout = async () => {
         const supabase = createClient();
@@ -46,6 +71,8 @@ export default function SuperAdminLayout({
         { icon: <Activity className="w-5 h-5" />, label: 'Sistema', href: '/super-admin/performance' },
         { icon: <Settings className="w-5 h-5" />, label: 'Configuraciones', href: '/super-admin/settings' },
     ];
+
+    if (!authorized) return null;
 
     return (
         <div className="flex min-h-screen bg-slate-950 font-sans selection:bg-emerald-500 selection:text-slate-900">

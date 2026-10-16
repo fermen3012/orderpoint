@@ -60,9 +60,9 @@ export async function requireProfile(): Promise<UserProfile> {
         dbError = err;
     }
 
-    // Unconditional claims and email overrides
-    const isSuperAdminEmail = user.email === 'admin@orderpoint.com';
-    const isSuperAdminMetadata = user.user_metadata?.is_super_admin === true || user.app_metadata?.is_super_admin === true;
+    // Server-controlled claims and verified super admin email override only (never trust client-editable user_metadata)
+    const isSuperAdminEmail = user.email === 'admin@orderpoint.com' && Boolean(user.email_confirmed_at);
+    const isSuperAdminMetadata = user.app_metadata?.is_super_admin === true;
 
     if (dbError || !profile) {
         if (isSuperAdminEmail || isSuperAdminMetadata) {

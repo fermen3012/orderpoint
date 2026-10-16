@@ -24,11 +24,15 @@ export async function inviteRestaurantOwner(email: string, restaurantId: string,
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
         
-        // Dynamically resolve the site URL based on request headers
-        const headersList = await headers();
-        const host = headersList.get('host') || 'localhost:3000';
-        const protocol = host.includes('localhost') ? 'http' : 'https';
-        const siteUrl = `${protocol}://${host}`;
+        // Prioritize NEXT_PUBLIC_APP_URL to prevent Host Header Injection, with validated fallback
+        let siteUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '');
+        if (!siteUrl) {
+            const headersList = await headers();
+            const rawHost = headersList.get('host') || 'localhost:3000';
+            const safeHost = /^[a-zA-Z0-9.-]+(:[0-9]+)?$/.test(rawHost) ? rawHost : 'localhost:3000';
+            const protocol = safeHost.includes('localhost') ? 'http' : 'https';
+            siteUrl = `${protocol}://${safeHost}`;
+        }
 
         if (!supabaseUrl || !supabaseServiceKey) {
             return { error: 'Missing environment variables' };

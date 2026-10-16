@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { createClient } from '@/lib/supabase/browser';
 import { useAuth } from '@/components/auth/AuthContext';
@@ -164,13 +164,64 @@ export default function OrdersPage() {
 
     const supabase = createClient();
 
-    const loadOrders = async () => {
+    const loadOrders = useCallback(async () => {
         if (!restaurantId) return;
+        if (dateFilter === 'custom' && !customDate) return;
+
         try {
-            const { data, error } = await (supabase
+            const currentNow = new Date();
+            let startIso: string | null = null;
+            let endIso: string | null = null;
+            let rowLimit = 300;
+
+            if (dateFilter === 'today') {
+                const start = new Date(currentNow.getFullYear(), currentNow.getMonth(), currentNow.getDate(), 0, 0, 0, 0);
+                startIso = start.toISOString();
+                rowLimit = 300;
+            } else if (dateFilter === 'yesterday') {
+                const start = new Date(currentNow.getFullYear(), currentNow.getMonth(), currentNow.getDate() - 1, 0, 0, 0, 0);
+                const end = new Date(currentNow.getFullYear(), currentNow.getMonth(), currentNow.getDate() - 1, 23, 59, 59, 999);
+                startIso = start.toISOString();
+                endIso = end.toISOString();
+                rowLimit = 300;
+            } else if (dateFilter === 'week') {
+                const start = new Date(currentNow.getFullYear(), currentNow.getMonth(), currentNow.getDate() - 7, 0, 0, 0, 0);
+                startIso = start.toISOString();
+                rowLimit = 500;
+            } else if (dateFilter === 'month') {
+                const start = new Date(currentNow.getFullYear(), currentNow.getMonth(), 1, 0, 0, 0, 0);
+                startIso = start.toISOString();
+                rowLimit = 1000;
+            } else if (dateFilter === 'custom' && customDate) {
+                const [y, m, d] = customDate.split('-').map(Number);
+                if (y && m && d) {
+                    const start = new Date(y, m - 1, d - 1, 0, 0, 0, 0);
+                    const end = new Date(y, m - 1, d + 1, 23, 59, 59, 999);
+                    startIso = start.toISOString();
+                    endIso = end.toISOString();
+                }
+                rowLimit = 500;
+            } else {
+                // 'all' history safety cap
+                rowLimit = 500;
+            }
+
+            let query = (supabase
                 .from('orders') as any)
                 .select(`
-                    *,
+                    id,
+                    restaurant_id,
+                    total_amount,
+                    status,
+                    order_number,
+                    order_type,
+                    created_at,
+                    preparing_at,
+                    ready_at,
+                    completed_at,
+                    table_id,
+                    waitress_id,
+                    source,
                     table:tables (
                         number
                     ),
@@ -178,14 +229,29 @@ export default function OrdersPage() {
                         full_name
                     ),
                     order_items (
-                        *,
+                        id,
+                        product_id,
+                        quantity,
+                        unit_price,
+                        modifiers_json,
+                        removed_ingredients,
                         products (
                             name
                         )
                     )
                 `)
-                .eq('restaurant_id', restaurantId)
-                .order('created_at', { ascending: false });
+                .eq('restaurant_id', restaurantId);
+
+            if (startIso) {
+                query = query.gte('created_at', startIso);
+            }
+            if (endIso) {
+                query = query.lte('created_at', endIso);
+            }
+
+            const { data, error } = await query
+                .order('created_at', { ascending: false })
+                .limit(rowLimit);
 
             if (error) throw error;
             if (data) {
@@ -196,7 +262,19 @@ export default function OrdersPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [restaurantId, dateFilter, customDate, supabase]);
+
+    const loadOrdersRef = useRef(loadOrders);
+    useEffect(() => {
+        loadOrdersRef.current = loadOrders;
+    }, [loadOrders]);
+
+    // Re-fetch when restaurantId, dateFilter, or customDate changes
+    useEffect(() => {
+        if (restaurantId) {
+            loadOrders();
+        }
+    }, [restaurantId, loadOrders]);
 
     useEffect(() => {
         const fetchRestaurantName = async () => {
@@ -218,9 +296,18 @@ export default function OrdersPage() {
 
         if (restaurantId) {
             fetchRestaurantName();
-            loadOrders();
 
-            // Subscribe to real-time order updates
+            let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+            let followUpTimer: ReturnType<typeof setTimeout> | null = null;
+
+            const scheduleReload = (delayMs = 300) => {
+                if (debounceTimer) clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    loadOrdersRef.current();
+                }, delayMs);
+            };
+
+            // Subscribe to real-time order updates isolated by restaurant_id
             const channel = supabase
                 .channel(`admin-restaurant-orders-${restaurantId}`)
                 .on(
@@ -231,28 +318,78 @@ export default function OrdersPage() {
                         table: 'orders',
                         filter: `restaurant_id=eq.${restaurantId}`
                     },
-                    () => {
-                        loadOrders();
+                    (payload: any) => {
+                        if (payload.eventType === 'UPDATE' && payload.new) {
+                            const updated = payload.new;
+                            setOrders(prev => {
+                                const exists = prev.some(o => o.id === updated.id);
+                                if (!exists) {
+                                    scheduleReload(250);
+                                    return prev;
+                                }
+                                return prev.map(o =>
+                                    o.id === updated.id
+                                        ? {
+                                            ...o,
+                                            status: updated.status ?? o.status,
+                                            total_amount: updated.total_amount ?? o.total_amount,
+                                            preparing_at: updated.preparing_at ?? o.preparing_at,
+                                            ready_at: updated.ready_at ?? o.ready_at,
+                                            completed_at: updated.completed_at ?? o.completed_at,
+                                        }
+                                        : o
+                                );
+                            });
+                            setSelectedOrder(prev =>
+                                prev && prev.id === updated.id
+                                    ? {
+                                        ...prev,
+                                        status: updated.status ?? prev.status,
+                                        total_amount: updated.total_amount ?? prev.total_amount,
+                                        preparing_at: updated.preparing_at ?? prev.preparing_at,
+                                        ready_at: updated.ready_at ?? prev.ready_at,
+                                        completed_at: updated.completed_at ?? prev.completed_at,
+                                    }
+                                    : prev
+                            );
+                        } else if (payload.eventType === 'DELETE' && payload.old?.id) {
+                            setOrders(prev => prev.filter(o => o.id !== payload.old.id));
+                        } else {
+                            // INSERT: debounce so order_items batch insert completes
+                            scheduleReload(300);
+                            if (followUpTimer) clearTimeout(followUpTimer);
+                            followUpTimer = setTimeout(() => {
+                                loadOrdersRef.current();
+                            }, 900);
+                        }
                     }
                 )
                 .subscribe();
 
             return () => {
+                if (debounceTimer) clearTimeout(debounceTimer);
+                if (followUpTimer) clearTimeout(followUpTimer);
                 supabase.removeChannel(channel);
             };
         }
-    }, [restaurantId]);
+    }, [restaurantId, supabase]);
 
-    // Live Ticker Interval
+    // Live Ticker Interval (only ticks when at least one order is actively preparing)
+    const hasPreparingOrders = useMemo(
+        () => orders.some(o => o.status === 'preparing'),
+        [orders]
+    );
+
     useEffect(() => {
+        if (!hasPreparingOrders) return;
         const interval = setInterval(() => {
             setNow(new Date());
         }, 10000); // refresh every 10s
         return () => clearInterval(interval);
-    }, []);
+    }, [hasPreparingOrders]);
 
-    // Filter Logic
-    const filteredOrders = orders.filter(order => {
+    // Memoized Filter Logic (unaffected by the 10s live preparation timer)
+    const filteredOrders = useMemo(() => orders.filter(order => {
         const origin = getOrderOrigin(order, locale);
         const term = searchTerm.trim().toLowerCase();
 
@@ -290,7 +427,7 @@ export default function OrdersPage() {
             return false;
         }
 
-        // 5. Date Filter
+        // 5. Date Filter (refines exact local timezone day boundaries)
         if (dateFilter !== 'all') {
             const orderDate = new Date(order.created_at);
             const today = new Date();
@@ -325,9 +462,12 @@ export default function OrdersPage() {
         }
 
         return true;
-    });
+    }), [orders, locale, searchTerm, sourceFilter, statusFilter, typeFilter, dateFilter, customDate]);
 
-    const filteredTotalAmount = filteredOrders.reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0);
+    const filteredTotalAmount = useMemo(
+        () => filteredOrders.reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0),
+        [filteredOrders]
+    );
     const filteredAverageTicket = filteredOrders.length > 0 ? filteredTotalAmount / filteredOrders.length : 0;
     const hasActiveFilters = searchTerm !== '' || statusFilter !== 'all' || typeFilter !== 'all' || sourceFilter !== 'all' || dateFilter !== 'today' || customDate !== '';
 

@@ -1,9 +1,19 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { requireSuperAdmin, requireProfile, requireSameRestaurant, requireRestaurantRole } from '@/lib/auth/guards';
-import { getDynamicStripe } from '@/lib/stripe';
+import { getDynamicStripe, withBillingLock } from '@/lib/stripe';
+
+function getSupabaseAdminClient() {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !serviceKey) return null;
+    return createServiceClient(url, serviceKey, {
+        auth: { autoRefreshToken: false, persistSession: false }
+    });
+}
 
 export interface BillingCustomer {
     id: string; // Restaurant ID
@@ -20,60 +30,87 @@ export interface BillingCustomer {
 }
 
 /**
- * Super Admin: Retrieves billing information for all restaurants.
+ * Super Admin: Retrieves billing information for all restaurants without N+1 Stripe calls.
  */
 export async function getAllCustomersBilling(): Promise<BillingCustomer[]> {
     try {
         await requireSuperAdmin();
         const supabase = await createClient();
-        const stripe = await getDynamicStripe();
 
-        // 1. Get all restaurants from Supabase
+        // 1. Fetch restaurants and owner profiles in parallel
+        const [restaurantsRes, profilesRes] = await Promise.all([
+            (supabase.from('restaurants' as any) as any)
+                .select('id, name, stripe_customer_id, stripe_subscription_id, plan_quantity, subscription_status, current_period_end, unit_price')
+                .order('created_at', { ascending: false }),
+            (supabase.from('profiles' as any) as any)
+                .select('*')
+                .eq('role', 'owner')
+        ]);
+
         let restaurantsResult: any[] = [];
-        const { data: restaurants, error } = await (supabase
-            .from('restaurants' as any) as any)
-            .select('id, name, stripe_customer_id, stripe_subscription_id, plan_quantity, subscription_status, current_period_end, unit_price')
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            // Fallback in case current_period_end or unit_price column has not been added yet
+        if (restaurantsRes.error) {
             const { data: restaurantsFallback, error: fallbackError } = await (supabase
                 .from('restaurants' as any) as any)
                 .select('id, name, stripe_customer_id, stripe_subscription_id, plan_quantity, subscription_status')
                 .order('created_at', { ascending: false });
-            
+
             if (fallbackError) throw new Error(`Supabase Error: ${fallbackError.message}`);
             restaurantsResult = restaurantsFallback || [];
         } else {
-            restaurantsResult = restaurants || [];
+            restaurantsResult = restaurantsRes.data || [];
         }
         if (restaurantsResult.length === 0) return [];
 
-        // Fetch owner profiles and auth users to get emails in bulk
-        const { data: profiles } = await (supabase
-            .from('profiles' as any) as any)
-            .select('id, restaurant_id')
-            .eq('role', 'owner');
+        const profiles = profilesRes.data || [];
 
-        const { data: { users } } = await supabase.auth.admin.listUsers();
+        // Build O(1) lookup maps for owner profile and email
+        const ownerByRestaurant = new Map<string, { id: string; email?: string }>();
+        let needsAuthEmailFallback = false;
 
-        // 2. Enrich with Stripe Data
+        for (const p of profiles) {
+            if (p.restaurant_id && !ownerByRestaurant.has(p.restaurant_id)) {
+                ownerByRestaurant.set(p.restaurant_id, { id: p.id, email: p.email });
+                if (!p.email) {
+                    needsAuthEmailFallback = true;
+                }
+            }
+        }
+
+        const emailByUserId = new Map<string, string>();
+        if (needsAuthEmailFallback && ownerByRestaurant.size > 0) {
+            const supabaseAdmin = getSupabaseAdminClient();
+            if (supabaseAdmin) {
+                const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+                for (const u of usersData?.users || []) {
+                    if (u.id && u.email) {
+                        emailByUserId.set(u.id, u.email);
+                    }
+                }
+            }
+        }
+
+        // Only initialize Stripe if there is a legacy row with stripe_subscription_id but missing current_period_end
+        const needsLegacyStripeSync = restaurantsResult.some(
+            (r: any) => r.stripe_subscription_id && !r.current_period_end
+        );
+        const stripe = needsLegacyStripeSync ? await getDynamicStripe() : null;
+
+        // 2. Map billing customers directly from synced DB columns (0 Stripe calls in normal operation)
         const enrichedCustomers = await Promise.all(
             restaurantsResult.map(async (rest: any) => {
-                let mrr = 0;
-                let next_billing_date = (rest as any).current_period_end || '';
+                let next_billing_date = rest.current_period_end || '';
                 let currency = 'usd';
-                let status = (rest as any).subscription_status || 'inactive';
-                let quantity = (rest as any).plan_quantity || 1;
-                let unit_price = (rest as any).unit_price || 49;
+                let status = rest.subscription_status || 'inactive';
+                let quantity = Number(rest.plan_quantity) || 1;
+                let unit_price = Number(rest.unit_price) || 49;
 
-                const ownerProfile = profiles?.find((p: any) => p.restaurant_id === (rest as any).id);
-                const authOwner = ownerProfile ? users.find(u => u.id === ownerProfile.id) : null;
-                const email = authOwner?.email || '';
+                const ownerInfo = ownerByRestaurant.get(rest.id);
+                const email = ownerInfo?.email || (ownerInfo?.id ? emailByUserId.get(ownerInfo.id) || '' : '');
 
-                if ((rest as any).stripe_subscription_id) {
+                // One-time self-healing sync only if stripe_subscription_id exists without current_period_end in DB
+                if (rest.stripe_subscription_id && !rest.current_period_end && stripe) {
                     try {
-                        const sub = await stripe.subscriptions.retrieve((rest as any).stripe_subscription_id);
+                        const sub = await stripe.subscriptions.retrieve(rest.stripe_subscription_id);
                         status = sub.status;
 
                         if (sub.items.data.length > 0) {
@@ -81,23 +118,37 @@ export async function getAllCustomersBilling(): Promise<BillingCustomer[]> {
                             const price = mainItem.price.unit_amount || 0;
                             unit_price = price / 100;
                             quantity = mainItem.quantity || 1;
-                            mrr = (price * quantity) / 100;
                             currency = mainItem.price.currency;
                         }
 
                         next_billing_date = new Date((sub as any).current_period_end * 1000).toISOString();
+
+                        // Persist synced values so subsequent requests require 0 Stripe API calls
+                        await (supabase.from('restaurants' as any) as any)
+                            .update({
+                                subscription_status: status,
+                                plan_quantity: quantity,
+                                unit_price,
+                                current_period_end: next_billing_date
+                            })
+                            .eq('id', rest.id);
                     } catch (stripeError) {
-                        console.error(`Stripe Error for ${(rest as any).id}:`, stripeError);
+                        console.error(`Stripe Error for ${rest.id}:`, stripeError);
                         status = 'error_sync';
                     }
                 }
 
+                const isBillableStatus =
+                     Boolean(rest.stripe_subscription_id) &&
+                    (status === 'active' || status === 'trialing' || status === 'past_due');
+                const mrr = isBillableStatus ? unit_price * quantity : 0;
+
                 return {
-                    id: (rest as any).id,
-                    name: (rest as any).name,
+                    id: rest.id,
+                    name: rest.name,
                     email,
-                    stripe_customer_id: (rest as any).stripe_customer_id,
-                    stripe_subscription_id: (rest as any).stripe_subscription_id,
+                    stripe_customer_id: rest.stripe_customer_id,
+                    stripe_subscription_id: rest.stripe_subscription_id,
                     plan_quantity: quantity,
                     subscription_status: status,
                     mrr,
@@ -117,7 +168,7 @@ export async function getAllCustomersBilling(): Promise<BillingCustomer[]> {
 }
 
 /**
- * Restaurant Owner: Retrieves billing information for their specific restaurant.
+ * Restaurant Owner: Retrieves billing information for their specific restaurant from synced DB columns.
  */
 export async function getOwnerBilling(restaurantId: string): Promise<BillingCustomer | null> {
     try {
@@ -130,33 +181,33 @@ export async function getOwnerBilling(restaurantId: string): Promise<BillingCust
         }
 
         const supabase = await createClient();
-        const stripe = await getDynamicStripe();
 
         const { data: restaurant, error } = await (supabase
             .from('restaurants' as any) as any)
-            .select('id, name, stripe_customer_id, stripe_subscription_id, plan_quantity, subscription_status')
+            .select('id, name, stripe_customer_id, stripe_subscription_id, plan_quantity, subscription_status, current_period_end, unit_price')
             .eq('id', restaurantId)
             .single();
 
         if (error || !restaurant) return null;
 
-        let mrr = 0;
-        let next_billing_date = '';
+        let next_billing_date = restaurant.current_period_end || '';
         let currency = 'usd';
         let status = restaurant.subscription_status || 'inactive';
-        let quantity = restaurant.plan_quantity || 1;
+        let quantity = Number(restaurant.plan_quantity) || 1;
+        let unit_price = Number(restaurant.unit_price) || 49;
 
-        // If active subscription exists, fetch the latest details from Stripe
-        if (restaurant.stripe_subscription_id) {
+        // Only query Stripe if stripe_subscription_id exists and current_period_end was never synced
+        if (restaurant.stripe_subscription_id && !restaurant.current_period_end) {
             try {
+                const stripe = await getDynamicStripe();
                 const sub = await stripe.subscriptions.retrieve(restaurant.stripe_subscription_id);
                 status = sub.status;
 
                 if (sub.items.data.length > 0) {
                     const mainItem = sub.items.data[0];
                     const price = mainItem.price.unit_amount || 0;
+                    unit_price = price / 100;
                     quantity = mainItem.quantity || 1;
-                    mrr = (price * quantity) / 100;
                     currency = mainItem.price.currency;
                 }
 
@@ -167,6 +218,11 @@ export async function getOwnerBilling(restaurantId: string): Promise<BillingCust
             }
         }
 
+        const isBillableStatus =
+            Boolean(restaurant.stripe_subscription_id) &&
+            (status === 'active' || status === 'trialing' || status === 'past_due');
+        const mrr = isBillableStatus ? unit_price * quantity : 0;
+
         return {
             id: restaurant.id,
             name: restaurant.name,
@@ -176,7 +232,8 @@ export async function getOwnerBilling(restaurantId: string): Promise<BillingCust
             subscription_status: status,
             mrr,
             next_billing_date,
-            currency
+            currency,
+            unit_price
         };
 
     } catch (err: any) {
@@ -186,9 +243,12 @@ export async function getOwnerBilling(restaurantId: string): Promise<BillingCust
 }
 
 /**
- * Super Admin: Updates the subscription quantity/license count.
+ * Super Admin: Updates the subscription quantity/license count with per-tenant lock & idempotency.
  */
-export async function updateSubscriptionQuantity(restaurantId: string, newQuantity: number) {
+export async function updateSubscriptionQuantity(
+    restaurantId: string,
+    newQuantity: number
+): Promise<{ success: boolean; error?: string }> {
     try {
         await requireSuperAdmin();
 
@@ -202,18 +262,45 @@ export async function updateSubscriptionQuantity(restaurantId: string, newQuanti
             throw new Error('Invalid restaurant ID format');
         }
 
-        const supabase = await createClient();
-        const stripe = await getDynamicStripe();
+        return await withBillingLock(restaurantId, async () => {
+            const supabase = await createClient();
+            const stripe = await getDynamicStripe();
 
-        // 1. Get current subscription ID
-        const { data: restaurant } = await (supabase
-            .from('restaurants' as any) as any)
-            .select('stripe_subscription_id, stripe_customer_id')
-            .eq('id', restaurantId)
-            .single();
+            // 1. Get current subscription ID
+            const { data: restaurant } = await (supabase
+                .from('restaurants' as any) as any)
+                .select('stripe_subscription_id, stripe_customer_id')
+                .eq('id', restaurantId)
+                .single();
 
-        if (!restaurant?.stripe_subscription_id) {
-            // No active subscription in Stripe: just update plan_quantity in the local database
+            if (!restaurant?.stripe_subscription_id) {
+                // No active subscription in Stripe: just update plan_quantity in the local database
+                await (supabase
+                    .from('restaurants' as any) as any)
+                    .update({ plan_quantity: newQuantity })
+                    .eq('id', restaurantId);
+
+                revalidatePath('/super-admin/billing');
+                revalidatePath('/admin/billing');
+                return { success: true };
+            }
+
+            // 2. Get Subscription from Stripe to find the ITEM ID
+            const sub = await stripe.subscriptions.retrieve((restaurant as any).stripe_subscription_id);
+            const itemId = sub.items.data[0].id; // Assuming single plan item
+
+            // 3. Update Stripe with idempotencyKey
+            const bucket = Math.floor(Date.now() / 15000);
+            await stripe.subscriptions.update(
+                (restaurant as any).stripe_subscription_id,
+                {
+                    items: [{ id: itemId, quantity: newQuantity }],
+                    proration_behavior: 'always_invoice', // Invoice immediately for prorations
+                },
+                { idempotencyKey: `qty_update_${restaurantId}_${newQuantity}_${bucket}` }
+            );
+
+            // 4. Update Database
             await (supabase
                 .from('restaurants' as any) as any)
                 .update({ plan_quantity: newQuantity })
@@ -222,27 +309,7 @@ export async function updateSubscriptionQuantity(restaurantId: string, newQuanti
             revalidatePath('/super-admin/billing');
             revalidatePath('/admin/billing');
             return { success: true };
-        }
-
-        // 2. Get Subscription from Stripe to find the ITEM ID
-        const sub = await stripe.subscriptions.retrieve((restaurant as any).stripe_subscription_id);
-        const itemId = sub.items.data[0].id; // Assuming single plan item
-
-        // 3. Update Stripe
-        await stripe.subscriptions.update((restaurant as any).stripe_subscription_id, {
-            items: [{ id: itemId, quantity: newQuantity }],
-            proration_behavior: 'always_invoice', // Invoice immediately for prorations
         });
-
-        // 4. Update Database
-        await (supabase
-            .from('restaurants' as any) as any)
-            .update({ plan_quantity: newQuantity })
-            .eq('id', restaurantId);
-
-        revalidatePath('/super-admin/billing');
-        revalidatePath('/admin/billing');
-        return { success: true };
 
     } catch (err: any) {
         console.error('updateSubscriptionQuantity Error:', err);
@@ -528,7 +595,13 @@ export async function updateSubscriptionPrice(restaurantId: string, newPriceAmou
             proration_behavior: 'none',
         });
 
+        await (supabase
+            .from('restaurants' as any) as any)
+            .update({ unit_price: newPriceAmount })
+            .eq('id', restaurantId);
+
         revalidatePath('/super-admin/billing');
+        revalidatePath('/admin/billing');
         return { success: true };
     } catch (err: any) {
         console.error('updateSubscriptionPrice Error:', err);
@@ -575,7 +648,13 @@ export async function updateSubscriptionBillingDate(restaurantId: string, nextBi
             proration_behavior: 'none',
         });
 
+        await (supabase
+            .from('restaurants' as any) as any)
+            .update({ current_period_end: nextBillingDateIso })
+            .eq('id', restaurantId);
+
         revalidatePath('/super-admin/billing');
+        revalidatePath('/admin/billing');
         return { success: true };
     } catch (err: any) {
         console.error('updateSubscriptionBillingDate Error:', err);
@@ -615,7 +694,10 @@ export async function updateCustomerEmail(restaurantId: string, newEmail: string
 
         if (profiles && profiles.length > 0) {
             const ownerId = profiles[0].id;
-            await supabase.auth.admin.updateUserById(ownerId, { email: newEmail });
+            const supabaseAdmin = getSupabaseAdminClient();
+            if (supabaseAdmin) {
+                await supabaseAdmin.auth.admin.updateUserById(ownerId, { email: newEmail });
+            }
         }
 
         revalidatePath('/super-admin/billing');
@@ -627,9 +709,16 @@ export async function updateCustomerEmail(restaurantId: string, newEmail: string
 }
 
 export async function logClientError(message: string, stack?: string) {
-    console.error('\n*** CLIENT ERROR DETECTED IN BILLING PAGE ***');
-    console.error('Message:', message);
-    if (stack) console.error('Stack:', stack);
-    console.error('********************************************\n');
-    return { success: true };
+    try {
+        await requireProfile();
+        const safeMsg = String(message || '').slice(0, 500);
+        const safeStack = stack ? String(stack).slice(0, 1000) : undefined;
+        console.error('\n*** CLIENT ERROR DETECTED IN BILLING PAGE ***');
+        console.error('Message:', safeMsg);
+        if (safeStack) console.error('Stack:', safeStack);
+        console.error('********************************************\n');
+        return { success: true };
+    } catch {
+        return { success: false };
+    }
 }

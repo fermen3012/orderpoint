@@ -1,93 +1,130 @@
 'use server';
 
-import { stripe } from '@/lib/stripe';
+import { getDynamicStripe, enforceStripeRateLimit, withBillingLock } from '@/lib/stripe';
 import { redirect } from 'next/navigation';
-import { requireSameRestaurant, requireRestaurantRole, requireProfile } from '@/lib/auth/guards';
-import { createClient } from '@/lib/supabase/server';
+import { headers } from 'next/headers';
+import { requireSameRestaurant, requireRestaurantRole, requireSuperAdmin } from '@/lib/auth/guards';
+import { createClient, getAdminClient } from '@/lib/supabase/server';
 
 /**
  * Creates a Stripe Checkout Session for a restaurant subscription.
  */
 export async function createCheckoutSession(restaurantId: string) {
     try {
-        if (!process.env.STRIPE_SECRET_KEY) {
-            throw new Error('CRITICAL CONFIGURATION ERROR: STRIPE_SECRET_KEY is not defined.');
-        }
-
         // 1. Authorize: user must have admin/owner role for the target restaurant
         const profile = await requireRestaurantRole(['admin', 'owner']);
-        await requireSameRestaurant(restaurantId);
+
+        // Bind restaurantId strictly to the authenticated user's session (unless Super Admin)
+        const targetRestaurantId = profile.is_super_admin ? restaurantId : (profile.restaurant_id || '');
+        await requireSameRestaurant(targetRestaurantId);
 
         // 2. Validate input UUID
-        if (!restaurantId || !restaurantId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        if (!targetRestaurantId || !targetRestaurantId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
             throw new Error('Invalid restaurant ID format');
         }
 
-        const supabase = await createClient();
+        // 3. Enforce strict Rate Limiting by IP and User ID to mitigate Card Testing attacks
+        const reqHeaders = await headers();
+        const forwardedFor = reqHeaders.get('x-forwarded-for');
+        const clientIp = forwardedFor ? forwardedFor.split(',')[0].trim() : (reqHeaders.get('x-real-ip') || 'unknown_ip');
+        enforceStripeRateLimit(clientIp, profile.id, 5, 10 * 60 * 1000);
 
-        // 3. Fetch user email directly from Supabase auth rather than client params
+        const supabase = await createClient();
+        const adminDb = getAdminClient();
+        const stripe = await getDynamicStripe();
+
+        // 4. Fetch user email directly from Supabase auth rather than client params
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         if (userError || !user || !user.email) {
             throw new Error('User email not found or unauthenticated');
         }
 
-        // 4. Verify restaurant exists
-        const { data: restaurant, error: restError } = await (supabase
-            .from('restaurants' as any) as any)
-            .select('id, stripe_customer_id')
-            .eq('id', restaurantId)
-            .single();
+        // 5. Verify restaurant exists and resolve financial parameters strictly from DB / official catalog
+        const sessionUrl = await withBillingLock(targetRestaurantId, async () => {
+            let restaurant: any = null;
+            const { data: restFull, error: restFullErr } = await (adminDb
+                .from('restaurants' as any) as any)
+                .select('id, name, stripe_customer_id, unit_price, plan_quantity')
+                .eq('id', targetRestaurantId)
+                .single();
 
-        if (restError || !restaurant) {
-            throw new Error('Restaurant not found');
-        }
+            if (restFullErr || !restFull) {
+                const { data: restFallback, error: restError } = await (adminDb
+                    .from('restaurants' as any) as any)
+                    .select('id, name, stripe_customer_id, plan_quantity')
+                    .eq('id', targetRestaurantId)
+                    .single();
+                if (restError || !restFallback) {
+                    throw new Error('Restaurant not found');
+                }
+                restaurant = restFallback;
+            } else {
+                restaurant = restFull;
+            }
 
-        // 5. Build return URLs using NEXT_PUBLIC_APP_URL instead of client request headers
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-        const successUrl = `${appUrl}/admin/billing?success=true`;
-        const cancelUrl = `${appUrl}/admin/billing?canceled=true`;
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+            const successUrl = `${appUrl}/admin/billing?success=true`;
+            const cancelUrl = `${appUrl}/admin/billing?canceled=true`;
 
-        const priceId = process.env.STRIPE_PRICE_ID;
-        if (!priceId) {
-            throw new Error('Stripe Price ID (STRIPE_PRICE_ID) is not configured');
-        }
+            const dbRest = restaurant as any;
+            const quantity = Number.isInteger(Number(dbRest.plan_quantity)) && Number(dbRest.plan_quantity) >= 1
+                ? Number(dbRest.plan_quantity)
+                : 1;
+            const unitPriceDollars = Number(dbRest.unit_price) >= 10 ? Number(dbRest.unit_price) : 99;
+            const envPriceId = process.env.STRIPE_PRICE_ID;
 
-        // 6. Build Checkout session params
-        const checkoutParams: any = {
-            payment_method_types: ['card'],
-            line_items: [
-                {
-                    price: priceId,
-                    quantity: 1,
+            const lineItem = envPriceId && !dbRest.unit_price
+                ? { price: envPriceId, quantity }
+                : {
+                    price_data: {
+                        currency: 'usd',
+                        product_data: {
+                            name: `Suscripción Mensual OrderPoint - ${dbRest.name || 'Restaurante'}`,
+                        },
+                        unit_amount: Math.round(unitPriceDollars * 100),
+                        recurring: {
+                            interval: 'month' as const,
+                        },
+                    },
+                    quantity,
+                };
+
+            const checkoutParams: any = {
+                payment_method_types: ['card'],
+                line_items: [lineItem],
+                mode: 'subscription',
+                success_url: successUrl,
+                cancel_url: cancelUrl,
+                client_reference_id: targetRestaurantId,
+                metadata: {
+                    restaurantId: targetRestaurantId,
+                    userId: profile.id,
+                    source: 'orderpoint_checkout'
                 },
-            ],
-            mode: 'subscription',
-            success_url: successUrl,
-            cancel_url: cancelUrl,
-            client_reference_id: restaurantId,
-            metadata: {
-                restaurantId,
-                userId: profile.id,
-                source: 'orderpoint_checkout'
-            },
-        };
+            };
 
-        // Reuse stripe_customer_id if already present on the database
-        const dbRest = restaurant as any;
-        if (dbRest.stripe_customer_id) {
-            checkoutParams.customer = dbRest.stripe_customer_id;
-        } else {
-            checkoutParams.customer_email = user.email;
-        }
+            if (dbRest.stripe_customer_id) {
+                checkoutParams.customer = dbRest.stripe_customer_id;
+            } else {
+                checkoutParams.customer_email = user.email;
+            }
 
-        const session = await stripe.checkout.sessions.create(checkoutParams);
+            // 30-second window idempotency key to prevent duplicate session creation from double-clicks
+            const timeBucket = Math.floor(Date.now() / 30000);
+            const idempotencyKey = `checkout_${targetRestaurantId}_${profile.id}_${timeBucket}`;
 
-        if (!session.url) {
-            throw new Error('No session URL returned from Stripe');
-        }
+            const session = await stripe.checkout.sessions.create(checkoutParams, {
+                idempotencyKey,
+            });
 
-        // Redirect to Stripe Checkout page
-        redirect(session.url);
+            if (!session.url) {
+                throw new Error('No session URL returned from Stripe');
+            }
+
+            return session.url;
+        });
+
+        redirect(sessionUrl);
     } catch (error) {
         console.error('Error creating checkout session:', error);
         throw error;
@@ -99,10 +136,6 @@ export async function createCheckoutSession(restaurantId: string) {
  */
 export async function createOwnerPortalSession() {
     try {
-        if (!process.env.STRIPE_SECRET_KEY) {
-            throw new Error('CRITICAL CONFIGURATION ERROR: STRIPE_SECRET_KEY is not defined.');
-        }
-
         // 1. Authorize role and check restaurant connection
         const profile = await requireRestaurantRole(['admin', 'owner']);
         if (!profile.restaurant_id) {
@@ -110,6 +143,7 @@ export async function createOwnerPortalSession() {
         }
 
         const supabase = await createClient();
+        const stripe = await getDynamicStripe();
 
         // 2. Fetch the stripe_customer_id directly from the database
         const { data: rest, error: restError } = await (supabase
@@ -147,33 +181,16 @@ export async function createOwnerPortalSession() {
  */
 export async function createSuperAdminPortalSession(restaurantId: string) {
     try {
-        if (!process.env.STRIPE_SECRET_KEY) {
-            throw new Error('CRITICAL CONFIGURATION ERROR: STRIPE_SECRET_KEY is not defined.');
-        }
-
         // 1. Enforce super admin authority
-        await requireProfile(); // Ensures user profile is resolved first
-        const supabase = await createClient();
-        const userResponse = await supabase.auth.getUser();
-        const userId = userResponse.data.user?.id;
-        if (!userId) {
-            throw new Error('Forbidden: Unauthenticated');
-        }
-
-        const { data: adminProfile } = await (supabase
-            .from('profiles' as any) as any)
-            .select('is_super_admin')
-            .eq('id', userId)
-            .single();
-
-        if (!(adminProfile as any)?.is_super_admin) {
-            throw new Error('Forbidden: Super Admin access required');
-        }
+        await requireSuperAdmin();
 
         // 2. Validate UUID format
         if (!restaurantId || !restaurantId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
             throw new Error('Invalid restaurant ID format');
         }
+
+        const supabase = getAdminClient();
+        const stripe = await getDynamicStripe();
 
         // 3. Get customer ID
         const { data: rest, error: restError } = await (supabase

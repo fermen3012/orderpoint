@@ -25,46 +25,12 @@ function TablesPageContent() {
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
-        async function fetchTables() {
+        let isCancelled = false;
+        let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+        let activeChannel: ReturnType<typeof supabase.channel> | null = null;
+
+        async function loadTablesOnly(targetRestaurantId: string) {
             try {
-                // Get restaurant_id from profile
-                const { data: { session } } = await supabase.auth.getSession();
-                if (!session) return;
-
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('restaurant_id, full_name, is_super_admin, role, restaurants(name)')
-                    .eq('id', session.user.id)
-                    .single() as { data: any; error: any };
-
-                if (profile?.full_name) {
-                    setCurrentWaitress(profile.full_name);
-                }
-                setWaitressId(session.user.id);
-
-                let targetRestaurantId = profile?.restaurant_id;
-
-                // Permitir al Super Admin o Admin simular/probar un restaurante específico vía URL
-                if ((profile?.is_super_admin || profile?.role === 'admin') && paramRestaurantId) {
-                    targetRestaurantId = paramRestaurantId;
-                    const { data: restData } = await (supabase
-                        .from('restaurants' as any) as any)
-                        .select('name')
-                        .eq('id', paramRestaurantId)
-                        .single();
-                    if (restData && (restData as any).name) {
-                        setRestaurant(paramRestaurantId, (restData as any).name);
-                    }
-                } else if (profile?.restaurants?.name && targetRestaurantId) {
-                    setRestaurant(targetRestaurantId, profile.restaurants.name);
-                }
-
-                if (!targetRestaurantId) {
-                    setLoading(false);
-                    return;
-                }
-
-                // Fetch tables from database with waiter profile
                 const { data, error } = await supabase
                     .from('tables')
                     .select('*, waitress:profiles!waitress_id(full_name)')
@@ -75,6 +41,8 @@ function TablesPageContent() {
                     console.error('Supabase Error:', error);
                     throw error;
                 }
+
+                if (isCancelled) return;
 
                 if (!data) {
                     setTables([]);
@@ -91,23 +59,92 @@ function TablesPageContent() {
                 setTables(tablesWithStatus);
             } catch (error: any) {
                 console.error('Error fetching tables:', error.message || error);
-            } finally {
-                setLoading(false);
             }
         }
 
-        fetchTables();
+        async function initTablesAndRealtime() {
+            try {
+                // Get restaurant_id from profile once on mount
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session || isCancelled) return;
 
-        // Subscribe to real-time changes
-        const channel = supabase
-            .channel('tables_changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'tables' }, fetchTables)
-            .subscribe();
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('restaurant_id, full_name, is_super_admin, role, restaurants(name)')
+                    .eq('id', session.user.id)
+                    .single() as { data: any; error: any };
+
+                if (isCancelled) return;
+
+                if (profile?.full_name) {
+                    setCurrentWaitress(profile.full_name);
+                }
+                setWaitressId(session.user.id);
+
+                let targetRestaurantId = profile?.restaurant_id;
+
+                // Permitir al Super Admin o Admin simular/probar un restaurante específico vía URL
+                if ((profile?.is_super_admin || profile?.role === 'admin') && paramRestaurantId) {
+                    targetRestaurantId = paramRestaurantId;
+                    const { data: restData } = await (supabase
+                        .from('restaurants' as any) as any)
+                        .select('name')
+                        .eq('id', paramRestaurantId)
+                        .single();
+                    if (!isCancelled && restData && (restData as any).name) {
+                        setRestaurant(paramRestaurantId, (restData as any).name);
+                    }
+                } else if (profile?.restaurants?.name && targetRestaurantId) {
+                    setRestaurant(targetRestaurantId, profile.restaurants.name);
+                }
+
+                if (!targetRestaurantId) {
+                    if (!isCancelled) setLoading(false);
+                    return;
+                }
+
+                await loadTablesOnly(targetRestaurantId);
+
+                if (isCancelled) return;
+
+                // Subscribe to real-time changes strictly isolated by restaurant_id
+                activeChannel = supabase
+                    .channel(`tables_changes_${targetRestaurantId}`)
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: '*',
+                            schema: 'public',
+                            table: 'tables',
+                            filter: `restaurant_id=eq.${targetRestaurantId}`,
+                        },
+                        () => {
+                            if (debounceTimer) clearTimeout(debounceTimer);
+                            debounceTimer = setTimeout(() => {
+                                loadTablesOnly(targetRestaurantId);
+                            }, 150);
+                        }
+                    )
+                    .subscribe();
+            } catch (error: any) {
+                console.error('Error initializing tables:', error.message || error);
+            } finally {
+                if (!isCancelled) {
+                    setLoading(false);
+                }
+            }
+        }
+
+        initTablesAndRealtime();
 
         return () => {
-            supabase.removeChannel(channel);
+            isCancelled = true;
+            if (debounceTimer) clearTimeout(debounceTimer);
+            if (activeChannel) {
+                supabase.removeChannel(activeChannel);
+            }
         };
-    }, [supabase]);
+    }, [supabase, paramRestaurantId]);
 
     const filteredTables = tables.filter(t =>
         t.number.toString().includes(searchTerm)

@@ -1,4 +1,5 @@
 import { getAdminClient } from '@/lib/supabase/server';
+import { requireSuperAdmin } from '@/lib/auth/guards';
 import {
     Building2,
     ShoppingBag,
@@ -14,6 +15,7 @@ import { formatPrice } from '@/lib/utils';
 import { Link } from '@/i18n/routing';
 
 export default async function SuperAdminDashboard() {
+    await requireSuperAdmin();
     const supabase = getAdminClient();
 
     const today = new Date();

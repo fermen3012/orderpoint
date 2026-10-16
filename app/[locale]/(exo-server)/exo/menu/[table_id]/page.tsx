@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/browser';
 import QuickOrderMenu from '@/components/exo/QuickOrderMenu';
 import { useExoCartStore } from '@/store/exo-cart-store';
 import { useRestaurantStore } from '@/store/restaurant-store';
+import { useKioskMenuCache } from '@/store/kiosk-menu-cache';
 import { Loader2, ArrowLeft, Send, LogOut, Trash2, AlertTriangle, CheckCircle2, Sparkles, X as CloseIcon, Receipt, Plus, Utensils, Clock } from 'lucide-react';
 import { useRouter } from '@/i18n/routing';
 import { formatPrice, cn, getLocalizedValue } from '@/lib/utils';
@@ -93,36 +94,35 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
 
     useEffect(() => {
         let activeRestaurantId: string | null = restaurantId;
+        let ordersDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
         async function loadData() {
             try {
-                // Always sync active authenticated user as waitressId and fetch profile
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session?.user?.id) {
-                    setWaitressId(session.user.id);
-                    const { data: myProf } = await (supabase.from('profiles') as any)
-                        .select('full_name')
-                        .eq('id', session.user.id)
-                        .single();
-                    if (myProf?.full_name) {
-                        setCurrentWaitressName(myProf.full_name);
-                    }
-                }
+                const menuCache = useKioskMenuCache.getState();
 
-                if (!activeRestaurantId) {
+                // Reuse cached waitressId & waitressName if already resolved in session
+                let resolvedWaitressName = menuCache.exoWaitressName;
+                if (!waitressId || !resolvedWaitressName || !activeRestaurantId) {
                     const { data: { session } } = await supabase.auth.getSession();
-                    if (session) {
-                        const { data: profile } = await (supabase.from('profiles') as any)
-                            .select('restaurant_id, restaurants(name)')
+                    if (session?.user?.id) {
+                        setWaitressId(session.user.id);
+                        const { data: myProf } = await (supabase.from('profiles') as any)
+                            .select('full_name, restaurant_id, restaurants(name)')
                             .eq('id', session.user.id)
                             .single();
-                        if (profile?.restaurant_id) {
-                            activeRestaurantId = profile.restaurant_id;
-                            if (profile.restaurants?.name) {
-                                setRestaurant(profile.restaurant_id, profile.restaurants.name);
+                        if (myProf?.full_name) {
+                            resolvedWaitressName = myProf.full_name;
+                            setCurrentWaitressName(myProf.full_name);
+                        }
+                        if (!activeRestaurantId && myProf?.restaurant_id) {
+                            activeRestaurantId = myProf.restaurant_id;
+                            if (myProf.restaurants?.name) {
+                                setRestaurant(myProf.restaurant_id, myProf.restaurants.name);
                             }
                         }
                     }
+                } else if (resolvedWaitressName) {
+                    setCurrentWaitressName(resolvedWaitressName);
                 }
 
                 if (!activeRestaurantId) {
@@ -131,59 +131,74 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
                     return;
                 }
 
-                const todayDay = new Date().getDay();
-                // Parallel fetch filtered by restaurant and weekly schedule
-                const [catRes, prodRes, schedRes] = await Promise.all([
-                    (supabase.from('categories') as any).select('*').eq('restaurant_id', activeRestaurantId).order('name'),
-                    (supabase.from('products') as any)
-                        .select('*, modifier_groups:product_modifier_groups(modifier_group:modifier_groups(*, options:modifiers(*))), ingredients:product_ingredients(ingredient_id, is_removable, ingredient:ingredients(id, name))')
-                        .eq('restaurant_id', activeRestaurantId)
-                        .eq('is_available', true),
-                    (supabase.from('product_availability') as any)
-                        .select('product_id, is_active')
-                        .eq('restaurant_id', activeRestaurantId)
-                        .eq('day_of_week', todayDay)
+                // 1. Check in-memory menu cache (0 DB queries when switching between tables)
+                if (menuCache.isExoCacheValid(activeRestaurantId)) {
+                    setCategories(menuCache.exoCategories);
+                    setProducts(menuCache.exoProducts);
+                } else {
+                    const todayDay = new Date().getDay();
+                    // Parallel fetch filtered by restaurant and weekly schedule
+                    const [catRes, prodRes, schedRes] = await Promise.all([
+                        (supabase.from('categories') as any).select('*').eq('restaurant_id', activeRestaurantId).order('name'),
+                        (supabase.from('products') as any)
+                            .select('*, modifier_groups:product_modifier_groups(modifier_group:modifier_groups(*, options:modifiers(*))), ingredients:product_ingredients(ingredient_id, is_removable, ingredient:ingredients(id, name))')
+                            .eq('restaurant_id', activeRestaurantId)
+                            .eq('is_available', true),
+                        (supabase.from('product_availability') as any)
+                            .select('product_id, is_active')
+                            .eq('restaurant_id', activeRestaurantId)
+                            .eq('day_of_week', todayDay)
+                    ]);
+
+                    if (catRes.error) throw catRes.error;
+                    if (prodRes.error) throw prodRes.error;
+
+                    const disabledProductIds = new Set(
+                        (schedRes.data || [])
+                            .filter((s: any) => s.is_active === false)
+                            .map((s: any) => s.product_id)
+                    );
+
+                    const nextCategories = catRes.data || [];
+                    setCategories(nextCategories);
+
+                    // Flatten products data structure to match our types and filter by weekly schedule
+                    const rawProducts = (prodRes.data || []).filter((p: any) => !disabledProductIds.has(p.id));
+                    const formattedProducts = rawProducts.map((p: any) => ({
+                        ...p,
+                        modifier_groups: p.modifier_groups?.map((mg: any) => ({
+                            ...mg.modifier_group,
+                            options: mg.modifier_group?.options || []
+                        })) || [],
+                        removable_ingredients: p.ingredients
+                            ?.filter((pi: any) => pi.is_removable && pi.ingredient)
+                            ?.map((pi: any) => ({
+                                id: pi.ingredient.id,
+                                name: pi.ingredient.name
+                            })) || []
+                    }));
+
+                    setProducts(formattedProducts);
+
+                    // Store in shared memory cache for instant table switching
+                    menuCache.setExoMenuCache({
+                        restaurantId: activeRestaurantId,
+                        categories: nextCategories,
+                        products: formattedProducts,
+                        waitressName: resolvedWaitressName
+                    });
+                }
+
+                // 2. Fetch table status and active table orders in parallel
+                const [tableRes] = await Promise.all([
+                    (supabase.from('tables') as any)
+                        .select('*, waitress:profiles!waitress_id(full_name)')
+                        .eq('id', tableId)
+                        .single(),
+                    loadTableOrders(activeRestaurantId)
                 ]);
 
-                if (catRes.error) throw catRes.error;
-                if (prodRes.error) throw prodRes.error;
-
-                const disabledProductIds = new Set(
-                    (schedRes.data || [])
-                        .filter((s: any) => s.is_active === false)
-                        .map((s: any) => s.product_id)
-                );
-
-                setCategories(catRes.data || []);
-
-                // Flatten products data structure to match our types and filter by weekly schedule
-                const rawProducts = (prodRes.data || []).filter((p: any) => !disabledProductIds.has(p.id));
-                const formattedProducts = rawProducts.map((p: any) => ({
-                    ...p,
-                    modifier_groups: p.modifier_groups?.map((mg: any) => ({
-                        ...mg.modifier_group,
-                        options: mg.modifier_group?.options || []
-                    })) || [],
-                    removable_ingredients: p.ingredients
-                        ?.filter((pi: any) => pi.is_removable && pi.ingredient)
-                        ?.map((pi: any) => ({
-                            id: pi.ingredient.id,
-                            name: pi.ingredient.name
-                        })) || []
-                }));
-
-                setProducts(formattedProducts);
-
-                // Fetch table status with waitress profile
-                const { data: tableData } = await (supabase.from('tables') as any)
-                    .select('*, waitress:profiles!waitress_id(full_name)')
-                    .eq('id', tableId)
-                    .single();
-
-                if (tableData) setTable(tableData);
-
-                // Fetch table orders
-                await loadTableOrders(activeRestaurantId);
+                if (tableRes?.data) setTable(tableRes.data);
 
             } catch (error: any) {
                 console.error('Error loading menu data:', error.message || error);
@@ -206,17 +221,21 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
             })
             .subscribe();
 
-        // Subscribe to table orders changes in real time
+        // Subscribe to table orders changes in real time (debounced to wait for order_items batch)
         const ordersChannel = supabase
             .channel(`table-orders-${tableId}`)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `table_id=eq.${tableId}` }, () => {
                 if (activeRestaurantId) {
-                    loadTableOrders(activeRestaurantId);
+                    if (ordersDebounceTimer) clearTimeout(ordersDebounceTimer);
+                    ordersDebounceTimer = setTimeout(() => {
+                        if (activeRestaurantId) loadTableOrders(activeRestaurantId);
+                    }, 250);
                 }
             })
             .subscribe();
 
         return () => {
+            if (ordersDebounceTimer) clearTimeout(ordersDebounceTimer);
             supabase.removeChannel(channel);
             supabase.removeChannel(ordersChannel);
         };
@@ -309,49 +328,45 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
         console.log('¡Enviando pedido a cocina!');
 
         try {
-            // Ensure we have a restaurantId
+            // Ensure we have restaurantId and waitressId (only query session if missing from memory)
             let finalRestaurantId = restaurantId;
-            if (!finalRestaurantId) {
+            let activeWaitressId = waitressId;
+
+            if (!finalRestaurantId || !activeWaitressId) {
                 const { data: { session } } = await supabase.auth.getSession();
-                if (session) {
-                    const { data: profile } = await (supabase.from('profiles') as any).select('restaurant_id').eq('id', session.user.id).single();
-                    finalRestaurantId = profile?.restaurant_id;
+                if (session?.user?.id) {
+                    activeWaitressId = session.user.id;
+                    setWaitressId(activeWaitressId);
+                    if (!finalRestaurantId) {
+                        const { data: profile } = await (supabase.from('profiles') as any).select('restaurant_id').eq('id', session.user.id).single();
+                        finalRestaurantId = profile?.restaurant_id;
+                    }
                 }
             }
 
             if (!finalRestaurantId) throw new Error('No se pudo determinar el ID del restaurante');
-
-            // 0. Get next atomic order number for this restaurant
-            const { data: nextNumber, error: rpcError } = await (supabase as any).rpc('get_next_order_number', {
-                p_restaurant_id: finalRestaurantId
-            });
-
-            if (rpcError) throw rpcError;
-
-            // Obtain active waitress directly from session
-            let activeWaitressId = waitressId;
-            const { data: { session: activeSession } } = await supabase.auth.getSession();
-            if (activeSession?.user?.id) {
-                activeWaitressId = activeSession.user.id;
-                setWaitressId(activeWaitressId);
-            }
-
             if (!activeWaitressId) throw new Error('No se pudo identificar la mesera logueada');
 
-            // 1. Ensure table is "occupied" by current waitress if it's free
-            if (!table?.waitress_id) {
-                await (supabase.from('tables') as any)
-                    .update({ waitress_id: activeWaitressId })
-                    .eq('id', tableId);
-            }
+            // 1. Execute atomic order number RPC, restaurant active check, and table occupancy update in PARALLEL (1 single roundtrip)
+            const [rpcRes, restCheckRes] = await Promise.all([
+                (supabase as any).rpc('get_next_order_number', {
+                    p_restaurant_id: finalRestaurantId
+                }),
+                (supabase.from('restaurants' as any) as any)
+                    .select('is_active')
+                    .eq('id', finalRestaurantId)
+                    .single(),
+                !table?.waitress_id
+                    ? (supabase.from('tables') as any)
+                        .update({ waitress_id: activeWaitressId })
+                        .eq('id', tableId)
+                    : Promise.resolve({ data: null, error: null })
+            ]);
 
-            // Verificar si el restaurante está activo
-            const { data: restCheck } = await (supabase.from('restaurants' as any) as any)
-                .select('is_active')
-                .eq('id', finalRestaurantId)
-                .single();
+            if (rpcRes.error) throw rpcRes.error;
+            const nextNumber = rpcRes.data;
 
-            if (restCheck && restCheck.is_active === false) {
+            if (restCheckRes.data && restCheckRes.data.is_active === false) {
                 throw new Error('El servicio de este restaurante se encuentra temporalmente suspendido por administración.');
             }
 

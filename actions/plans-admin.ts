@@ -3,7 +3,7 @@
 import { getAdminClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { requireSuperAdmin } from '@/lib/auth/guards';
-import { getDynamicStripe } from '@/lib/stripe';
+import { getDynamicStripe, withBillingLock } from '@/lib/stripe';
 import { SubscriptionPlan, DEFAULT_SUBSCRIPTION_PLANS } from '@/lib/subscription-plans';
 
 export type { SubscriptionPlan };
@@ -49,6 +49,7 @@ export async function getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
  */
 async function saveInitialDefaultPlans() {
     try {
+        await requireSuperAdmin();
         const supabase = getAdminClient();
         await (supabase
             .from('system_settings' as any) as any)
@@ -195,71 +196,85 @@ export async function deleteSubscriptionPlan(planId: string) {
 /**
  * Super Admin: Asigna un plan de suscripción directamente a un restaurante cliente.
  */
-export async function assignPlanToRestaurant(restaurantId: string, planId: string) {
+export async function assignPlanToRestaurant(
+    restaurantId: string,
+    planId: string
+): Promise<{ success: boolean; planName?: string; error?: string }> {
     try {
         await requireSuperAdmin();
-        const supabase = getAdminClient();
-
-        const plans = await getSubscriptionPlans();
-        const selectedPlan = plans.find(p => p.id === planId);
-        if (!selectedPlan) {
-            throw new Error('El plan seleccionado no existe');
+        if (!restaurantId || !restaurantId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            throw new Error('ID de restaurante inválido');
         }
 
-        // 1. Guardar mapeo en system_settings y actualizar restaurante
-        await saveRestaurantPlanMapping(restaurantId, planId);
+        return await withBillingLock(restaurantId, async () => {
+            const supabase = getAdminClient();
 
-        const { error: restError } = await (supabase
-            .from('restaurants' as any) as any)
-            .update({
-                unit_price: selectedPlan.monthly_price,
-                subscription_status: 'active',
-            })
-            .eq('id', restaurantId);
-
-        if (restError) {
-            throw new Error(`Error al actualizar restaurante: ${restError.message}`);
-        }
-
-        // Intento silencioso de actualizar columna plan_id si existe en PostgreSQL
-        try {
-            await (supabase.from('restaurants' as any) as any)
-                .update({ plan_id: planId })
-                .eq('id', restaurantId);
-        } catch {
-            // Ignorar si la columna no existe aún
-        }
-
-        // 2. Si tiene suscripción en Stripe y el plan tiene un stripe_price_id, actualizar en Stripe
-        const { data: rest } = await (supabase
-            .from('restaurants' as any) as any)
-            .select('stripe_subscription_id')
-            .eq('id', restaurantId)
-            .single();
-
-        if (rest?.stripe_subscription_id && selectedPlan.stripe_price_id) {
-            try {
-                const stripe = await getDynamicStripe();
-                const sub = await stripe.subscriptions.retrieve(rest.stripe_subscription_id);
-                if (sub.items.data.length > 0) {
-                    const itemId = sub.items.data[0].id;
-                    await stripe.subscriptions.update(rest.stripe_subscription_id, {
-                        items: [{
-                            id: itemId,
-                            price: selectedPlan.stripe_price_id,
-                        }],
-                        proration_behavior: 'none',
-                    });
-                }
-            } catch (stripeErr: any) {
-                console.warn('Advertencia actualizando Stripe Subscription:', stripeErr?.message);
+            const plans = await getSubscriptionPlans();
+            const selectedPlan = plans.find(p => p.id === planId);
+            if (!selectedPlan) {
+                throw new Error('El plan seleccionado no existe');
             }
-        }
 
-        revalidatePath('/super-admin/billing');
-        revalidatePath('/admin/billing');
-        revalidatePath('/[locale]/super-admin/restaurants', 'page');
-        return { success: true, planName: selectedPlan.name };
+            // 1. Guardar mapeo en system_settings y actualizar restaurante
+            await saveRestaurantPlanMapping(restaurantId, planId);
+
+            const { error: restError } = await (supabase
+                .from('restaurants' as any) as any)
+                .update({
+                    unit_price: selectedPlan.monthly_price,
+                    subscription_status: 'active',
+                })
+                .eq('id', restaurantId);
+
+            if (restError) {
+                throw new Error(`Error al actualizar restaurante: ${restError.message}`);
+            }
+
+            // Intento silencioso de actualizar columna plan_id si existe en PostgreSQL
+            try {
+                await (supabase.from('restaurants' as any) as any)
+                    .update({ plan_id: planId })
+                    .eq('id', restaurantId);
+            } catch {
+                // Ignorar si la columna no existe aún
+            }
+
+            // 2. Si tiene suscripción en Stripe y el plan tiene un stripe_price_id, actualizar en Stripe con idempotencyKey
+            const { data: rest } = await (supabase
+                .from('restaurants' as any) as any)
+                .select('stripe_subscription_id')
+                .eq('id', restaurantId)
+                .single();
+
+            if (rest?.stripe_subscription_id && selectedPlan.stripe_price_id) {
+                try {
+                    const stripe = await getDynamicStripe();
+                    const sub = await stripe.subscriptions.retrieve(rest.stripe_subscription_id);
+                    if (sub.items.data.length > 0) {
+                        const itemId = sub.items.data[0].id;
+                        const bucket = Math.floor(Date.now() / 15000);
+                        await stripe.subscriptions.update(
+                            rest.stripe_subscription_id,
+                            {
+                                items: [{
+                                    id: itemId,
+                                    price: selectedPlan.stripe_price_id,
+                                }],
+                                proration_behavior: 'none',
+                            },
+                            { idempotencyKey: `assign_plan_${restaurantId}_${planId}_${bucket}` }
+                        );
+                    }
+                } catch (stripeErr: any) {
+                    console.warn('Advertencia actualizando Stripe Subscription:', stripeErr?.message);
+                }
+            }
+
+            revalidatePath('/super-admin/billing');
+            revalidatePath('/admin/billing');
+            revalidatePath('/[locale]/super-admin/restaurants', 'page');
+            return { success: true, planName: selectedPlan.name };
+        });
     } catch (err: any) {
         console.error('Error in assignPlanToRestaurant:', err);
         return { success: false, error: err.message || 'Error al asignar el plan' };
@@ -271,6 +286,7 @@ export async function assignPlanToRestaurant(restaurantId: string, planId: strin
  */
 export async function getRestaurantPlansMap(): Promise<Record<string, string>> {
     try {
+        await requireSuperAdmin();
         const supabase = getAdminClient();
         const { data, error } = await (supabase
             .from('system_settings' as any) as any)
@@ -293,6 +309,14 @@ export async function getRestaurantPlansMap(): Promise<Record<string, string>> {
  */
 export async function saveRestaurantPlanMapping(restaurantId: string, planId: string): Promise<void> {
     try {
+        await requireSuperAdmin();
+        if (!restaurantId || !restaurantId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            throw new Error('ID de restaurante inválido');
+        }
+        if (!planId || typeof planId !== 'string') {
+            throw new Error('ID de plan inválido');
+        }
+
         const supabase = getAdminClient();
         const currentMap = await getRestaurantPlansMap();
         currentMap[restaurantId] = planId;
@@ -320,73 +344,84 @@ export async function updateRestaurantPlan(
 ): Promise<{ success: boolean; planName?: string; error?: string }> {
     try {
         await requireSuperAdmin();
-        const supabase = getAdminClient();
-
-        const plans = await getSubscriptionPlans();
-        const selectedPlan = plans.find(p => p.id === planId);
-        if (!selectedPlan) {
-            return { success: false, error: 'El plan seleccionado no existe' };
+        if (!restaurantId || !restaurantId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            return { success: false, error: 'ID de restaurante inválido' };
         }
 
-        const finalPrice = typeof customPrice === 'number' && customPrice >= 0
-            ? customPrice
-            : selectedPlan.monthly_price;
+        return await withBillingLock(restaurantId, async () => {
+            const supabase = getAdminClient();
 
-        // 1. Guardar mapeo
-        await saveRestaurantPlanMapping(restaurantId, planId);
-
-        // 2. Actualizar restaurante en BD
-        const { error: restError } = await (supabase
-            .from('restaurants' as any) as any)
-            .update({
-                unit_price: finalPrice,
-                subscription_status: 'active',
-            })
-            .eq('id', restaurantId);
-
-        if (restError) {
-            return { success: false, error: restError.message };
-        }
-
-        // Intento de actualizar plan_id en BD
-        try {
-            await (supabase.from('restaurants' as any) as any)
-                .update({ plan_id: planId })
-                .eq('id', restaurantId);
-        } catch {
-            // Ignorar si la columna no existe aún
-        }
-
-        // 3. Si tiene suscripción Stripe y el plan tiene stripe_price_id, sincronizar
-        const { data: rest } = await (supabase
-            .from('restaurants' as any) as any)
-            .select('stripe_subscription_id')
-            .eq('id', restaurantId)
-            .single();
-
-        if (rest?.stripe_subscription_id && selectedPlan.stripe_price_id) {
-            try {
-                const stripe = await getDynamicStripe();
-                const sub = await stripe.subscriptions.retrieve(rest.stripe_subscription_id);
-                if (sub.items.data.length > 0) {
-                    const itemId = sub.items.data[0].id;
-                    await stripe.subscriptions.update(rest.stripe_subscription_id, {
-                        items: [{
-                            id: itemId,
-                            price: selectedPlan.stripe_price_id,
-                        }],
-                        proration_behavior: 'none',
-                    });
-                }
-            } catch (stripeErr: any) {
-                console.warn('Advertencia actualizando Stripe Subscription:', stripeErr?.message);
+            const plans = await getSubscriptionPlans();
+            const selectedPlan = plans.find(p => p.id === planId);
+            if (!selectedPlan) {
+                return { success: false, error: 'El plan seleccionado no existe' };
             }
-        }
 
-        revalidatePath('/super-admin/billing');
-        revalidatePath('/admin/billing');
-        revalidatePath('/[locale]/super-admin/restaurants', 'page');
-        return { success: true, planName: selectedPlan.name };
+            const finalPrice = typeof customPrice === 'number' && customPrice >= 0
+                ? customPrice
+                : selectedPlan.monthly_price;
+
+            // 1. Guardar mapeo
+            await saveRestaurantPlanMapping(restaurantId, planId);
+
+            // 2. Actualizar restaurante en BD
+            const { error: restError } = await (supabase
+                .from('restaurants' as any) as any)
+                .update({
+                    unit_price: finalPrice,
+                    subscription_status: 'active',
+                })
+                .eq('id', restaurantId);
+
+            if (restError) {
+                return { success: false, error: restError.message };
+            }
+
+            // Intento de actualizar plan_id en BD
+            try {
+                await (supabase.from('restaurants' as any) as any)
+                    .update({ plan_id: planId })
+                    .eq('id', restaurantId);
+            } catch {
+                // Ignorar si la columna no existe aún
+            }
+
+            // 3. Si tiene suscripción Stripe y el plan tiene stripe_price_id, sincronizar con idempotencyKey
+            const { data: rest } = await (supabase
+                .from('restaurants' as any) as any)
+                .select('stripe_subscription_id')
+                .eq('id', restaurantId)
+                .single();
+
+            if (rest?.stripe_subscription_id && selectedPlan.stripe_price_id) {
+                try {
+                    const stripe = await getDynamicStripe();
+                    const sub = await stripe.subscriptions.retrieve(rest.stripe_subscription_id);
+                    if (sub.items.data.length > 0) {
+                        const itemId = sub.items.data[0].id;
+                        const bucket = Math.floor(Date.now() / 15000);
+                        await stripe.subscriptions.update(
+                            rest.stripe_subscription_id,
+                            {
+                                items: [{
+                                    id: itemId,
+                                    price: selectedPlan.stripe_price_id,
+                                }],
+                                proration_behavior: 'none',
+                            },
+                            { idempotencyKey: `update_plan_${restaurantId}_${planId}_${finalPrice}_${bucket}` }
+                        );
+                    }
+                } catch (stripeErr: any) {
+                    console.warn('Advertencia actualizando Stripe Subscription:', stripeErr?.message);
+                }
+            }
+
+            revalidatePath('/super-admin/billing');
+            revalidatePath('/admin/billing');
+            revalidatePath('/[locale]/super-admin/restaurants', 'page');
+            return { success: true, planName: selectedPlan.name };
+        });
     } catch (err: any) {
         console.error('Error in updateRestaurantPlan:', err);
         return { success: false, error: err.message || 'Error al actualizar el plan' };
