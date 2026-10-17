@@ -3,17 +3,42 @@ import type { Database } from '../supabase/types';
 
 export type UserProfile = Database['public']['Tables']['profiles']['Row'];
 
+// Short-lived server memory caches to eliminate redundant Auth + Profile roundtrips across consecutive Server Actions
+const AUTH_CACHE_TTL_MS = 30 * 1000;
+const PROFILE_CACHE_TTL_MS = 60 * 1000;
+const verifiedTokenCache = new Map<string, { user: any; expiresAt: number }>();
+const profileCache = new Map<string, { profile: UserProfile; expiresAt: number }>();
+
 /**
  * Ensures a user is authenticated and returns the user object.
  */
 export async function requireUser() {
     const supabase = await createClient();
     let user = null;
-    
+    let accessToken: string | null = null;
+    const now = Date.now();
+
     try {
-        const { data: userData, error } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+        accessToken = session?.access_token || null;
+
+        if (accessToken) {
+            const cached = verifiedTokenCache.get(accessToken);
+            if (cached && cached.expiresAt > now) {
+                return cached.user;
+            }
+        }
+    } catch {
+        // Proceed to getUser verification
+    }
+
+    try {
+        const { data: userData } = await supabase.auth.getUser();
         if (userData?.user) {
             user = userData.user;
+            if (accessToken) {
+                verifiedTokenCache.set(accessToken, { user, expiresAt: now + AUTH_CACHE_TTL_MS });
+            }
         } else {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
@@ -43,6 +68,39 @@ export async function requireUser() {
  */
 export async function requireProfile(): Promise<UserProfile> {
     const user = await requireUser();
+    const now = Date.now();
+
+    // Server-controlled claims and verified super admin email override only (never trust client-editable user_metadata)
+    const isSuperAdminEmail = user.email === 'admin@orderpoint.com' && Boolean(user.email_confirmed_at);
+    const isSuperAdminMetadata = user.app_metadata?.is_super_admin === true;
+
+    // Fast-path for verified Super Admin (0ms, no DB roundtrip needed)
+    if (isSuperAdminMetadata || isSuperAdminEmail) {
+        const cachedSuper = profileCache.get(user.id);
+        if (cachedSuper && cachedSuper.expiresAt > now) {
+            return cachedSuper.profile;
+        }
+        const superProfile = {
+            id: user.id,
+            email: user.email || 'admin@orderpoint.com',
+            role: 'admin',
+            is_super_admin: true,
+            restaurant_id: null,
+            created_at: user.created_at || new Date().toISOString(),
+            full_name: user.user_metadata?.full_name || 'Super Administrador',
+            updated_at: new Date().toISOString(),
+            phone: null,
+            is_active: true
+        } as any as UserProfile;
+        profileCache.set(user.id, { profile: superProfile, expiresAt: now + PROFILE_CACHE_TTL_MS });
+        return superProfile;
+    }
+
+    const cached = profileCache.get(user.id);
+    if (cached && cached.expiresAt > now) {
+        return cached.profile;
+    }
+
     const supabase = await createClient();
 
     let profile: UserProfile | null = null;
@@ -60,35 +118,11 @@ export async function requireProfile(): Promise<UserProfile> {
         dbError = err;
     }
 
-    // Server-controlled claims and verified super admin email override only (never trust client-editable user_metadata)
-    const isSuperAdminEmail = user.email === 'admin@orderpoint.com' && Boolean(user.email_confirmed_at);
-    const isSuperAdminMetadata = user.app_metadata?.is_super_admin === true;
-
     if (dbError || !profile) {
-        if (isSuperAdminEmail || isSuperAdminMetadata) {
-            console.log('requireProfile: Profile query failed/empty, using fallback token metadata profile override');
-            return {
-                id: user.id,
-                email: user.email || 'admin@orderpoint.com',
-                role: 'admin',
-                is_super_admin: true,
-                restaurant_id: null,
-                created_at: new Date().toISOString(),
-                full_name: 'Super Administrador',
-                updated_at: new Date().toISOString(),
-                phone: null,
-                is_active: true
-            } as any as UserProfile;
-        }
-
         throw new Error('Unauthorized: User profile not found');
     }
 
-    if (isSuperAdminEmail && !profile.is_super_admin) {
-        profile.is_super_admin = true;
-        profile.role = 'admin';
-    }
-
+    profileCache.set(user.id, { profile, expiresAt: now + PROFILE_CACHE_TTL_MS });
     return profile;
 }
 

@@ -91,12 +91,32 @@ export default function CategoriesPage() {
         }
     };
 
+    const removeCategoryStorageImage = async (imageUrl: string | null | undefined) => {
+        if (!imageUrl || typeof imageUrl !== 'string') return;
+        const marker = '/storage/v1/object/public/';
+        const idx = imageUrl.indexOf(marker);
+        if (idx === -1) return;
+        const afterMarker = imageUrl.substring(idx + marker.length).split('?')[0];
+        const firstSlash = afterMarker.indexOf('/');
+        if (firstSlash === -1) return;
+        const bucket = decodeURIComponent(afterMarker.substring(0, firstSlash));
+        const path = decodeURIComponent(afterMarker.substring(firstSlash + 1));
+        if (!bucket || !path) return;
+        try {
+            const supabase = createClient();
+            await supabase.storage.from(bucket).remove([path]);
+        } catch (err) {
+            console.warn('Error removing category image from storage:', err);
+        }
+    };
+
     const handleSaveCategory = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!restaurantId) return;
         setSaving(true);
 
         if (editingCategory) {
+            const oldImageUrl = editingCategory.image_url;
             const { error } = await (adminSupabase.from('categories' as any) as any)
                 .update({
                     name: newCategory.name,
@@ -105,6 +125,9 @@ export default function CategoriesPage() {
                 .eq('id', editingCategory.id);
 
             if (!error) {
+                if (oldImageUrl && oldImageUrl !== (newCategory.image_url || null)) {
+                    await removeCategoryStorageImage(oldImageUrl);
+                }
                 setIsModalOpen(false);
                 setEditingCategory(null);
                 setNewCategory({ name: '', image_url: '' });
@@ -138,8 +161,14 @@ export default function CategoriesPage() {
 
     const handleDeleteCategory = async (id: string) => {
         if (confirm(t('deleteCategoryConfirm'))) {
+            const targetCat = categories.find(c => c.id === id);
             const { error } = await (adminSupabase.from('categories' as any) as any).delete().eq('id', id);
-            if (!error) loadCategories();
+            if (!error) {
+                if (targetCat?.image_url) {
+                    await removeCategoryStorageImage(targetCat.image_url);
+                }
+                loadCategories();
+            }
         }
     };
 

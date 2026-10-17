@@ -115,20 +115,16 @@ export default function SuperAdminRestaurants() {
 
             if (resResult.error) {
                 console.error('getRestaurants error:', resResult.error);
-            } else if (resResult.data) {
-                setRestaurants(resResult.data);
-            }
-
-            try {
-                const plansResult = await getSubscriptionPlans();
-                if (plansResult && plansResult.length > 0) {
-                    setPlans(plansResult);
+            } else {
+                if (resResult.data) {
+                    setRestaurants(resResult.data);
+                }
+                if (resResult.plans && resResult.plans.length > 0) {
+                    setPlans(resResult.plans);
                     if (!newRestaurant.plan_id) {
-                        setNewRestaurant(prev => ({ ...prev, plan_id: plansResult[0].id }));
+                        setNewRestaurant(prev => ({ ...prev, plan_id: resResult.plans[0].id }));
                     }
                 }
-            } catch (plansErr) {
-                console.warn('Could not fetch subscription plans list:', plansErr);
             }
         } catch (err) {
             console.error('Error loading restaurants and plans:', err);

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import {
     getAllCustomersBilling,
+    getBillingAndPlansBundle,
     updateSubscriptionQuantity,
     getCustomerInvoices,
     generatePortalLink,
@@ -61,8 +62,8 @@ export default function SuperAdminBillingPage() {
     const [updatingQuantity, setUpdatingQuantity] = useState(false);
 
     // Estado de Planes de Pago (Subscription Plans)
-    const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
-    const [loadingPlans, setLoadingPlans] = useState(true);
+    const [plans, setPlans] = useState<SubscriptionPlan[]>(DEFAULT_SUBSCRIPTION_PLANS);
+    const [loadingPlans, setLoadingPlans] = useState(false);
     const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
     const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
     const [savingPlan, setSavingPlan] = useState(false);
@@ -115,8 +116,27 @@ export default function SuperAdminBillingPage() {
     };
 
     useEffect(() => {
-        loadBillingData();
-        loadPlansData();
+        let mounted = true;
+        const loadInitialBundle = async () => {
+            setLoading(true);
+            try {
+                const { customers: custData, plans: plansData } = await getBillingAndPlansBundle();
+                if (!mounted) return;
+                setCustomers(custData);
+                if (plansData && plansData.length > 0) {
+                    setPlans(plansData);
+                }
+            } catch (err) {
+                console.error('Error loading billing bundle:', err);
+            } finally {
+                if (mounted) {
+                    setLoading(false);
+                    setLoadingPlans(false);
+                }
+            }
+        };
+        loadInitialBundle();
+        return () => { mounted = false; };
     }, []);
 
     const openCreatePlanModal = () => {

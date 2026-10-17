@@ -22,6 +22,48 @@ interface ProductInput {
     is_available: boolean;
 }
 
+function parseStorageUrl(url: string | null | undefined): { bucket: string; path: string } | null {
+    if (!url || typeof url !== 'string') return null;
+    const marker = '/storage/v1/object/public/';
+    const idx = url.indexOf(marker);
+    if (idx === -1) return null;
+    const afterMarker = url.substring(idx + marker.length).split('?')[0];
+    const firstSlash = afterMarker.indexOf('/');
+    if (firstSlash === -1) return null;
+    const bucket = decodeURIComponent(afterMarker.substring(0, firstSlash));
+    const path = decodeURIComponent(afterMarker.substring(firstSlash + 1));
+    if (!bucket || !path) return null;
+    return { bucket, path };
+}
+
+async function removeStorageImageIfUnused(imageUrl: string | null | undefined, excludeProductId?: string) {
+    try {
+        const parsed = parseStorageUrl(imageUrl);
+        if (!parsed) return;
+
+        let prodQuery = (supabaseAdmin.from('products' as any) as any)
+            .select('id', { count: 'exact', head: true })
+            .eq('image_url', imageUrl);
+        if (excludeProductId) {
+            prodQuery = prodQuery.neq('id', excludeProductId);
+        }
+
+        const [otherProdRes, otherCatRes] = await Promise.all([
+            prodQuery,
+            (supabaseAdmin.from('categories' as any) as any)
+                .select('id', { count: 'exact', head: true })
+                .eq('image_url', imageUrl)
+        ]);
+
+        const stillUsed = ((otherProdRes?.count || 0) > 0) || ((otherCatRes?.count || 0) > 0);
+        if (!stillUsed) {
+            await supabaseAdmin.storage.from(parsed.bucket).remove([parsed.path]);
+        }
+    } catch (err) {
+        console.warn('Advertencia al limpiar imagen de Storage:', err);
+    }
+}
+
 export async function saveProduct(product: ProductInput, ingredients: IngredientSelection[]) {
     try {
         const profile = await requireRestaurantRole(['admin', 'owner']);
@@ -51,7 +93,7 @@ export async function saveProduct(product: ProductInput, ingredients: Ingredient
             // Verify product belongs to the user's restaurant before modifying it
             const { data: existingProd, error: checkError } = await (supabaseAdmin
                 .from('products' as any) as any)
-                .select('restaurant_id')
+                .select('restaurant_id, image_url')
                 .eq('id', product.id)
                 .single();
 
@@ -62,6 +104,8 @@ export async function saveProduct(product: ProductInput, ingredients: Ingredient
             if ((existingProd as any).restaurant_id !== product.restaurant_id) {
                 return { error: 'No tiene permisos para modificar este producto', success: false };
             }
+
+            const oldImageUrl = (existingProd as any).image_url as string | null;
 
             // Update existing product
             const updateData: Database['public']['Tables']['products']['Update'] = {
@@ -80,6 +124,11 @@ export async function saveProduct(product: ProductInput, ingredients: Ingredient
 
             if (updateError) throw updateError;
             productId = product.id;
+
+            // Si se reemplazó o eliminó la foto anterior, borrarla del bucket
+            if (oldImageUrl && oldImageUrl !== product.image_url) {
+                await removeStorageImageIfUnused(oldImageUrl, product.id);
+            }
 
         } else {
             // Create new product
@@ -297,19 +346,28 @@ export async function createIngredientAction(name: string, restaurantId: string)
 export async function deleteProductAction(productId: string) {
     try {
         const profile = await requireRestaurantRole(['admin', 'owner']);
-        
-        if (!profile.is_super_admin) {
-            const supabase = await createClient();
-            const { data } = await (supabase
-                .from('products' as any) as any)
-                .select('restaurant_id')
-                .eq('id', productId)
-                .single();
-                
-            if (!data || (data as any).restaurant_id !== profile.restaurant_id) {
-                return { error: 'No tiene permisos para eliminar este producto', success: false };
-            }
+
+        const { data: prodData } = await (supabaseAdmin
+            .from('products' as any) as any)
+            .select('restaurant_id, image_url')
+            .eq('id', productId)
+            .maybeSingle();
+
+        if (!prodData) {
+            return { error: 'Producto no encontrado', success: false };
         }
+
+        if (!profile.is_super_admin && (prodData as any).restaurant_id !== profile.restaurant_id) {
+            return { error: 'No tiene permisos para eliminar este producto', success: false };
+        }
+
+        const oldImageUrl = (prodData as any).image_url as string | null;
+
+        await Promise.all([
+            (supabaseAdmin.from('product_ingredients' as any) as any).delete().eq('product_id', productId),
+            (supabaseAdmin.from('product_modifier_groups' as any) as any).delete().eq('product_id', productId),
+            (supabaseAdmin.from('product_availability' as any) as any).delete().eq('product_id', productId)
+        ]);
 
         const { error } = await (supabaseAdmin
             .from('products' as any) as any)
@@ -317,6 +375,11 @@ export async function deleteProductAction(productId: string) {
             .eq('id', productId);
 
         if (error) throw error;
+
+        if (oldImageUrl) {
+            await removeStorageImageIfUnused(oldImageUrl, productId);
+        }
+
         return { success: true };
     } catch (e: any) {
         console.error('Error deleting product action:', e);

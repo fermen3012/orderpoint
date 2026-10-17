@@ -1,8 +1,10 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-// Short-lived in-memory cache (60s TTL) to avoid querying public.profiles on every navigation
+// Short-lived in-memory caches to avoid redundant Auth + Profile roundtrips on every navigation
+const AUTH_CACHE_TTL_MS = 30 * 1000;
 const PROFILE_CACHE_TTL_MS = 60 * 1000;
+const verifiedTokenCache = new Map<string, { user: any; expiresAt: number }>();
 const profileRoleCache = new Map<string, { role: string | null; is_super_admin: boolean; expiresAt: number }>();
 
 export async function updateSession(request: NextRequest, response: NextResponse) {
@@ -41,24 +43,46 @@ export async function updateSession(request: NextRequest, response: NextResponse
     )
 
     let user = null;
+    let accessToken: string | null = null;
+    const now = Date.now();
+
     try {
-        const { data: userData } = await supabase.auth.getUser();
-        if (userData?.user) {
-            user = userData.user;
-        } else {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                user = session.user;
+        const { data: { session } } = await supabase.auth.getSession();
+        accessToken = session?.access_token || null;
+
+        if (accessToken) {
+            const cachedUser = verifiedTokenCache.get(accessToken);
+            if (cachedUser && cachedUser.expiresAt > now) {
+                user = cachedUser.user;
             }
         }
-    } catch (authErr) {
+    } catch {
+        // Proceed to getUser
+    }
+
+    if (!user) {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                user = session.user;
+            const { data: userData } = await supabase.auth.getUser();
+            if (userData?.user) {
+                user = userData.user;
+                if (accessToken) {
+                    verifiedTokenCache.set(accessToken, { user, expiresAt: now + AUTH_CACHE_TTL_MS });
+                }
+            } else {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user) {
+                    user = session.user;
+                }
             }
-        } catch (sessErr) {
-            console.error('Middleware: getUser and getSession failed:', sessErr);
+        } catch (authErr) {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user) {
+                    user = session.user;
+                }
+            } catch (sessErr) {
+                console.error('Middleware: getUser and getSession failed:', sessErr);
+            }
         }
     }
 

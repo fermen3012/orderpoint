@@ -35,16 +35,20 @@ export interface BillingCustomer {
 export async function getAllCustomersBilling(): Promise<BillingCustomer[]> {
     try {
         await requireSuperAdmin();
-        const supabase = await createClient();
+        const supabaseAdmin = getSupabaseAdminClient();
+        const supabase = supabaseAdmin || (await createClient());
 
-        // 1. Fetch restaurants and owner profiles in parallel
-        const [restaurantsRes, profilesRes] = await Promise.all([
+        // 1. Fetch restaurants, owner profiles, and auth emails in parallel (1 single network roundtrip)
+        const [restaurantsRes, profilesRes, authUsersRes] = await Promise.all([
             (supabase.from('restaurants' as any) as any)
                 .select('id, name, stripe_customer_id, stripe_subscription_id, plan_quantity, subscription_status, current_period_end, unit_price')
                 .order('created_at', { ascending: false }),
             (supabase.from('profiles' as any) as any)
-                .select('*')
-                .eq('role', 'owner')
+                .select('id, restaurant_id, role')
+                .eq('role', 'owner'),
+            supabaseAdmin
+                ? supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
+                : Promise.resolve({ data: { users: [] } })
         ]);
 
         let restaurantsResult: any[] = [];
@@ -64,28 +68,20 @@ export async function getAllCustomersBilling(): Promise<BillingCustomer[]> {
         const profiles = profilesRes.data || [];
 
         // Build O(1) lookup maps for owner profile and email
-        const ownerByRestaurant = new Map<string, { id: string; email?: string }>();
-        let needsAuthEmailFallback = false;
-
-        for (const p of profiles) {
-            if (p.restaurant_id && !ownerByRestaurant.has(p.restaurant_id)) {
-                ownerByRestaurant.set(p.restaurant_id, { id: p.id, email: p.email });
-                if (!p.email) {
-                    needsAuthEmailFallback = true;
-                }
+        const emailByUserId = new Map<string, string>();
+        for (const u of (authUsersRes as any)?.data?.users || []) {
+            if (u.id && u.email) {
+                emailByUserId.set(u.id, u.email);
             }
         }
 
-        const emailByUserId = new Map<string, string>();
-        if (needsAuthEmailFallback && ownerByRestaurant.size > 0) {
-            const supabaseAdmin = getSupabaseAdminClient();
-            if (supabaseAdmin) {
-                const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-                for (const u of usersData?.users || []) {
-                    if (u.id && u.email) {
-                        emailByUserId.set(u.id, u.email);
-                    }
-                }
+        const ownerByRestaurant = new Map<string, { id: string; email?: string }>();
+        for (const p of profiles) {
+            if (p.restaurant_id && !ownerByRestaurant.has(p.restaurant_id)) {
+                ownerByRestaurant.set(p.restaurant_id, {
+                    id: p.id,
+                    email: p.email || emailByUserId.get(p.id)
+                });
             }
         }
 
@@ -165,6 +161,18 @@ export async function getAllCustomersBilling(): Promise<BillingCustomer[]> {
         console.error('getAllCustomersBilling Error:', err);
         throw new Error('No se pudo obtener la facturación global de clientes');
     }
+}
+
+/**
+ * Super Admin: Obtiene simultáneamente clientes de facturación y planes de suscripción en 1 solo viaje de red.
+ */
+export async function getBillingAndPlansBundle() {
+    const { getSubscriptionPlans } = await import('@/actions/plans-admin');
+    const [customers, plans] = await Promise.all([
+        getAllCustomersBilling(),
+        getSubscriptionPlans()
+    ]);
+    return { customers, plans };
 }
 
 /**

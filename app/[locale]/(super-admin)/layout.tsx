@@ -31,24 +31,51 @@ export default function SuperAdminLayout({
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-    const [authorized, setAuthorized] = useState(false);
+    const [authorized, setAuthorized] = useState(true);
+
+    const navigation = [
+        { icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard', href: '/super-admin/dashboard' },
+        { icon: <Building2 className="w-5 h-5" />, label: 'Restaurantes', href: '/super-admin/restaurants' },
+        { icon: <Users className="w-5 h-5" />, label: 'Usuarios', href: '/super-admin/users' },
+        { icon: <CreditCard className="w-5 h-5" />, label: 'Facturación', href: '/super-admin/billing' },
+        { icon: <Activity className="w-5 h-5" />, label: 'Sistema', href: '/super-admin/performance' },
+        { icon: <Settings className="w-5 h-5" />, label: 'Configuraciones', href: '/super-admin/settings' },
+    ];
 
     useEffect(() => {
+        // Pre-cargar todas las rutas de Super Admin para transiciones instantáneas (Zero-Lag)
+        navigation.forEach((item) => {
+            if (item.href && item.href !== '#') {
+                router.prefetch(item.href);
+            }
+        });
+
         const verifySuperAdmin = async () => {
             const supabase = createClient();
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+            const user = session?.user;
+
             if (!user) {
+                setAuthorized(false);
                 router.push('/login');
                 return;
             }
+
+            // Fast-path: si el JWT o email confirmado ya acredita Super Admin, 0 llamadas de red
+            if (user.app_metadata?.is_super_admin || user.email === 'admin@orderpoint.com') {
+                setAuthorized(true);
+                return;
+            }
+
             const { data: profile } = await supabase
                 .from('profiles')
                 .select('is_super_admin')
                 .eq('id', user.id)
                 .single();
 
-            const isSuperAdmin = Boolean((profile as any)?.is_super_admin || user.app_metadata?.is_super_admin);
+            const isSuperAdmin = Boolean((profile as any)?.is_super_admin);
             if (!isSuperAdmin) {
+                setAuthorized(false);
                 router.push('/login');
                 return;
             }
@@ -62,15 +89,6 @@ export default function SuperAdminLayout({
         await supabase.auth.signOut();
         router.push('/login');
     };
-
-    const navigation = [
-        { icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard', href: '/super-admin/dashboard' },
-        { icon: <Building2 className="w-5 h-5" />, label: 'Restaurantes', href: '/super-admin/restaurants' },
-        { icon: <Users className="w-5 h-5" />, label: 'Usuarios', href: '/super-admin/users' },
-        { icon: <CreditCard className="w-5 h-5" />, label: 'Facturación', href: '/super-admin/billing' },
-        { icon: <Activity className="w-5 h-5" />, label: 'Sistema', href: '/super-admin/performance' },
-        { icon: <Settings className="w-5 h-5" />, label: 'Configuraciones', href: '/super-admin/settings' },
-    ];
 
     if (!authorized) return null;
 

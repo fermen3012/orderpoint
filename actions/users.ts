@@ -9,24 +9,26 @@ export async function getAllUsersWithRestaurants() {
         await requireSuperAdmin();
         const admin = getAdminClient();
 
-        // 1. Fetch email addresses from auth.users (requires service role)
-        const { data: { users }, error: authError } = await admin.auth.admin.listUsers();
+        // 1 & 2. Fetch auth.users and profiles + restaurant names in parallel (1 single roundtrip)
+        const [authRes, profileRes] = await Promise.all([
+            admin.auth.admin.listUsers(),
+            admin
+                .from('profiles')
+                .select(`
+                    *,
+                    restaurants (
+                        name
+                    )
+                `)
+        ]);
 
+        const { data: { users }, error: authError } = authRes;
         if (authError) {
             console.error('Error fetching auth users:', authError);
             return { data: null, error: authError };
         }
 
-        // 2. Fetch profiles and restaurant names
-        const { data: profiles, error: profileError } = await admin
-            .from('profiles')
-            .select(`
-                *,
-                restaurants (
-                    name
-                )
-            `);
-
+        const { data: profiles, error: profileError } = profileRes;
         if (profileError) {
             console.error('Error fetching profiles:', profileError);
             return { data: null, error: profileError };

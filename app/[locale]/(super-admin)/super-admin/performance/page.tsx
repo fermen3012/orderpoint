@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { getAdminClient } from '@/lib/supabase/server';
 import { requireSuperAdmin } from '@/lib/auth/guards';
 import { Activity, Database, Globe, Zap, Server, ChevronRight } from 'lucide-react';
 import { RefreshButton } from './RefreshButton';
@@ -9,21 +9,17 @@ export const revalidate = 0;
 
 export default async function PerformancePage() {
     await requireSuperAdmin();
-    const supabase = await createClient();
+    const supabase = getAdminClient();
 
-    // 1. Latency Ping (Simple Query)
+    // 1. Latency Ping & Count in parallel
     const t0 = performance.now();
-    const { error: pingError } = await (supabase.from('restaurants') as any).select('id').limit(1);
+    const [{ error: pingError }, { count }] = await Promise.all([
+        (supabase.from('restaurants') as any).select('id').limit(1),
+        (supabase.from('restaurants') as any).select('*', { count: 'exact', head: true })
+    ]);
     const t1 = performance.now();
     const dbLatency = Math.round(t1 - t0);
-
-    // 2. Heavy Query (Data Load / Count)
-    const t2 = performance.now();
-    const { count, error: countError } = await (supabase
-        .from('restaurants') as any)
-        .select('*', { count: 'exact', head: true });
-    const t3 = performance.now();
-    const dataLatency = Math.round(t3 - t2);
+    const dataLatency = dbLatency;
 
     // 3. Region Detection
     const region = process.env.VERCEL_REGION || 'local-dev-1';
