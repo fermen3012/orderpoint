@@ -1154,7 +1154,7 @@ export default function OrdersPage() {
                                         {/* Removed ingredients */}
                                         {item.removed_ingredients && item.removed_ingredients.length > 0 && (
                                             <div className="text-[9px] font-black text-red-500 uppercase tracking-widest mt-1">
-                                                {locale === 'es' ? 'Sin' : 'No'}: {item.removed_ingredients.map((ri: any) => ri.name || ri).join(', ')}
+                                                {locale === 'es' ? 'Sin' : 'No'}: {item.removed_ingredients.map((ri: any) => getLocalizedValue(ri.name || ri, locale)).join(', ')}
                                             </div>
                                         )}
                                     </div>

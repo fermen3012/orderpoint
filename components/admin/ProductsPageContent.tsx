@@ -36,6 +36,7 @@ import {
     deleteProductAction,
     toggleProductAvailabilityAction
 } from '@/actions/products';
+import { useKioskMenuCache } from '@/store/kiosk-menu-cache';
 import imageCompression from 'browser-image-compression';
 
 export const parseLocalizedField = (value: any): { es: string; en: string } => {
@@ -67,10 +68,10 @@ export const parseLocalizedField = (value: any): { es: string; en: string } => {
                 break;
             } else if (current && typeof current === 'object') {
                 const foundKey = Object.keys(current).find(pk => pk.toLowerCase() === lang.toLowerCase());
-                if (foundKey) {
+                if (foundKey && current[foundKey] !== '' && current[foundKey] !== null && current[foundKey] !== undefined) {
                     current = current[foundKey];
                 } else {
-                    const otherKey = Object.keys(current).find(pk => pk.toLowerCase() !== lang.toLowerCase());
+                    const otherKey = Object.keys(current).find(pk => pk.toLowerCase() !== lang.toLowerCase() && current[pk] !== '' && current[pk] !== null && current[pk] !== undefined);
                     if (otherKey) {
                         current = current[otherKey];
                     } else {
@@ -326,11 +327,16 @@ export default function ProductsPageContent({ restaurantId: propRestaurantId }: 
         setSaving(true);
 
         try {
+            const esName = newProduct.name.es?.trim() || '';
+            const enName = newProduct.name.en?.trim() || esName;
+            const esDesc = newProduct.description.es?.trim() || '';
+            const enDesc = newProduct.description.en?.trim() || esDesc;
+
             const productData = {
                 id: editingProduct?.id,
                 restaurant_id: restaurantId,
-                name: newProduct.name,
-                description: (newProduct.description.es || newProduct.description.en) ? newProduct.description : null,
+                name: { es: esName || enName, en: enName || esName },
+                description: (esDesc || enDesc) ? { es: esDesc || enDesc, en: enDesc || esDesc } : null,
                 price: parseFloat(newProduct.price),
                 category_id: newProduct.category_id || null, // Ensure empty string becomes null if needed, though state is string
                 image_url: newProduct.image_url || null,
@@ -344,6 +350,7 @@ export default function ProductsPageContent({ restaurantId: propRestaurantId }: 
 
             if (result.success) {
                 console.log('Product saved successfully:', result.productId);
+                useKioskMenuCache.getState().invalidateCache();
                 setIsModalOpen(false);
                 setEditingProduct(null);
                 resetForm();
@@ -394,6 +401,7 @@ export default function ProductsPageContent({ restaurantId: propRestaurantId }: 
                 if (result.error) {
                     alert(t('errorDeleteProduct', { error: result.error }));
                 } else {
+                    useKioskMenuCache.getState().invalidateCache();
                     loadData();
                 }
             } catch (err: any) {
@@ -406,6 +414,7 @@ export default function ProductsPageContent({ restaurantId: propRestaurantId }: 
         try {
             const result = await toggleProductAvailabilityAction(id, currentStatus);
             if (!result.error) {
+                useKioskMenuCache.getState().invalidateCache();
                 setProducts(prev => prev.map(p => p.id === id ? { ...p, is_available: !currentStatus } : p));
             } else {
                 alert(t('errorToggleAvailability', { error: result.error }));

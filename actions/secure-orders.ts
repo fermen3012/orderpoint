@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { supabaseAdmin } from '@/lib/supabase/server-admin';
 import { revalidatePath } from 'next/cache';
 import { requireProfile } from '@/lib/auth/guards';
 
@@ -47,6 +48,13 @@ export async function createSecureOrder(input: CreateOrderInput) {
         // 1. Obtener IDs únicos para consultas masivas y validar UUIDs antes de consultar BD
         const uniqueProductIds = Array.from(new Set(input.items.map(i => i.product_id)));
         const uniqueModifierIds = Array.from(new Set(input.items.flatMap(i => i.modifier_option_ids)));
+        const uniqueIngredientIds = Array.from(
+            new Set(
+                input.items
+                    .flatMap(i => i.removed_ingredients || [])
+                    .filter(id => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
+            )
+        );
 
         for (const prodId of uniqueProductIds) {
             if (!prodId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
@@ -60,8 +68,8 @@ export async function createSecureOrder(input: CreateOrderInput) {
             }
         }
 
-        // 2. Ejecutar validaciones de Restaurante, Productos, Modificadores y Correlativo en PARALELO (1 solo viaje de red)
-        const [restRes, prodRes, modsRes, numRes] = await Promise.all([
+        // 2. Ejecutar validaciones de Restaurante, Productos, Modificadores, Ingredientes y Correlativo en PARALELO (1 solo viaje de red)
+        const [restRes, prodRes, modsRes, ingsRes, numRes] = await Promise.all([
             (supabase.from('restaurants' as any) as any)
                 .select('is_active, name')
                 .eq('id', finalRestaurantId)
@@ -89,10 +97,23 @@ export async function createSecureOrder(input: CreateOrderInput) {
                     `)
                     .in('id', uniqueModifierIds)
                 : Promise.resolve({ data: [], error: null }),
+            uniqueIngredientIds.length > 0
+                ? (supabaseAdmin.from('ingredients' as any) as any)
+                    .select('id, name')
+                    .in('id', uniqueIngredientIds)
+                    .eq('restaurant_id', finalRestaurantId)
+                : Promise.resolve({ data: [], error: null }),
             (supabase.rpc as any)('get_next_order_number', {
                 p_restaurant_id: finalRestaurantId
             })
         ]);
+
+        const ingredientNameById = new Map<string, string>();
+        for (const ing of (ingsRes?.data as any[]) || []) {
+            if (ing.id && ing.name) {
+                ingredientNameById.set(ing.id, ing.name);
+            }
+        }
 
         const { data: restaurant, error: restError } = restRes;
         if (restError || !restaurant) {
@@ -181,13 +202,18 @@ export async function createSecureOrder(input: CreateOrderInput) {
 
             calculatedTotal += itemUnitPrice * item.quantity;
 
+            // Resolver los IDs de ingredientes removidos a sus nombres legibles para Cocina y Admin
+            const resolvedRemovedIngredients = (item.removed_ingredients || []).map(
+                ingIdOrName => ingredientNameById.get(ingIdOrName) || ingIdOrName
+            );
+
             validOrderItems.push({
                 order_id: null, // Se asigna después
                 product_id: item.product_id,
                 quantity: item.quantity,
                 unit_price: itemUnitPrice,
                 modifiers_json: modifiersJson,
-                removed_ingredients: item.removed_ingredients
+                removed_ingredients: resolvedRemovedIngredients
             });
         }
 

@@ -43,15 +43,15 @@ export function getLocalizedValue(field: any, currentLang: string = 'es'): strin
             break;
         } else if (current && typeof current === 'object') {
             const foundKey = Object.keys(current).find(pk => pk.toLowerCase() === (currentLang || 'es').toLowerCase());
-            if (foundKey) {
+            if (foundKey && current[foundKey] !== '' && current[foundKey] !== null && current[foundKey] !== undefined) {
                 current = current[foundKey];
             } else {
                 const esKey = Object.keys(current).find(pk => pk.toLowerCase() === 'es');
-                if (esKey) {
+                if (esKey && current[esKey] !== '' && current[esKey] !== null && current[esKey] !== undefined) {
                     current = current[esKey];
                 } else {
-                    const firstKey = Object.keys(current)[0];
-                    current = firstKey ? current[firstKey] : '';
+                    const nonEmptyKey = Object.keys(current).find(k => current[k] !== '' && current[k] !== null && current[k] !== undefined);
+                    current = nonEmptyKey ? current[nonEmptyKey] : '';
                 }
             }
         } else {

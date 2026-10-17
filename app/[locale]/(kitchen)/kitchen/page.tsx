@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/browser';
 import { formatPrice, formatOrderNumber, getLocalizedValue } from '@/lib/utils';
 import { Clock, ChefHat, LogOut, Utensils, ShoppingBag, Smartphone, Monitor, User } from 'lucide-react';
 import type { Database } from '@/lib/supabase/types';
@@ -37,6 +37,7 @@ export default function KitchenPage({ params }: { params: Promise<{ locale: stri
     const t = useTranslations('kitchen');
     const router = useRouter();
     const { restaurantId } = useAuth();
+    const supabase = createClient();
 
     const STATUS_LABELS = {
         pending: t('pending'),
@@ -536,7 +537,7 @@ function OrderCard({
                                         <div className="mt-2 space-y-1">
                                             <div className="text-xs font-black text-red-400 uppercase tracking-widest flex items-center gap-1">
                                                 <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
-                                                {t('removed')}: {removedIngredients.map(id => ingredientsMap[id] || id).join(', ')}
+                                                {t('removed')}: {removedIngredients.map(id => getLocalizedValue(ingredientsMap[id] || id, locale)).join(', ')}
                                             </div>
                                         </div>
                                     )}
