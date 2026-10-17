@@ -53,21 +53,31 @@ export async function inviteRestaurantOwner(email: string, restaurantId: string,
         const existingUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
 
         if (existingUser) {
-            // Si el usuario ya inició sesión alguna vez, no lo borramos por seguridad
-            if (existingUser.last_sign_in_at) {
+            // Verificar si el usuario ya completó su registro (nombre y términos aceptados en profiles)
+            const { data: existingProfile } = await (supabaseAdmin
+                .from('profiles' as any) as any)
+                .select('full_name, terms_accepted')
+                .eq('id', existingUser.id)
+                .maybeSingle();
+
+            const hasCompletedOnboarding = Boolean(
+                existingProfile?.terms_accepted || (existingUser.last_sign_in_at && existingProfile?.full_name)
+            );
+
+            if (hasCompletedOnboarding) {
                 return { error: 'Este usuario ya está registrado y activo en el sistema.' };
             }
 
-            // Si es una invitación pendiente (nunca hizo login), lo borramos para poder re-enviarla
+            // Si es una invitación pendiente o incompleta (nunca configuró contraseña/términos), limpiamos para emitir enlace nuevo
+            await (supabaseAdmin.from('profiles' as any) as any).delete().eq('id', existingUser.id);
             await supabaseAdmin.auth.admin.deleteUser(existingUser.id);
         }
 
-        // next-intl default locale is 'es', which hides the locale prefix.
-        // We use the canonical path to avoid next-intl redirects that can drop hash parameters.
-        const redirectPath = locale === 'es' ? '/set-password' : `/${locale}/set-password`;
+        // Usar siempre la ruta con locale explícito (/es/set-password o /en/set-password) para evitar 404
+        const redirectPath = `/${locale}/set-password`;
         const redirectToUrl = `${siteUrl}${redirectPath}`;
 
-        // 2. Generar el enlace directo de invitación (Magic Link / Token seguro)
+        // 2. Generar el enlace único de invitación sin sobreescribir el token con una segunda llamada
         let inviteLink: string | null = null;
         const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
             type: 'invite',
@@ -81,35 +91,37 @@ export async function inviteRestaurantOwner(email: string, restaurantId: string,
             }
         });
 
-        if (!linkError && linkData?.properties?.action_link) {
+        if (linkError) {
+            console.error('Error generating invite link:', linkError.message);
+            return { error: linkError.message };
+        }
+
+        // Asegurar que exista el perfil inicial vinculado al restaurante
+        if (linkData?.user?.id) {
+            await (supabaseAdmin.from('profiles' as any) as any).upsert({
+                id: linkData.user.id,
+                restaurant_id: restaurantId,
+                role: 'owner',
+                is_super_admin: false,
+                terms_accepted: false
+            });
+        }
+
+        if (linkData?.properties?.hashed_token) {
+            // Enlace directo a la aplicación que verifica el token_hash en el cliente sin depender de redirecciones externas
+            inviteLink = `${redirectToUrl}?token_hash=${encodeURIComponent(linkData.properties.hashed_token)}&type=invite`;
+        } else if (linkData?.properties?.action_link) {
             inviteLink = linkData.properties.action_link;
         }
 
-        // 3. También intentar enviar el correo por SMTP oficial
-        let emailSent = false;
-        try {
-            const { error: mailError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-                data: {
-                    role: 'owner',
-                    restaurant_id: restaurantId
-                },
-                redirectTo: redirectToUrl,
-            });
-            if (!mailError) {
-                emailSent = true;
-            }
-        } catch (mailErr) {
-            console.warn('Advertencia al enviar correo SMTP (se generó enlace manual):', mailErr);
-        }
-
-        if (!inviteLink && !emailSent) {
-            return { error: 'No se pudo generar la invitación. Verifica las credenciales de Supabase.' };
+        if (!inviteLink) {
+            return { error: 'No se pudo generar el enlace de invitación. Verifica las credenciales de Supabase.' };
         }
 
         return {
             success: true,
             inviteLink,
-            emailSent
+            emailSent: false
         };
     } catch (err: any) {
         console.error('Unexpected error:', err);

@@ -31,17 +31,74 @@ export default function SetPasswordPage() {
     useEffect(() => {
         let isMounted = true;
 
+        const validateInviteExpiration = (user: any): boolean => {
+            if (user && user.invited_at) {
+                const invitedTime = new Date(user.invited_at).getTime();
+                const currentTime = new Date().getTime();
+                const diffMinutes = (currentTime - invitedTime) / (1000 * 60);
+                if (diffMinutes > 1440) {
+                    setError('Esta invitación ha expirado porque superó el límite de 24 horas. Solicita una nueva invitación al administrador.');
+                    setHasSession(false);
+                    setCheckingSession(false);
+                    return false;
+                }
+            }
+            return true;
+        };
+
         const handleAuth = async () => {
+            // 1. Verificar parámetros de búsqueda (?token_hash=...&type=invite o ?code=...)
+            const searchParams = new URLSearchParams(window.location.search);
+            const tokenHash = searchParams.get('token_hash');
+            const otpType = (searchParams.get('type') as any) || 'invite';
+            const authCode = searchParams.get('code');
+
+            if (tokenHash) {
+                const { data, error: verifyError } = await supabase.auth.verifyOtp({
+                    token_hash: tokenHash,
+                    type: otpType
+                });
+
+                if (verifyError) {
+                    console.error('verifyOtp error:', verifyError);
+                    setError(`Error al verificar invitación: ${verifyError.message}`);
+                    setCheckingSession(false);
+                    return;
+                }
+
+                if (data?.session) {
+                    window.history.replaceState(null, '', window.location.pathname);
+                    if (!validateInviteExpiration(data.session.user)) return;
+                    setHasSession(true);
+                    setCheckingSession(false);
+                    return;
+                }
+            }
+
+            if (authCode) {
+                const { data, error: codeError } = await supabase.auth.exchangeCodeForSession(authCode);
+                if (!codeError && data?.session) {
+                    window.history.replaceState(null, '', window.location.pathname);
+                    if (!validateInviteExpiration(data.session.user)) return;
+                    setHasSession(true);
+                    setCheckingSession(false);
+                    return;
+                }
+            }
+
+            // 2. Verificar fragmento hash (#access_token=...&refresh_token=...)
             const currentHash = window.location.hash;
             if (!currentHash) {
-                console.log('No hash fragment found');
+                const { data: { session: existingSession } } = await supabase.auth.getSession();
+                if (existingSession && isMounted) {
+                    if (!validateInviteExpiration(existingSession.user)) return;
+                    setHasSession(true);
+                    setCheckingSession(false);
+                }
                 return;
             }
 
-            // Debug de llaves en el hash
             const params = new URLSearchParams(currentHash.substring(1));
-            const keys = Array.from(params.keys());
-            console.log('Hash keys found:', keys);
 
             if (params.has('error')) {
                 const errorMsg = params.get('error_description') || params.get('error') || 'Unknown auth error';
@@ -55,7 +112,6 @@ export default function SetPasswordPage() {
             const refreshToken = params.get('refresh_token');
 
             if (accessToken && refreshToken) {
-                console.log('Attempting manual session set...');
                 const { data, error: setSessionError } = await supabase.auth.setSession({
                     access_token: accessToken,
                     refresh_token: refreshToken
@@ -64,19 +120,10 @@ export default function SetPasswordPage() {
                 if (setSessionError) {
                     console.error('Manual setSession error:', setSessionError);
                     setError(`Error al establecer sesión: ${setSessionError.message}`);
+                    setCheckingSession(false);
                 } else if (data.session) {
-                    console.log('Manual session set successful');
-                    const user = data.session.user;
-                    if (user && user.invited_at) {
-                        const invitedTime = new Date(user.invited_at).getTime();
-                        const currentTime = new Date().getTime();
-                        const diffMinutes = (currentTime - invitedTime) / (1000 * 60);
-                        if (diffMinutes > 1440) {
-                            setError('Esta invitación ha expirado porque superó el límite de 24 horas. Solicita una nueva invitación al administrador.');
-                            setCheckingSession(false);
-                            return;
-                        }
-                    }
+                    window.history.replaceState(null, '', window.location.pathname);
+                    if (!validateInviteExpiration(data.session.user)) return;
                     setHasSession(true);
                     setCheckingSession(false);
                 }
