@@ -44,42 +44,80 @@ export default function ProtectedAdminLayout({
     const [restaurantName, setRestaurantName] = useState<string | null>(null);
     const [restaurantLogo, setRestaurantLogo] = useState<string | null>(null);
     const [loadingRestaurant, setLoadingRestaurant] = useState(false);
-    const supabase = createClient();
+    const [supabase] = useState(() => createClient());
 
     useEffect(() => {
+        let isMounted = true;
+        const safetyTimeout = setTimeout(() => {
+            if (isMounted) {
+                console.warn('AdminLayout: Safety timeout reached during auth check');
+                setLoading(false);
+                router.push('/login');
+            }
+        }, 8000);
+
         const checkAuth = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
 
-            if (!session) {
-                router.push('/login');
-                return;
+                if (!session) {
+                    if (isMounted) router.push('/login');
+                    return;
+                }
+
+                const { data: profile, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single() as { data: any, error: any };
+
+                let profileData = profile as any;
+
+                if (error || !profileData) {
+                    const metaRole = session.user.user_metadata?.role || session.user.app_metadata?.role;
+                    const metaSuper = Boolean(session.user.user_metadata?.is_super_admin || session.user.app_metadata?.is_super_admin);
+                    const metaRestId = session.user.user_metadata?.restaurant_id || null;
+
+                    if (metaRole || metaSuper) {
+                        profileData = {
+                            id: session.user.id,
+                            email: session.user.email,
+                            full_name: session.user.user_metadata?.full_name || session.user.email,
+                            role: metaRole || 'owner',
+                            is_super_admin: metaSuper,
+                            restaurant_id: metaRestId
+                        };
+                    } else {
+                        if (isMounted) router.push('/login');
+                        return;
+                    }
+                }
+
+                if (profileData.role !== 'admin' && profileData.role !== 'owner' && !profileData.is_super_admin) {
+                    if (isMounted) router.push('/login');
+                    return;
+                }
+
+                if (isMounted) {
+                    setAuthData({
+                        userProfile: profileData,
+                        restaurantId: profileData.restaurant_id
+                    });
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.error('AdminLayout: Error checking auth:', err);
+                if (isMounted) router.push('/login');
+            } finally {
+                clearTimeout(safetyTimeout);
             }
-
-            const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single() as { data: any, error: any };
-
-            if (error || !profile) {
-                router.push('/login');
-                return;
-            }
-
-            const profileData = profile as any;
-
-            if (profileData.role !== 'admin' && profileData.role !== 'owner' && !profileData.is_super_admin) {
-                router.push('/login');
-                return;
-            }
-
-            setAuthData({
-                userProfile: profileData,
-                restaurantId: profileData.restaurant_id
-            });
-            setLoading(false);
         };
         checkAuth();
+
+        return () => {
+            isMounted = false;
+            clearTimeout(safetyTimeout);
+        };
     }, [router, supabase]);
 
     const [isRestaurantActive, setIsRestaurantActive] = useState<boolean>(true);

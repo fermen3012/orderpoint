@@ -1,21 +1,27 @@
-// Service Worker para instalación de PWA en OrderPoint
-const CACHE_NAME = 'orderpoint-pwa-v1';
+// Service Worker para instalación de PWA en OrderPoint (v2 - Safe Network Pass-Through)
+const CACHE_NAME = 'orderpoint-pwa-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((name) => {
+          if (name !== CACHE_NAME) {
+            return caches.delete(name);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener('fetch', (event) => {
-  // Pass-through: Permitir que todas las consultas vayan directamente a la red (Supabase, API, Server Actions)
-  // sin bloquear ni cachear respuestas dinámicas
-  event.respondWith(
-    fetch(event.request).catch(() => {
-      // Si la red falla completamente, intentar responder si existe en caché
-      return caches.match(event.request);
-    })
-  );
+  // No interceptar con respondWith(undefined): dejar que el navegador maneje nativamente
+  // redirecciones de rutas, Server Actions, RSC y tokens de Supabase sin bloqueos ni pantallas en blanco.
+  return;
 });
+

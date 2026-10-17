@@ -5,9 +5,10 @@ import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { createClient } from '@/lib/supabase/browser';
 import { useRouter } from '@/i18n/routing';
-import { Lock, User, Loader2, CheckCircle2, ScrollText, X } from 'lucide-react';
+import { Lock, User, Loader2, CheckCircle2, ScrollText, X, Building2, Mail } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
+import { verifyOwnerInviteContext, completeOwnerOnboarding } from '@/actions/invite-owner';
 
 export default function SetPasswordPage() {
     const params = useParams();
@@ -28,6 +29,13 @@ export default function SetPasswordPage() {
     const [showTerms, setShowTerms] = useState(false);
     const [termsLanguage, setTermsLanguage] = useState<'es' | 'en'>(locale === 'en' ? 'en' : 'es');
 
+    // Contexto verificado de la invitación para impedir contaminación Multi-Tenant
+    const [inviteToken, setInviteToken] = useState<string | null>(null);
+    const [invitedUserId, setInvitedUserId] = useState<string | null>(null);
+    const [invitedEmail, setInvitedEmail] = useState<string | null>(null);
+    const [invitedRestaurantId, setInvitedRestaurantId] = useState<string | null>(null);
+    const [invitedRestaurantName, setInvitedRestaurantName] = useState<string | null>(null);
+
     useEffect(() => {
         let isMounted = true;
 
@@ -46,13 +54,74 @@ export default function SetPasswordPage() {
             return true;
         };
 
+        const applyVerifiedUserSession = async (user: any, urlRestId: string | null) => {
+            if (!validateInviteExpiration(user)) return false;
+            const ctx = await verifyOwnerInviteContext({
+                userId: user.id,
+                urlRestaurantId: urlRestId
+            });
+            if (!ctx.valid) {
+                if (isMounted) {
+                    setError(ctx.error || 'Invitación no válida.');
+                    setHasSession(false);
+                    setCheckingSession(false);
+                }
+                return false;
+            }
+            if (isMounted) {
+                setInvitedUserId(ctx.userId || user.id);
+                setInvitedEmail(ctx.email || user.email || null);
+                setInvitedRestaurantId(ctx.restaurantId || null);
+                setInvitedRestaurantName(ctx.restaurantName || null);
+                setHasSession(true);
+                setCheckingSession(false);
+            }
+            return true;
+        };
+
         const handleAuth = async () => {
-            // 1. Verificar parámetros de búsqueda (?token_hash=...&type=invite o ?code=...)
             const searchParams = new URLSearchParams(window.location.search);
+            const rawInviteToken = searchParams.get('invite_token');
+            const urlRestId = searchParams.get('restaurant_id');
             const tokenHash = searchParams.get('token_hash');
             const otpType = (searchParams.get('type') as any) || 'invite';
             const authCode = searchParams.get('code');
 
+            // 1. Vía principal para Enlace Directo (WhatsApp / SMS): token firmado con HMAC-SHA256
+            if (rawInviteToken) {
+                const ctx = await verifyOwnerInviteContext({
+                    inviteToken: rawInviteToken,
+                    urlRestaurantId: urlRestId
+                });
+
+                if (!ctx.valid) {
+                    if (isMounted) {
+                        setError(ctx.error || 'El enlace de invitación no es válido o ha expirado.');
+                        setHasSession(false);
+                        setCheckingSession(false);
+                    }
+                    return;
+                }
+
+                // Cerrar cualquier sesión previa en este teléfono/navegador que pertenezca a otro restaurante
+                const { data: { session: prevSession } } = await supabase.auth.getSession();
+                if (prevSession && prevSession.user?.id !== ctx.userId) {
+                    await supabase.auth.signOut();
+                }
+
+                if (isMounted) {
+                    setInviteToken(rawInviteToken);
+                    setInvitedUserId(ctx.userId || null);
+                    setInvitedEmail(ctx.email || null);
+                    setInvitedRestaurantId(ctx.restaurantId || null);
+                    setInvitedRestaurantName(ctx.restaurantName || null);
+                    setHasSession(true);
+                    setCheckingSession(false);
+                }
+                return;
+            }
+
+            // 2. Vía de correo electrónico (?token_hash=... o ?code=...)
             if (tokenHash) {
                 const { data, error: verifyError } = await supabase.auth.verifyOtp({
                     token_hash: tokenHash,
@@ -66,50 +135,46 @@ export default function SetPasswordPage() {
                     return;
                 }
 
-                if (data?.session) {
-                    window.history.replaceState(null, '', window.location.pathname);
-                    if (!validateInviteExpiration(data.session.user)) return;
-                    setHasSession(true);
-                    setCheckingSession(false);
+                if (data?.session?.user) {
+                    window.history.replaceState(null, '', window.location.pathname + (urlRestId ? `?restaurant_id=${encodeURIComponent(urlRestId)}` : ''));
+                    await applyVerifiedUserSession(data.session.user, urlRestId);
                     return;
                 }
             }
 
             if (authCode) {
                 const { data, error: codeError } = await supabase.auth.exchangeCodeForSession(authCode);
-                if (!codeError && data?.session) {
-                    window.history.replaceState(null, '', window.location.pathname);
-                    if (!validateInviteExpiration(data.session.user)) return;
-                    setHasSession(true);
-                    setCheckingSession(false);
+                if (!codeError && data?.session?.user) {
+                    window.history.replaceState(null, '', window.location.pathname + (urlRestId ? `?restaurant_id=${encodeURIComponent(urlRestId)}` : ''));
+                    await applyVerifiedUserSession(data.session.user, urlRestId);
                     return;
                 }
             }
 
-            // 2. Verificar fragmento hash (#access_token=...&refresh_token=...)
+            // 3. Verificar fragmento hash (#access_token=...&refresh_token=...) del correo de Supabase
             const currentHash = window.location.hash;
             if (!currentHash) {
                 const { data: { session: existingSession } } = await supabase.auth.getSession();
-                if (existingSession && isMounted) {
-                    if (!validateInviteExpiration(existingSession.user)) return;
-                    setHasSession(true);
+                if (existingSession?.user && isMounted) {
+                    await applyVerifiedUserSession(existingSession.user, urlRestId);
+                } else if (isMounted) {
                     setCheckingSession(false);
                 }
                 return;
             }
 
-            const params = new URLSearchParams(currentHash.substring(1));
+            const hashParams = new URLSearchParams(currentHash.substring(1));
 
-            if (params.has('error')) {
-                const errorMsg = params.get('error_description') || params.get('error') || 'Unknown auth error';
+            if (hashParams.has('error')) {
+                const errorMsg = hashParams.get('error_description') || hashParams.get('error') || 'Unknown auth error';
                 console.error('Auth error in hash:', errorMsg);
                 setError(`Error de autenticación: ${errorMsg}`);
                 setCheckingSession(false);
                 return;
             }
 
-            const accessToken = params.get('access_token');
-            const refreshToken = params.get('refresh_token');
+            const accessToken = hashParams.get('access_token');
+            const refreshToken = hashParams.get('refresh_token');
 
             if (accessToken && refreshToken) {
                 const { data, error: setSessionError } = await supabase.auth.setSession({
@@ -121,36 +186,16 @@ export default function SetPasswordPage() {
                     console.error('Manual setSession error:', setSessionError);
                     setError(`Error al establecer sesión: ${setSessionError.message}`);
                     setCheckingSession(false);
-                } else if (data.session) {
-                    window.history.replaceState(null, '', window.location.pathname);
-                    if (!validateInviteExpiration(data.session.user)) return;
-                    setHasSession(true);
-                    setCheckingSession(false);
+                } else if (data.session?.user) {
+                    window.history.replaceState(null, '', window.location.pathname + (urlRestId ? `?restaurant_id=${encodeURIComponent(urlRestId)}` : ''));
+                    await applyVerifiedUserSession(data.session.user, urlRestId);
                 }
+            } else if (isMounted) {
+                setCheckingSession(false);
             }
         };
 
         handleAuth();
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-            console.log('Supabase Auth Event:', event, session ? 'Session active' : 'No session');
-            if (session && isMounted) {
-                const user = session.user;
-                if (user && user.invited_at) {
-                    const invitedTime = new Date(user.invited_at).getTime();
-                    const currentTime = new Date().getTime();
-                    const diffMinutes = (currentTime - invitedTime) / (1000 * 60);
-                    if (diffMinutes > 1440) {
-                        setError('Esta invitación ha expirado porque superó el límite de 24 horas. Solicita una nueva invitación al administrador.');
-                        setHasSession(false);
-                        setCheckingSession(false);
-                        return;
-                    }
-                }
-                setHasSession(true);
-                setCheckingSession(false);
-            }
-        });
 
         const timer = setTimeout(() => {
             if (isMounted && !hasSession) {
@@ -160,7 +205,6 @@ export default function SetPasswordPage() {
 
         return () => {
             isMounted = false;
-            subscription.unsubscribe();
             clearTimeout(timer);
         };
     }, [supabase, hasSession]);
@@ -177,47 +221,38 @@ export default function SetPasswordPage() {
         }
 
         try {
-            // Verificar sesión antes de proceder
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                throw new Error('No se encontró una sesión activa de invitación. Asegúrate de haber hecho clic en el enlace del correo y de no haber recargado la página manualmente.');
+            let targetUserId = invitedUserId;
+            if (!inviteToken && !targetUserId) {
+                const { data: { session } } = await supabase.auth.getSession();
+                targetUserId = session?.user?.id || null;
             }
 
-            // Validar que la invitación no tenga más de 10 minutos
-            if (session.user && session.user.invited_at) {
-                const invitedTime = new Date(session.user.invited_at).getTime();
-                const currentTime = new Date().getTime();
-                const diffMinutes = (currentTime - invitedTime) / (1000 * 60);
-                if (diffMinutes > 1440) {
-                    throw new Error('Esta invitación ha expirado porque superó el límite de 24 horas. Por favor, solicita al administrador que te envíe una nueva invitación.');
-                }
+            if (!inviteToken && !targetUserId) {
+                throw new Error('No se encontró una sesión activa de invitación. Abre nuevamente el enlace de activación.');
             }
 
-            // 1. Actualizar la contraseña en Auth
-            const { error: authError } = await supabase.auth.updateUser({
-                password: password,
+            // Completar onboarding en el servidor validando estrictamente el restaurant_id
+            const result = await completeOwnerOnboarding({
+                inviteToken,
+                userId: targetUserId,
+                restaurantId: invitedRestaurantId,
+                fullName,
+                password
             });
 
-            if (authError) throw authError;
+            if (result.error || !result.success) {
+                throw new Error(result.error || 'No se pudo activar la cuenta de propietario.');
+            }
 
-            // 2. Actualizar o crear el perfil público
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                const { error: profileError } = await (supabase as any)
-                    .from('profiles')
-                    .upsert({
-                        id: user.id,
-                        restaurant_id: user.user_metadata?.restaurant_id,
-                        role: user.user_metadata?.role || 'owner',
-                        full_name: fullName,
-                        terms_accepted: true,
-                        terms_accepted_at: new Date().toISOString(),
-                        terms_version: 'v2.0-FL'
-                    });
-
-                if (profileError) {
-                    console.error('Error upserting profile:', profileError);
-                    // No bloqueamos el flujo principal si solo falló el nombre
+            // Limpiar cualquier sesión anterior en el navegador e iniciar sesión con el usuario recién activado
+            await supabase.auth.signOut();
+            if (result.email) {
+                const { error: signInErr } = await supabase.auth.signInWithPassword({
+                    email: result.email,
+                    password
+                });
+                if (signInErr) {
+                    console.error('Sign in after onboarding error:', signInErr);
                 }
             }
 
@@ -226,7 +261,7 @@ export default function SetPasswordPage() {
             // Redirigir después de un momento
             setTimeout(() => {
                 router.push('/admin/dashboard');
-            }, 2000);
+            }, 1500);
 
         } catch (err: any) {
             console.error('SetPassword Error:', err);
@@ -254,7 +289,12 @@ export default function SetPasswordPage() {
                     <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-6 text-green-600">
                         <CheckCircle2 className="w-10 h-10" />
                     </div>
-                    <h1 className="text-3xl font-black text-slate-900 mb-4">{t('passwordSuccess')}</h1>
+                    <h1 className="text-3xl font-black text-slate-900 mb-2">{t('passwordSuccess')}</h1>
+                    {invitedRestaurantName && (
+                        <p className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-3">
+                            Restaurante: {invitedRestaurantName}
+                        </p>
+                    )}
                     <p className="text-slate-500 font-medium">Redirigiendo al panel...</p>
                 </div>
             </div>
@@ -267,8 +307,8 @@ export default function SetPasswordPage() {
                 <div className="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl p-10 border border-red-100 text-center">
                     <div className="inline-flex items-center justify-center w-20 h-20 bg-red-50 rounded-3xl mb-6 text-red-600 font-black text-4xl">!</div>
                     <h1 className="text-2xl font-black text-slate-900 mb-4">Invitación No Válida</h1>
-                    <p className="text-slate-500 font-bold leading-relaxed mb-8">
-                        No hemos detectado una sesión activa de invitación. Esto puede ocurrir si:
+                    <p className="text-slate-500 font-bold leading-relaxed mb-6">
+                        {error || 'No hemos detectado una sesión activa de invitación. Esto puede ocurrir si:'}
                     </p>
                     <ul className="text-left text-sm text-slate-600 space-y-3 mb-8 font-medium">
                         <li className="flex gap-3">
@@ -277,21 +317,20 @@ export default function SetPasswordPage() {
                         </li>
                         <li className="flex gap-3">
                             <span className="text-red-500">•</span>
-                            Hubo un error al cargar los códigos de seguridad del correo.
+                            Hubo un error al cargar los códigos de seguridad del enlace.
                         </li>
                         <li className="flex gap-3">
                             <span className="text-red-500">•</span>
-                            Recargaste la página de forma manual.
+                            La cuenta ya fue activada previamente (puedes iniciar sesión en /login).
                         </li>
                     </ul>
 
-                    <div className="mt-8 pt-6 border-t border-slate-100">
-                        <p className="text-[10px] text-slate-400 font-mono break-all uppercase tracking-tighter">
-                            Debug Info: {hasSession ? 'Session OK' : 'No Session'} | Hash: {typeof window !== 'undefined' ? (window.location.hash ? 'Hash Present' : 'Hash Missing') : 'SSR'}
-                        </p>
-                    </div>
-
-                    <p className="text-xs text-slate-400 italic mt-4">Por favor, vuelve a tu correo y haz clic en el botón original.</p>
+                    <Link
+                        href="/login"
+                        className="inline-block w-full py-4 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-2xl text-xs uppercase tracking-widest transition-all"
+                    >
+                        Ir a Iniciar Sesión
+                    </Link>
                 </div>
             </div>
         );
@@ -300,7 +339,7 @@ export default function SetPasswordPage() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
             <div className="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl p-10 border border-slate-100">
-                <div className="text-center mb-10">
+                <div className="text-center mb-8">
                     <div className="inline-flex items-center justify-center w-20 h-20 bg-primary-50 rounded-3xl mb-6 rotate-3">
                         <Lock className="w-10 h-10 text-primary-600 -rotate-3" />
                     </div>
@@ -308,13 +347,31 @@ export default function SetPasswordPage() {
                     <p className="text-slate-500 mt-2 font-bold uppercase tracking-widest text-xs">Completa tu registro en OrderPoint</p>
                 </div>
 
-                {!checkingSession && !error && error !== t('passwordMismatch') && (
-                    <div className="mb-8 p-4 bg-amber-50 border border-amber-100 rounded-2xl">
-                        <p className="text-xs text-amber-800 font-bold leading-relaxed">
-                            ⚠️ Si ves un error de "Session Missing", asegúrate de haber hecho clic exactamente en el enlace del correo. No modifiques la URL manualmente.
-                        </p>
+                {/* Tarjeta de Confirmación Visual del Restaurante y Correo */}
+                {invitedRestaurantName && (
+                    <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-2">
+                        <div className="flex items-center gap-2.5">
+                            <Building2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                            <div>
+                                <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">
+                                    Restaurante Asignado
+                                </p>
+                                <p className="text-sm font-black text-slate-900 uppercase italic">
+                                    {invitedRestaurantName}
+                                </p>
+                            </div>
+                        </div>
+                        {invitedEmail && (
+                            <div className="flex items-center gap-2.5 pt-2 border-t border-emerald-200/60">
+                                <Mail className="w-4 h-4 text-emerald-600 shrink-0" />
+                                <p className="text-xs font-bold text-slate-700 truncate">
+                                    {invitedEmail}
+                                </p>
+                            </div>
+                        )}
                     </div>
                 )}
+
 
                 <form onSubmit={handleSetPassword} className="space-y-6">
                     <div>

@@ -117,8 +117,8 @@ export async function updateSession(request: NextRequest, response: NextResponse
 
             const now = Date.now();
             const cachedProfile = profileRoleCache.get(user.id);
-            let isSuperAdmin = Boolean(user.app_metadata?.is_super_admin);
-            let userRole: string | null = (user.app_metadata?.role as string) || null;
+            let isSuperAdmin = Boolean(user.app_metadata?.is_super_admin || user.user_metadata?.is_super_admin);
+            let userRole: string | null = (user.app_metadata?.role as string) || (user.user_metadata?.role as string) || null;
 
             if (cachedProfile && cachedProfile.expiresAt > now) {
                 isSuperAdmin = Boolean(cachedProfile.is_super_admin || isSuperAdmin);
@@ -130,8 +130,8 @@ export async function updateSession(request: NextRequest, response: NextResponse
                     .eq('id', user.id)
                     .single()
 
-                isSuperAdmin = Boolean(profile?.is_super_admin || user.app_metadata?.is_super_admin);
-                userRole = profile?.role || null;
+                isSuperAdmin = Boolean(profile?.is_super_admin || user.app_metadata?.is_super_admin || user.user_metadata?.is_super_admin);
+                userRole = profile?.role || (user.user_metadata?.role as string) || null;
 
                 if (error || !profile) {
                     if (isSuperAdmin || userRole) {
@@ -154,15 +154,15 @@ export async function updateSession(request: NextRequest, response: NextResponse
                 return createRedirect(`/${locale}/login`);
             }
 
-            if (isKitchenRoute && userRole !== 'kitchen' && userRole !== 'admin') {
+            if (isKitchenRoute && userRole !== 'kitchen' && userRole !== 'admin' && userRole !== 'owner' && !isSuperAdmin) {
                 return createRedirect(`/${locale}/login`);
             }
 
-            if (isKioskRoute && userRole !== 'kiosk' && userRole !== 'admin') {
+            if (isKioskRoute && userRole !== 'kiosk' && userRole !== 'admin' && userRole !== 'owner' && !isSuperAdmin) {
                 return createRedirect(`/${locale}/login`);
             }
 
-            if (isAdminRoute && userRole !== 'admin' && userRole !== 'owner') {
+            if (isAdminRoute && userRole !== 'admin' && userRole !== 'owner' && !isSuperAdmin) {
                 return createRedirect(`/${locale}/login`);
             }
 

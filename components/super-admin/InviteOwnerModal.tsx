@@ -8,12 +8,18 @@ import { inviteRestaurantOwner } from '@/actions/invite-owner';
 interface InviteOwnerModalProps {
     restaurantId: string;
     restaurantName: string;
+    initialInviteLink?: string | null;
+    initialEmail?: string | null;
+    initialEmailSent?: boolean;
     onClose: () => void;
 }
 
 export default function InviteOwnerModal({
     restaurantId,
     restaurantName,
+    initialInviteLink = null,
+    initialEmail = null,
+    initialEmailSent = false,
     onClose
 }: InviteOwnerModalProps) {
     const params = useParams();
@@ -25,14 +31,26 @@ export default function InviteOwnerModal({
         type: 'success' | 'error' | null;
         message: string | null;
         inviteLink?: string | null;
-    }>({ type: null, message: null, inviteLink: null });
+        emailSent?: boolean;
+    }>(
+        initialInviteLink
+            ? {
+                  type: 'success',
+                  message: initialEmailSent
+                      ? `Correo enviado a ${initialEmail || 'el propietario'} y enlace directo listo para ${restaurantName}.`
+                      : `Invitación creada para ${initialEmail || 'el propietario'} (${restaurantName}). Envíale el enlace directo por WhatsApp.`,
+                  inviteLink: initialInviteLink,
+                  emailSent: initialEmailSent
+              }
+            : { type: null, message: null, inviteLink: null, emailSent: false }
+    );
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!email) return;
 
         setLoading(true);
-        setStatus({ type: null, message: null, inviteLink: null });
+        setStatus({ type: null, message: null, inviteLink: null, emailSent: false });
 
         try {
             const result = await inviteRestaurantOwner(email, restaurantId, locale);
@@ -41,13 +59,17 @@ export default function InviteOwnerModal({
                 setStatus({
                     type: 'error',
                     message: result.error,
-                    inviteLink: null
+                    inviteLink: null,
+                    emailSent: false
                 });
             } else {
                 setStatus({
                     type: 'success',
-                    message: `Invitación registrada para ${email}`,
-                    inviteLink: result.inviteLink || null
+                    message: result.emailSent
+                        ? `Correo enviado a ${email} para el restaurante "${restaurantName}".`
+                        : `Invitación generada para ${email} en "${restaurantName}". Comparte el enlace directo por WhatsApp.`,
+                    inviteLink: result.inviteLink || null,
+                    emailSent: Boolean(result.emailSent)
                 });
                 setEmail('');
             }
@@ -55,7 +77,8 @@ export default function InviteOwnerModal({
             setStatus({
                 type: 'error',
                 message: 'Error al procesar la solicitud',
-                inviteLink: null
+                inviteLink: null,
+                emailSent: false
             });
         } finally {
             setLoading(false);

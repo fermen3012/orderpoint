@@ -11,7 +11,16 @@ export default function PwaInstallPrompt() {
     const [isStandalone, setIsStandalone] = useState(false);
 
     useEffect(() => {
-        // 1. Verificar si ya se está ejecutando como PWA instalada (standalone)
+        // 1. Registrar / actualizar Service Worker siempre (incluso en modo standalone) para limpiar versiones antiguas
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').then((reg) => {
+                reg.update().catch(() => {});
+            }).catch((err) => {
+                console.debug('[PWA] Service Worker registration failed:', err);
+            });
+        }
+
+        // 2. Verificar si ya se está ejecutando como PWA instalada (standalone)
         const checkStandalone = () => {
             const isPwa = window.matchMedia('(display-mode: standalone)').matches ||
                 (window.navigator as any).standalone === true ||
@@ -21,15 +30,6 @@ export default function PwaInstallPrompt() {
         };
 
         if (checkStandalone()) return;
-
-        // 2. Registrar Service Worker para PWA
-        if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').catch((err) => {
-                    console.debug('[PWA] Service Worker registration failed:', err);
-                });
-            });
-        }
 
         // 3. Detectar si el usuario ya descartó el banner en esta sesión
         const dismissed = sessionStorage.getItem('orderpoint_pwa_dismissed');

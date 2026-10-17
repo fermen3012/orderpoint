@@ -18,61 +18,103 @@ export default function KioskLayout({
     const [isSuspended, setIsSuspended] = useState(false);
     const [restaurantName, setRestaurantName] = useState('');
     const [authData, setAuthData] = useState<{ userProfile: any, restaurantId: string | null } | null>(null);
-    const supabase = createClient();
+    const [supabase] = useState(() => createClient());
 
     useEffect(() => {
+        let isMounted = true;
+        const safetyTimeout = setTimeout(() => {
+            if (isMounted) {
+                setLoading(false);
+                router.push('/login');
+            }
+        }, 8000);
+
         const checkAuth = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
 
-            if (!session) {
-                router.push('/login');
-                return;
-            }
+                if (!session) {
+                    if (isMounted) router.push('/login');
+                    return;
+                }
 
-            const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-
-            if (error || !profile) {
-                router.push('/login');
-                return;
-            }
-
-            const profileData = profile as any;
-
-            if (profileData.role !== 'kiosk' && profileData.role !== 'admin' && !profileData.is_super_admin) {
-                router.push('/login');
-                return;
-            }
-
-            // Verificar si el restaurante está activo
-            if (profileData.restaurant_id) {
-                const { data: rest } = await (supabase
-                    .from('restaurants' as any) as any)
-                    .select('name, is_active')
-                    .eq('id', profileData.restaurant_id)
+                const { data: profile, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
                     .single();
 
-                if (rest) {
-                    setRestaurantName(rest.name || '');
-                    if (rest.is_active === false && !profileData.is_super_admin) {
-                        setIsSuspended(true);
+                let profileData = profile as any;
+
+                if (error || !profileData) {
+                    const metaRole = session.user.user_metadata?.role || session.user.app_metadata?.role;
+                    const metaSuper = Boolean(session.user.user_metadata?.is_super_admin || session.user.app_metadata?.is_super_admin);
+                    const metaRestId = session.user.user_metadata?.restaurant_id || null;
+
+                    if (metaRole || metaSuper) {
+                        profileData = {
+                            id: session.user.id,
+                            email: session.user.email,
+                            role: metaRole || 'kiosk',
+                            is_super_admin: metaSuper,
+                            restaurant_id: metaRestId
+                        };
+                    } else {
+                        if (isMounted) router.push('/login');
+                        return;
                     }
                 }
-            }
 
-            setAuthData({
-                userProfile: profileData,
-                restaurantId: profileData.restaurant_id
-            });
-            setLoading(false);
+                if (profileData.role !== 'kiosk' && profileData.role !== 'admin' && profileData.role !== 'owner' && !profileData.is_super_admin) {
+                    if (isMounted) router.push('/login');
+                    return;
+                }
+
+                // Verificar si el restaurante está activo
+                if (profileData.restaurant_id) {
+                    const { data: rest } = await (supabase
+                        .from('restaurants' as any) as any)
+                        .select('name, is_active')
+                        .eq('id', profileData.restaurant_id)
+                        .single();
+
+                    if (rest && isMounted) {
+                        setRestaurantName(rest.name || '');
+                        if (rest.is_active === false && !profileData.is_super_admin) {
+                            setIsSuspended(true);
+                        }
+                    }
+                }
+
+                if (isMounted) {
+                    setAuthData({
+                        userProfile: profileData,
+                        restaurantId: profileData.restaurant_id
+                    });
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.error('KioskLayout: Error checking auth:', err);
+                if (isMounted) router.push('/login');
+            } finally {
+                clearTimeout(safetyTimeout);
+            }
         };
         checkAuth();
+
+        return () => {
+            isMounted = false;
+            clearTimeout(safetyTimeout);
+        };
     }, [router, supabase]);
 
-    if (loading || !authData) return null;
+    if (loading || !authData) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 gap-4">
+                <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
 
     if (isSuspended) {
         return (

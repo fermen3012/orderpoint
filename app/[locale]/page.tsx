@@ -13,52 +13,92 @@ export default function WelcomePage({ params }: { params: Promise<{ locale: stri
     const locale = resolvedParams.locale;
     const t = useTranslations('kiosk');
     const router = useRouter();
-    const supabase = createClient();
-
+    const [supabase] = useState(() => createClient());
     const [restaurant, setRestaurant] = useState<{ name: string; logo_url: string | null } | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        let isMounted = true;
+        const safetyTimer = setTimeout(() => {
+            if (isMounted) {
+                setLoading(false);
+            }
+        }, 8000);
+
         async function loadRestaurantData() {
             try {
                 // 1. Get Session
-                const { data: { session } } = await supabase.auth.getSession();
+                const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
 
-                if (!session) {
-                    // Not logged in? Show generic or redirect?
-                    // User asked to show "logged in restaurant".
-                    // If not logged in, we can't show it.
-                    setLoading(false);
+                if (sessionErr || !session?.user) {
+                    router.replace('/login');
                     return;
                 }
 
-                // 2. Get Profile to find Restaurant ID
+                // 2. Get Profile to find Role & Restaurant ID (with metadata fallback)
                 const { data: profile } = await (supabase
                     .from('profiles' as any) as any)
-                    .select('restaurant_id')
+                    .select('role, is_super_admin, restaurant_id')
                     .eq('id', session.user.id)
-                    .single();
+                    .maybeSingle();
 
-                if ((profile as any)?.restaurant_id) {
-                    // 3. Get Restaurant Details
+                const isSuperAdmin = Boolean(
+                    profile?.is_super_admin ||
+                    session.user.user_metadata?.is_super_admin ||
+                    session.user.app_metadata?.is_super_admin ||
+                    session.user.email === 'admin@orderpoint.com'
+                );
+                const role = profile?.role || session.user.user_metadata?.role || session.user.app_metadata?.role || '';
+                const restId = profile?.restaurant_id || session.user.user_metadata?.restaurant_id || null;
+
+                // Si la PWA se abrió en la raíz (/ -> /es) con un rol distinto a Kiosko, redirigir a su módulo correspondiente
+                if (isSuperAdmin) {
+                    router.replace('/super-admin/dashboard');
+                    return;
+                }
+                if (role === 'owner' || role === 'admin') {
+                    router.replace('/admin/dashboard');
+                    return;
+                }
+                if (role === 'mesera') {
+                    router.replace('/exo/tables');
+                    return;
+                }
+                if (role === 'kitchen') {
+                    router.replace('/kitchen');
+                    return;
+                }
+
+                if (restId) {
+                    // 3. Get Restaurant Details for Kiosk
                     const { data: restData } = await (supabase
                         .from('restaurants' as any) as any)
                         .select('name, logo_url')
-                        .eq('id', (profile as any).restaurant_id)
-                        .single();
+                        .eq('id', restId)
+                        .maybeSingle();
 
-                    if (restData) {
+                    if (restData && isMounted) {
                         setRestaurant(restData);
                     }
                 }
             } catch (error) {
                 console.error("Error loading welcome data", error);
+                router.replace('/login');
+                return;
             } finally {
-                setLoading(false);
+                clearTimeout(safetyTimer);
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
         }
         loadRestaurantData();
-    }, [supabase]);
+
+        return () => {
+            isMounted = false;
+            clearTimeout(safetyTimer);
+        };
+    }, [router, supabase]);
 
     const setOrderType = useCartStore((state) => state.setOrderType);
 
@@ -68,10 +108,14 @@ export default function WelcomePage({ params }: { params: Promise<{ locale: stri
     };
 
     if (loading) {
-
-        return <div className="fixed inset-0 bg-black flex items-center justify-center">
-            <Loader2 className="w-10 h-10 text-primary-500 animate-spin" />
-        </div>;
+        return (
+            <div className="fixed inset-0 bg-slate-950 flex flex-col items-center justify-center gap-4">
+                <Loader2 className="w-10 h-10 text-orange-500 animate-spin" />
+                <p className="text-slate-400 font-black uppercase tracking-widest text-[10px] animate-pulse">
+                    Cargando OrderPoint...
+                </p>
+            </div>
+        );
     }
 
     return (

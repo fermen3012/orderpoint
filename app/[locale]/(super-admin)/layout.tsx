@@ -51,35 +51,41 @@ export default function SuperAdminLayout({
         });
 
         const verifySuperAdmin = async () => {
-            const supabase = createClient();
-            const { data: { session } } = await supabase.auth.getSession();
-            const user = session?.user;
+            try {
+                const supabase = createClient();
+                const { data: { session } } = await supabase.auth.getSession();
+                const user = session?.user;
 
-            if (!user) {
-                setAuthorized(false);
-                router.push('/login');
-                return;
-            }
+                if (!user) {
+                    setAuthorized(false);
+                    router.push('/login');
+                    return;
+                }
 
-            // Fast-path: si el JWT o email confirmado ya acredita Super Admin, 0 llamadas de red
-            if (user.app_metadata?.is_super_admin || user.email === 'admin@orderpoint.com') {
+                // Fast-path: si el JWT o email confirmado ya acredita Super Admin, 0 llamadas de red
+                if (user.app_metadata?.is_super_admin || user.user_metadata?.is_super_admin || user.email === 'admin@orderpoint.com') {
+                    setAuthorized(true);
+                    return;
+                }
+
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('is_super_admin')
+                    .eq('id', user.id)
+                    .single();
+
+                const isSuperAdmin = Boolean((profile as any)?.is_super_admin);
+                if (!isSuperAdmin) {
+                    setAuthorized(false);
+                    router.push('/login');
+                    return;
+                }
                 setAuthorized(true);
-                return;
-            }
-
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('is_super_admin')
-                .eq('id', user.id)
-                .single();
-
-            const isSuperAdmin = Boolean((profile as any)?.is_super_admin);
-            if (!isSuperAdmin) {
+            } catch (err) {
+                console.error('SuperAdminLayout: Error verifying super admin:', err);
                 setAuthorized(false);
                 router.push('/login');
-                return;
             }
-            setAuthorized(true);
         };
         verifySuperAdmin();
     }, [router]);
@@ -90,7 +96,13 @@ export default function SuperAdminLayout({
         router.push('/login');
     };
 
-    if (!authorized) return null;
+    if (!authorized) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 gap-4">
+                <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
 
     return (
         <div className="flex min-h-screen bg-slate-950 font-sans selection:bg-emerald-500 selection:text-slate-900">

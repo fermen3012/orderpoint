@@ -67,7 +67,13 @@ export default function SuperAdminRestaurants() {
     const [updatingPlan, setUpdatingPlan] = useState<boolean>(false);
 
     const [logoModalData, setLogoModalData] = useState<{ id: string, name: string, logo: string } | null>(null);
-    const [inviteModalData, setInviteModalData] = useState<{ id: string, name: string } | null>(null);
+    const [inviteModalData, setInviteModalData] = useState<{
+        id: string;
+        name: string;
+        initialInviteLink?: string | null;
+        initialEmail?: string | null;
+        initialEmailSent?: boolean;
+    } | null>(null);
     const [deleteModalData, setDeleteModalData] = useState<{ id: string, name: string } | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -156,27 +162,39 @@ export default function SuperAdminRestaurants() {
 
         try {
             const customPriceNum = newRestaurant.custom_price ? parseFloat(newRestaurant.custom_price) : undefined;
+            const ownerEmailTrimmed = newRestaurant.owner_email ? newRestaurant.owner_email.trim() : undefined;
             const result = await createRestaurant({
                 name: newRestaurant.name,
                 slug: newRestaurant.slug,
                 logo_url: newRestaurant.logo_url,
                 plan_id: newRestaurant.plan_id,
                 custom_price: customPriceNum,
-                owner_email: newRestaurant.owner_email ? newRestaurant.owner_email.trim() : undefined,
+                owner_email: ownerEmailTrimmed,
                 seed_demo_data: newRestaurant.seed_demo_data,
             });
 
-            if (!result.error) {
+            if (!result.error && result.data) {
                 setIsModalOpen(false);
-                let msg = `¡Restaurante "${newRestaurant.name}" creado con éxito!`;
-                if (result.inviteResult) {
-                    if (result.inviteResult.error) {
-                        msg += `\n(Aviso sobre invitación: ${result.inviteResult.error})`;
-                    } else {
-                        msg += `\nInvitación registrada para ${newRestaurant.owner_email}.`;
+                const createdId = result.data.id;
+                const createdName = result.data.name || newRestaurant.name;
+
+                if (result.inviteResult && !(result.inviteResult as any).error && (result.inviteResult as any).inviteLink) {
+                    setInviteModalData({
+                        id: createdId,
+                        name: createdName,
+                        initialInviteLink: (result.inviteResult as any).inviteLink,
+                        initialEmail: ownerEmailTrimmed || null,
+                        initialEmailSent: Boolean((result.inviteResult as any).emailSent)
+                    });
+                } else {
+                    if (result.inviteResult && (result.inviteResult as any).error) {
+                        alert(`Restaurante "${createdName}" creado.\nAviso sobre invitación: ${(result.inviteResult as any).error}`);
                     }
+                    setInviteModalData({
+                        id: createdId,
+                        name: createdName
+                    });
                 }
-                alert(msg);
 
                 setNewRestaurant({
                     name: '',
@@ -808,6 +826,9 @@ export default function SuperAdminRestaurants() {
                 <InviteOwnerModal
                     restaurantId={inviteModalData.id}
                     restaurantName={inviteModalData.name}
+                    initialInviteLink={inviteModalData.initialInviteLink}
+                    initialEmail={inviteModalData.initialEmail}
+                    initialEmailSent={inviteModalData.initialEmailSent}
                     onClose={() => setInviteModalData(null)}
                 />
             )}
