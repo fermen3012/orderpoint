@@ -98,7 +98,7 @@ export async function createSecureOrder(input: CreateOrderInput) {
                     .in('id', uniqueModifierIds)
                 : Promise.resolve({ data: [], error: null }),
             uniqueIngredientIds.length > 0
-                ? (supabaseAdmin.from('ingredients' as any) as any)
+                ? (supabase.from('ingredients' as any) as any)
                     .select('id, name')
                     .in('id', uniqueIngredientIds)
                     .eq('restaurant_id', finalRestaurantId)
@@ -111,7 +111,7 @@ export async function createSecureOrder(input: CreateOrderInput) {
         const ingredientNameById = new Map<string, string>();
         for (const ing of (ingsRes?.data as any[]) || []) {
             if (ing.id && ing.name) {
-                ingredientNameById.set(ing.id, ing.name);
+                ingredientNameById.set(String(ing.id).toLowerCase(), ing.name);
             }
         }
 
@@ -204,7 +204,7 @@ export async function createSecureOrder(input: CreateOrderInput) {
 
             // Resolver los IDs de ingredientes removidos a sus nombres legibles para Cocina y Admin
             const resolvedRemovedIngredients = (item.removed_ingredients || []).map(
-                ingIdOrName => ingredientNameById.get(ingIdOrName) || ingIdOrName
+                ingIdOrName => ingredientNameById.get(String(ingIdOrName).toLowerCase()) || ingIdOrName
             );
 
             validOrderItems.push({

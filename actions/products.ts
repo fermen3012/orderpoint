@@ -169,15 +169,16 @@ export async function getMenuWithSchedule(restaurantId: string, dayOfWeek: numbe
     if (!restaurantId || !restaurantId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
         return [];
     }
+    const supabase = await createClient();
     console.log(`[getMenuWithSchedule] Fetching for Restaurant: ${restaurantId}, Day: ${dayOfWeek}`);
 
     // 1. Fetch active products and today's scheduling rules in parallel (1 single network roundtrip)
     const [prodRes, schedRes] = await Promise.all([
-        (supabaseAdmin.from('products') as any)
+        (supabase.from('products') as any)
             .select('*, modifier_groups:product_modifier_groups(modifier_group:modifier_groups(*, options:modifiers(*))), ingredients:product_ingredients(ingredient_id, is_removable, ingredient:ingredients(id, name))')
             .eq('restaurant_id', restaurantId)
             .eq('is_available', true),
-        (supabaseAdmin.from('product_availability' as any) as any)
+        (supabase.from('product_availability' as any) as any)
             .select('product_id, is_active')
             .eq('restaurant_id', restaurantId)
             .eq('day_of_week', dayOfWeek)

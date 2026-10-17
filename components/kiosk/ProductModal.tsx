@@ -221,8 +221,8 @@ export function ProductModal({
         });
 
         const removedIngredientsList = removedIngredients.map(id => {
-            const ing = ingredients.find(i => i.id === id);
-            return { id: id, name: ing ? ing.name : 'Unknown Ingredient' };
+            const ing = ingredients.find(i => i.id === id || i.name === id);
+            return { id: ing?.name || id, name: ing?.name || id };
         });
 
         // Pass 'quantity' too! (Note: original prop might not have quantity, but we update logic)

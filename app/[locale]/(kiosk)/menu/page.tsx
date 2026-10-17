@@ -289,7 +289,7 @@ export default function MenuPage({ params }: { params: Promise<{ locale: string 
                     quantity: item.quantity,
                     // Aplanamos los modificadores a una lista de IDs
                     modifier_option_ids: item.selectedModifiers.flatMap(g => g.options.map(opt => opt.id)),
-                    removed_ingredients: item.removedIngredients?.map(ri => ri.id) || []
+                    removed_ingredients: item.removedIngredients?.map(ri => ri.name || ri.id) || []
                 }))
             };
 
