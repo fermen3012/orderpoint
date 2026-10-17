@@ -298,6 +298,13 @@ export default function MenuPage({ params }: { params: Promise<{ table_id: strin
             }
 
             if (activeRestaurantId) {
+                const closedNow = new Date().toISOString();
+                await (supabase.from('orders') as any)
+                    .update({ completed_at: closedNow })
+                    .eq('table_id', tableId)
+                    .eq('restaurant_id', activeRestaurantId)
+                    .is('completed_at', null);
+
                 await (supabase.from('orders') as any)
                     .update({ source: 'exo_server_closed', status: 'completed' })
                     .eq('table_id', tableId)

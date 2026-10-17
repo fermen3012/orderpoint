@@ -374,19 +374,19 @@ export default function OrdersPage() {
         }
     }, [restaurantId, supabase]);
 
-    // Live Ticker Interval (only ticks when at least one order is actively preparing)
-    const hasPreparingOrders = useMemo(
-        () => orders.some(o => o.status === 'preparing'),
+    // Live Ticker Interval (ticks while any order is still inside the Kitchen KDS: pending, preparing, or ready)
+    const hasActiveKdsOrders = useMemo(
+        () => orders.some(o => o.status === 'pending' || o.status === 'preparing' || o.status === 'ready'),
         [orders]
     );
 
     useEffect(() => {
-        if (!hasPreparingOrders) return;
+        if (!hasActiveKdsOrders) return;
         const interval = setInterval(() => {
             setNow(new Date());
-        }, 10000); // refresh every 10s
+        }, 1000); // refresh every 1s for live KDS elapsed timer
         return () => clearInterval(interval);
-    }, [hasPreparingOrders]);
+    }, [hasActiveKdsOrders]);
 
     // Memoized Filter Logic (unaffected by the 10s live preparation timer)
     const filteredOrders = useMemo(() => orders.filter(order => {
@@ -511,29 +511,32 @@ export default function OrdersPage() {
     };
 
     const getPreparationTime = (order: Order) => {
-        const start = order.preparing_at || order.created_at;
-        const end = order.ready_at || order.completed_at;
-
-        if (order.status === 'pending') {
-            return t('prepStatusWaiting');
-        }
-        
         if (order.status === 'cancelled') {
             return t('prepStatusCancelled');
         }
 
-        if (end && start) {
-            const diff = new Date(end).getTime() - new Date(start).getTime();
+        // Inicio: momento exacto en que la orden entró a la cocina (created_at)
+        const start = order.created_at;
+        if (!start) return '—';
+
+        // Fin: momento exacto en que la orden salió del KDS (completed_at)
+        const end = order.status === 'completed'
+            ? (order.completed_at || order.ready_at)
+            : order.completed_at;
+
+        if (end) {
+            const diff = Math.max(0, new Date(end).getTime() - new Date(start).getTime());
             const minutes = Math.floor(diff / 60000);
             const seconds = Math.floor((diff % 60000) / 1000);
             return `${minutes}m ${seconds}s`;
         }
 
-        if (order.status === 'preparing' && start) {
-            const diff = now.getTime() - new Date(start).getTime();
+        // Mientras la orden sigue dentro del KDS (pending, preparing o ready), cuenta en tiempo real desde que entró
+        if (order.status === 'pending' || order.status === 'preparing' || order.status === 'ready') {
+            const diff = Math.max(0, now.getTime() - new Date(start).getTime());
             const minutes = Math.floor(diff / 60000);
             const seconds = Math.floor((diff % 60000) / 1000);
-            return t('prepStatusPreparing', { time: `${minutes}m ${seconds}s` });
+            return `${minutes}m ${seconds}s`;
         }
 
         return '—';
@@ -915,7 +918,7 @@ export default function OrdersPage() {
                                                 {/* Tiempo Prep */}
                                                 <td className="px-10 py-8">
                                                     <span className={`text-xs font-black uppercase tracking-wider ${
-                                                        order.status === 'preparing' ? 'text-blue-400 animate-pulse' : 'text-slate-300'
+                                                        (order.status === 'pending' || order.status === 'preparing' || order.status === 'ready') ? 'text-blue-400 animate-pulse' : 'text-slate-300'
                                                     }`}>
                                                         {getPreparationTime(order)}
                                                     </span>
@@ -1049,7 +1052,7 @@ export default function OrdersPage() {
                                         <div className="flex items-center gap-2">
                                             <span className="text-slate-500 text-[8px] font-black uppercase tracking-wider">{t('tableColPrepTime')}:</span>
                                             <span className={`text-xs font-black uppercase tracking-wider ${
-                                                order.status === 'preparing' ? 'text-blue-400 animate-pulse' : 'text-slate-300'
+                                                (order.status === 'pending' || order.status === 'preparing' || order.status === 'ready') ? 'text-blue-400 animate-pulse' : 'text-slate-300'
                                             }`}>
                                                 {getPreparationTime(order)}
                                             </span>
