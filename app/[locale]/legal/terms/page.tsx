@@ -136,21 +136,34 @@ export default function TermsPage() {
                             </section>
 
                             <section>
-                                <h2 className="text-xl font-black text-slate-900 mb-3">7. Exclusión de Garantías y Limitación de Responsabilidad</h2>
-                                <p className="uppercase text-xs font-bold leading-relaxed">
-                                    EN LA MEDIDA MÁXIMA PERMITIDA POR LA LEY DEL ESTADO DE FLORIDA, EL SERVICIO SE ENTREGA "TAL CUAL" ("AS IS") Y "SEGÚN DISPONIBILIDAD" ("AS AVAILABLE"), SIN GARANTÍAS DE NINGÚN TIPO, EXPRESAS O IMPLÍCITAS, INCLUIDAS LAS GARANTÍAS DE COMERCIABILIDAD, APTITUD PARA UN PROPÓSITO PARTICULAR O LIBRE DE ERRORES. EN NINGÚN CASO LA RESPONSABILIDAD TOTAL DE ORDERPOINT EXCEDERÁ EL MONTO TOTAL PAGADO POR EL CLIENTE POR EL SERVICIO EN LOS TRES (3) MESES ANTERIORES AL EVENTO QUE ORIGINÓ LA RECLAMACIÓN.
-                                </p>
-                            </section>
-
-                            <section>
-                                <h2 className="text-xl font-black text-slate-900 mb-3">8. Indemnización</h2>
+                                <h2 className="text-xl font-black text-slate-900 mb-3">7. Equipos Físicos, Hardware y Periféricos — Exclusión de Responsabilidad por Daños (Fla. Stat. §§ 672.316 y 672.509)</h2>
                                 <p>
-                                    El Restaurante acepta indemnizar, defender y eximir de toda responsabilidad a OrderPoint, sus desarrolladores, directivos, empleados y afiliados, frente a cualquier reclamo, pérdida, daño, demanda o gasto (incluidos honorarios razonables de abogados) derivados de la operación gastronómica del cliente, preparación de alimentos, relaciones con empleados o reclamos tributarios.
+                                    <strong>Exo Advance LLC (OrderPoint)</strong> es única y exclusivamente una empresa desarrolladora y proveedora de <strong>Software como Servicio (SaaS)</strong>. En consecuencia, las obligaciones de soporte, mantenimiento y garantía de la empresa se limitan de manera estricta y exclusiva al funcionamiento lógico del <strong>Software en la nube</strong>, rigiéndose los equipos físicos por las siguientes disposiciones mercantiles del Estado de Florida:
+                                </p>
+                                <ul className="list-disc pl-6 space-y-2 mt-3 text-xs text-slate-600">
+                                    <li><strong>Transferencia del Riesgo de Pérdida y Custodia (Fla. Stat. § 672.509):</strong> Desde el momento exacto en que cualquier equipo físico o hardware (incluyendo, de manera enunciativa mas no limitativa: tabletas para Kiosko, pantallas o monitores para KDS de cocina, dispositivos móviles para meseros, impresoras térmicas Bluetooth/ESC-POS, bases, soportes, cableado, adaptadores de corriente o routers) es entregado o instalado en el local del Restaurante, el Restaurante asume la custodia total y el <strong>riesgo absoluto de pérdida, robo, deterioro o daño</strong>.</li>
+                                    <li><strong>Exclusión Total por Daños Físicos y Operativos:</strong> <strong>Exo Advance LLC NO se hace responsable bajo ninguna circunstancia</strong> por daños físicos, pantallas rotas o estrelladas, caídas, golpes, derrames de líquidos, exposición a grasa, vapor o calor extremo de cocina, sobrecargas o fluctuaciones eléctricas, cortocircuitos, desgaste por uso diario, manipulación indebida o negligente por parte del personal del Restaurante o de sus comensales, vandalismo o hurto de los equipos.</li>
+                                    <li><strong>Entrega "TAL CUAL" ("AS IS") y Garantía Exclusiva del Fabricante (Fla. Stat. § 672.316):</strong> DE CONFORMIDAD CON EL CÓDIGO COMERCIAL UNIFORME DE FLORIDA (UCC, FLA. STAT. § 672.316), TODO HARDWARE O EQUIPO FÍSICO SUMINISTRADO, VENDIDO O INSTALADO SE ENTREGA <strong>"TAL CUAL" ("AS IS") Y "CON TODOS SUS DEFECTOS"</strong>. EXO ADVANCE LLC NO ES FABRICANTE DE HARDWARE Y RENUNCIA EXPRESAMENTE A TODA GARANTÍA EXPRESA O IMPLÍCITA SOBRE LOS EQUIPOS FÍSICOS, INCLUYENDO CUALQUIER GARANTÍA IMPLÍCITA DE <strong>COMERCIABILIDAD (MERCHANTABILITY)</strong> O <strong>APTITUD PARA UN PROPÓSITO PARTICULAR</strong>. Cualquier reclamo por defecto de fábrica deberá tramitarse única y directamente ante el fabricante original del equipo (OEM).</li>
+                                    <li><strong>Costo de Reposición y Continuidad de Suscripción:</strong> Toda reparación, mantenimiento físico o reemplazo de hardware dañado, averiado o extraviado correrá al cien por ciento (100%) por cuenta y cargo exclusivo del Restaurante. La avería, daño o falta de funcionamiento de un equipo físico no exime al Restaurante de su obligación de pago puntual de la suscripción mensual del Software ni genera derecho a reembolsos o créditos.</li>
+                                </ul>
+                            </section>
+
+                            <section>
+                                <h2 className="text-xl font-black text-slate-900 mb-3">8. Exclusión de Garantías y Limitación de Responsabilidad</h2>
+                                <p className="uppercase text-xs font-bold leading-relaxed">
+                                    EN LA MEDIDA MÁXIMA PERMITIDA POR LA LEY DEL ESTADO DE FLORIDA, EL SERVICIO Y CUALQUIER HARDWARE ASOCIADO SE ENTREGAN "TAL CUAL" ("AS IS") Y "SEGÚN DISPONIBILIDAD" ("AS AVAILABLE"), SIN GARANTÍAS DE NINGÚN TIPO, EXPRESAS O IMPLÍCITAS, INCLUIDAS LAS GARANTÍAS DE COMERCIABILIDAD, APTITUD PARA UN PROPÓSITO PARTICULAR O LIBRE DE ERRORES. EXO ADVANCE LLC RESPONDE ÚNICAMENTE POR LA DISPONIBILIDAD DE SU PLATAFORMA DE SOFTWARE SAAS Y NO ASUME RESPONSABILIDAD ALGUNA POR DAÑOS A EQUIPOS FÍSICOS O HARDWARE. EN NINGÚN CASO LA RESPONSABILIDAD TOTAL ACUMULADA DE EXO ADVANCE LLC (ORDERPOINT) EXCEDERÁ EL MONTO TOTAL PAGADO POR EL CLIENTE EXCLUSIVAMENTE POR LA SUSCRIPCIÓN MENSUAL DEL SOFTWARE EN LOS TRES (3) MESES ANTERIORES AL EVENTO QUE ORIGINÓ LA RECLAMACIÓN (EXCLUYENDO CUALQUIER MONTO PAGADO POR HARDWARE O INSTALACIÓN).
                                 </p>
                             </section>
 
                             <section>
-                                <h2 className="text-xl font-black text-slate-900 mb-3">9. Ley Aplicable, Jurisdicción y Renuncia a Juicio por Jurado</h2>
+                                <h2 className="text-xl font-black text-slate-900 mb-3">9. Indemnización</h2>
+                                <p>
+                                    El Restaurante acepta indemnizar, defender y eximir de toda responsabilidad a Exo Advance LLC (OrderPoint), sus desarrolladores, directivos, socios, empleados y afiliados, frente a cualquier reclamo, pérdida, daño, demanda o gasto (incluidos honorarios razonables de abogados) derivados de la operación gastronómica del cliente, preparación de alimentos, daños o accidentes causados por el uso de equipos físicos o soportes en el local, relaciones con empleados o reclamos tributarios.
+                                </p>
+                            </section>
+
+                            <section>
+                                <h2 className="text-xl font-black text-slate-900 mb-3">10. Ley Aplicable, Jurisdicción y Renuncia a Juicio por Jurado</h2>
                                 <p>
                                     Este Acuerdo se rige e interpreta exclusivamente según las leyes del <strong>Estado de Florida, Estados Unidos de América</strong>. Cualquier controversia legal será sometida a la jurisdicción exclusiva de los tribunales estatales o federales con sede en el Estado de Florida. <strong>AMBAS PARTES RENUNCIAN IRREVOCABLEMENTE AL DERECHO A JUICIO POR JURADO Y A CUALQUIER PARTICIPACIÓN EN ACCIONES O DEMANDAS COLECTIVAS (CLASS ACTION WAIVER).</strong>
                                 </p>
@@ -217,21 +230,34 @@ export default function TermsPage() {
                             </section>
 
                             <section>
-                                <h2 className="text-xl font-black text-slate-900 mb-3">7. Disclaimer of Warranties and Limitation of Liability</h2>
-                                <p className="uppercase text-xs font-bold leading-relaxed">
-                                    TO THE MAXIMUM EXTENT PERMITTED BY FLORIDA LAW, THE SERVICES ARE PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL ORDERPOINT'S AGGREGATE LIABILITY EXCEED THE TOTAL AMOUNT PAID BY THE RESTAURANT IN THE THREE (3) MONTHS PRECEDING THE CLAIM.
-                                </p>
-                            </section>
-
-                            <section>
-                                <h2 className="text-xl font-black text-slate-900 mb-3">8. Indemnification</h2>
+                                <h2 className="text-xl font-black text-slate-900 mb-3">7. Physical Hardware, Equipment & Peripherals — Complete Disclaimer of Liability for Damages (Fla. Stat. §§ 672.316 & 672.509)</h2>
                                 <p>
-                                    The Restaurant agrees to defend, indemnify, and hold harmless OrderPoint, its developers, officers, and employees from any third-party claims, liabilities, or legal expenses arising from restaurant operations, food service quality, staff labor claims, or tax non-compliance.
+                                    <strong>Exo Advance LLC (OrderPoint)</strong> is strictly and exclusively a <strong>Software-as-a-Service (SaaS)</strong> provider. Accordingly, the company&apos;s support, maintenance, and warranty obligations apply <strong>solely and exclusively to the cloud Software platform</strong>, and any physical equipment is governed by the following Florida commercial law provisions:
+                                </p>
+                                <ul className="list-disc pl-6 space-y-2 mt-3 text-xs text-slate-600">
+                                    <li><strong>Transfer of Risk of Loss & Custody (Fla. Stat. § 672.509):</strong> Immediately upon physical delivery or installation of any hardware or equipment at the Restaurant&apos;s premises (including, without limitation: Self-Service Kiosk tablets, Kitchen Display System [KDS] monitors/screens, waiter mobile devices, Bluetooth/ESC-POS thermal printers, stands, mounts, cables, power adapters, or routers), the Restaurant assumes full custody and bears the <strong>entire risk of loss, theft, deterioration, or damage</strong>.</li>
+                                    <li><strong>Zero Liability for Physical or Operational Hardware Damages:</strong> <strong>Exo Advance LLC SHALL NOT BE LIABLE UNDER ANY CIRCUMSTANCES</strong> for physical damages, cracked or broken screens, drops, impacts, liquid or beverage spills, kitchen grease, steam, extreme heat exposure, electrical power surges, voltage fluctuations, short circuits, normal wear and tear, improper or negligent handling by Restaurant staff or patrons, vandalism, or theft of any hardware.</li>
+                                    <li><strong>Conspicuous "AS-IS" Hardware Disclaimer & OEM Warranty Only (Fla. Stat. § 672.316):</strong> PURSUANT TO THE FLORIDA UNIFORM COMMERCIAL CODE (UCC, FLA. STAT. § 672.316), ANY HARDWARE OR PHYSICAL EQUIPMENT SOLD, SUPPLIED, OR INSTALLED IS PROVIDED STRICTLY <strong>"AS IS" AND "WITH ALL FAULTS"</strong>. EXO ADVANCE LLC IS NOT A HARDWARE MANUFACTURER AND EXPRESSLY DISCLAIMS ALL EXPRESS OR IMPLIED WARRANTIES REGARDING PHYSICAL HARDWARE, INCLUDING ANY IMPLIED WARRANTIES OF <strong>MERCHANTABILITY</strong> OR <strong>FITNESS FOR A PARTICULAR PURPOSE</strong>. Any warranty claims for manufacturing defects must be directed solely to the Original Equipment Manufacturer (OEM).</li>
+                                    <li><strong>Replacement Costs & Uninterrupted SaaS Subscription:</strong> The Restaurant is one hundred percent (100%) responsible for the repair, maintenance, or replacement cost of any damaged, malfunctioning, or lost hardware. Hardware damage, malfunction, or unavailability shall never relieve the Restaurant of its ongoing monthly SaaS Software subscription payment obligations nor entitle the Restaurant to any refunds or credits.</li>
+                                </ul>
+                            </section>
+
+                            <section>
+                                <h2 className="text-xl font-black text-slate-900 mb-3">8. Disclaimer of Warranties and Limitation of Liability</h2>
+                                <p className="uppercase text-xs font-bold leading-relaxed">
+                                    TO THE MAXIMUM EXTENT PERMITTED BY FLORIDA LAW, THE SOFTWARE SERVICES AND ANY ASSOCIATED HARDWARE ARE PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. EXO ADVANCE LLC IS SOLELY RESPONSIBLE FOR ITS CLOUD SOFTWARE PLATFORM AND ASSUMES ZERO LIABILITY FOR PHYSICAL HARDWARE DAMAGES OR FAILURES. IN NO EVENT SHALL EXO ADVANCE LLC&apos;S (ORDERPOINT) AGGREGATE LIABILITY EXCEED THE TOTAL SAAS SUBSCRIPTION FEES PAID BY THE RESTAURANT EXCLUSIVELY FOR THE SOFTWARE IN THE THREE (3) MONTHS PRECEDING THE CLAIM (EXCLUDING ANY HARDWARE OR INSTALLATION FEES).
                                 </p>
                             </section>
 
                             <section>
-                                <h2 className="text-xl font-black text-slate-900 mb-3">9. Governing Law, Venue & Waiver of Jury Trial</h2>
+                                <h2 className="text-xl font-black text-slate-900 mb-3">9. Indemnification</h2>
+                                <p>
+                                    The Restaurant agrees to defend, indemnify, and hold harmless Exo Advance LLC (OrderPoint), its developers, officers, members, and employees from any third-party claims, liabilities, property damage, bodily injury, or legal expenses arising from restaurant operations, physical equipment placement or use on the premises, food service quality, staff labor claims, or tax non-compliance.
+                                </p>
+                            </section>
+
+                            <section>
+                                <h2 className="text-xl font-black text-slate-900 mb-3">10. Governing Law, Venue & Waiver of Jury Trial</h2>
                                 <p>
                                     This Agreement shall be governed by and construed in accordance with the substantive laws of the <strong>State of Florida, United States of America</strong>. Any legal action shall be brought exclusively in the state or federal courts located in Florida. <strong>BOTH PARTIES VOLUNTARILY AND IRREVOCABLY WAIVE ANY RIGHT TO A TRIAL BY JURY AND AGREE NOT TO PARTICIPATE IN ANY CLASS ACTION PROCEEDINGS (CLASS ACTION WAIVER).</strong>
                                 </p>
