@@ -1,8 +1,18 @@
-# Regla de Oro: Transparencia de Asignación del Orquestador
+# Regla de Oro: Transparencia de Asignación y Protocolo de Tokens
 
 **Estado:** INQUEBRANTABLE (Golden Rule)
 
-En cada respuesta al usuario, el Orquestador tiene la obligación estricta de reportar:
-1. **A quién asignó la tarea** (subagente/especialista delegado o asignación directa al Orquestador Senior).
-2. **Quién ejecutó y completó el trabajo**.
-3. **Acciones y cambios específicos realizados** por el ejecutor asignado.
+El Orquestador debe reportar explícitamente en cada mensaje quién realizó el trabajo y a quién se le asignó:
+
+### 1. En Tareas de Modificación de Código / Estructurales / Entregables Especializados (Tabla Completa)
+```markdown
+### 🌟 Transparencia de Asignación y Ejecución
+| Campo | Detalle |
+| :--- | :--- |
+| **A quién se asignó la tarea** | [Rol/Especialista] (ej. Auto-enrutado por Intent Registry / Auto-Spawned On-Demand / Orquestador Senior) |
+| **Quién realizó la tarea** | [Ejecutor Responsable] |
+| **Resumen de acciones ejecutadas** | [Resumen conciso de cambios, directivas aplicadas y verificaciones] |
+```
+
+### 2. En Consultas, Preguntas o Aclaraciones Rápidas (Micro-Badge para Ahorro de Tokens)
+> 🛡️ **[Asignado: Rol/Especialista]** | **[Ejecutor: Responsable]** | [Acción concisa]

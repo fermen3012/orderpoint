@@ -39,3 +39,23 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+# InfoSec Guard - Prevención de fuga de credenciales
+.env
+.env.*
+.env.mcp*
+.env.vault
+*.local
+*.pem
+*.key
+*.cert
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+service-account*.json
+
+# Exo Advance Agent Ecosystem Backups
+.agents.backup*
+

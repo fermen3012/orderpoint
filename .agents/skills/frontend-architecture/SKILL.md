@@ -1,21 +1,31 @@
 ---
 name: frontend-architecture
-description: Directivas técnicas para desarrollo de componentes React, gestión de estado con Zustand, hooks, internacionalización (next-intl) y lógica de cliente en OrderPoint.
+description: World-class engineering standards for modern React and Next.js applications, Server/Client component boundaries, reactive state management, and Core Web Vitals optimization.
 ---
 
-# Skill: Arquitectura Frontend & Lógica de Cliente
+# Skill: Frontend Architecture & Client Performance Engineering
 
-Esta skill guía el desarrollo, rendimiento y estabilidad de la capa cliente en OrderPoint.
+Governs client-side software architecture, component modularity, state flow, and performance standards across Exo Advance web applications.
 
-## 1. Alcance y Archivos Clave
-- `components/*`: Componentes funcionales e interactivos de Kiosko, KDS (Cocina), Administración y Super Admin.
-- `store/*`: Stores globales de Zustand (ej. `useCartStore` para el carrito y personalizaciones).
-- `hooks/*`: Hooks personalizados para ciclo de vida, reconexión y hardware (Bluetooth).
-- `i18n/*` y `messages/*`: Configuración de enrutamiento y catálogos de traducción de `next-intl`.
+## 1. Architectural Boundaries (RSC vs. Client Components)
+- **Server-First Hierarchy:** Default all components to React Server Components (RSC) to minimize client JavaScript bundle size and eliminate client-side data waterfall latency.
+- **Surgical Client Island Isolation:** Restrict the `'use client'` directive exclusively to leaves of the component tree requiring DOM events, browser APIs, or local state.
 
-## 2. Invariantes Técnicas
-- **Separación de Frontera Servidor/Cliente:** Componentes interactivos que usen estado o hooks de navegador deben incluir la directiva `'use client'` al inicio del archivo.
-- **Gestión de Estado Robusta:** Centralizar cálculos del carrito y selección de opciones en Zustand, manteniendo sincronizado el estado visual.
-- **Congelamiento Visual:** Prohibido modificar clases de Tailwind, fuentes, márgenes, bordes o paletas de colores preexistentes sin autorización explícita.
-- **Manejo de Errores y Cargas:** Proporcionar estados de carga (`loading`) y captura de errores sin provocar saltos bruscos en el DOM (evitar CLS).
-- **Disciplina de Tokens:** Modificaciones estrictamente quirúrgicas mediante `replace_file_content`.
+## 2. Minimalist Reactive State Management
+- **Single Source of Truth:** Prefer URL search params, server-cached data, and server actions over deeply nested client state stores.
+- **Ephemeral State Discipline:** Keep UI state (toggles, modals, forms) strictly local to the consuming component. Do not pollute global contexts with transient state.
+- **Context Hell Prevention:** Avoid wrapping the entire application in monolithic contexts that trigger re-render cascades across unaffected subtrees.
+
+## 3. Resilience & Core Web Vitals (CWV)
+- **Optimistic UI with Graceful Rollbacks:** Implement instantaneous feedback on user actions (e.g., likes, checklist toggles) with automatic rollback and error notifications if the server action fails.
+- **Aggressive CWV Optimization:**
+  - **LCP (Largest Contentful Paint) < 1.2s:** Prioritize critical image preload and responsive image sizing (`sizes`, `srcset`).
+  - **CLS (Cumulative Layout Shift) = 0:** Pre-reserve layout dimensions for async elements, skeletons, and media.
+  - **INP (Interaction to Next Paint) < 100ms:** Offload heavy computations from the main thread; use transitions (`useTransition`) for non-urgent updates.
+- **Error Boundaries & Suspense Skeletons:** Wrap async and failure-prone components in granular `ErrorBoundary` and `Suspense` boundaries to prevent blank screen crashes.
+
+## 4. Vercel Deployment & Observability MCP Tooling
+When `.mcp.json` is configured with the Vercel MCP server:
+- **Build & Deployment Health Inspection:** Query deployment statuses and recent commit builds directly via MCP to diagnose build-time breakages or edge function errors.
+- **Runtime Log Telemetry:** Fetch live serverless function logs and runtime exceptions to diagnose production bugs without manual dashboard navigation.
+- **Environment Variable Synchronization:** Inspect non-sensitive project environment variables across environments (`preview`, `production`) to ensure build-time parity.

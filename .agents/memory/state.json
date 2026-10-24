@@ -1,148 +1,302 @@
 {
-  "current_state": {
-    "last_updated": "2026-10-07T19:24:00-04:00",
-    "active_version": "1.0.0",
-    "project_name": "OrderPoint",
-    "domain": "Restaurante (Kiosko de Autoservicio & Kitchen Display System)",
-    "recent_milestones": [
-      {
-        "id": "M01",
-        "description": "Aislamiento Multi-Tenant Universal: Implementación de AuthContext compartido para Admin, Kiosko y KDS (Cocina), garantizando filtrado estricto por restaurant_id sin fugas de datos",
-        "status": "COMPLETED",
-        "verification": "Verificado en layouts y páginas de Kiosk y Kitchen"
-      },
-      {
-        "id": "M02",
-        "description": "Kitchen Display System (KDS) en Tiempo Real: Recepción reactiva de comandas con Supabase Realtime, desglose de ingredientes y modificadores, y actualización de estados (pending -> preparing -> ready -> completed)",
-        "status": "COMPLETED",
-        "verification": "Canal Realtime conectado y verificado en kitchen/page.tsx"
-      },
-      {
-        "id": "M03",
-        "description": "Módulo de Impresión Térmica Bluetooth ESC/POS: Integración de Web Bluetooth API para emisión instantánea de tickets en Kiosko (58mm/80mm)",
-        "status": "COMPLETED",
-        "verification": "useBluetoothPrinter.ts y BluetoothPrinterModule.tsx activos"
-      },
-      {
-        "id": "M04",
-        "description": "Personalización Avanzada de Productos: Grupos de modificadores (obligatorios/opcionales) y selección de ingredientes removibles en Kiosko",
-        "status": "COMPLETED",
-        "verification": "ProductCustomizationModal.tsx y cálculo de precios unitarios verificados"
-      },
-      {
-        "id": "M05",
-        "description": "Panel Super Admin & Ajustes Dinámicos: Almacenamiento seguro de claves de Stripe y Google Gemini en base de datos con RLS",
-        "status": "COMPLETED",
-        "verification": "Tabla system_settings y acciones del servidor operativas"
-      },
-      {
-        "id": "M06",
-        "description": "Soporte Multi-idioma y Menú QR: Internacionalización con next-intl y generación de menú con código QR para mesas",
-        "status": "COMPLETED",
-        "verification": "Rutas [locale] y conmutadores de idioma en Kiosko y Admin operativos"
-      },
-      {
-        "id": "M07",
-        "description": "Reglas Inquebrantables de Arquitectura: Congelamiento absoluto de UI/diseño gráfico (prohibido alterar Tailwind/layout sin petición expresa) y disciplina estricta de memoria de grafo (sin reescritura de código existente, solo modificaciones quirúrgicas para máximo ahorro de tokens)",
-        "status": "COMPLETED",
-        "verification": "Reflejado y reforzado en invariants.json y graph.json"
-      },
-      {
-        "id": "M08",
-        "description": "Equipo de Subagentes Especializados y Skills: Definición de 5 subagentes operativos (kiosk_hardware_specialist, kds_realtime_specialist, restaurant_data_guard, admin_billing_integrator, qa_verifier_auditor) y sus correspondientes 5 Skills en .agents/skills/",
-        "status": "COMPLETED",
-        "verification": "Subagentes registrados en runtime y archivos SKILL.md creados y validados"
-      },
-      {
-        "id": "M09",
-        "description": "Subagente de Ciberseguridad & Protección de Datos de Clientes: Creación de cybersecurity_guardian y skill infosec-guard para blindaje de PII, cero almacenamiento de tarjetas (PCI-DSS), auditoría RLS, prevención de IDOR, verificación criptográfica de webhooks de Stripe y protección de secretos",
-        "status": "COMPLETED",
-        "verification": "Subagente registrado en runtime, skill infosec-guard creada y regla inquebrantable en invariants.json"
-      },
-      {
-        "id": "M10",
-        "description": "Remediación de Ciberseguridad (Pasos 1-3): Eliminación total del backdoor /api/force-reset-admin, erradicación de escalación de privilegios en middleware.ts (bloqueo de user_metadata spoofing) y blindaje anti-IDOR en gestión de personal (lib/actions/users.ts)",
-        "status": "COMPLETED",
-        "verification": "Verificación estricta con tsc --noEmit (cero errores) y validación de aislamiento multi-tenant"
-      },
-      {
-        "id": "M11",
-        "description": "Ampliación del Equipo Especialista (Backend, Frontend y UI/UX): Registro de backend_core_specialist, frontend_core_specialist y ui_design_specialist con sus respectivas skills en .agents/skills/ y blindaje de la gobernanza de interfaz gráfica",
-        "status": "COMPLETED",
-        "verification": "Subagentes definidos en runtime, skills creadas en .agents/skills/ y memoria actualizada en graph.json e invariants.json"
-      },
-      {
-        "id": "M12",
-        "description": "Validación de Catálogo y Menú en Producción: Prueba automatizada E2E de creación de producto para 'Tacos Fer' (saveProduct en actions/products.ts) con categoría e ingredientes removibles",
-        "status": "COMPLETED",
-        "verification": "Ejecutado por backend_core_specialist con 10/10 aserciones pasadas (Producto ID: 328e6551-0c30-4ff3-87e1-441595c5202f)"
-      },
-      {
-        "id": "M13",
-        "description": "Exo Server Fase 1: Fix crash buscador multilingüe (QuickOrderMenu + getLocalizedValue en lib/utils), carrito aislado por mesa (cartsByTable, persist v2 con migración) y envío atómico (clearCart solo tras éxito en orders/order_items)",
-        "status": "COMPLETED",
-        "verification": "frontend_core_specialist ejecutó; qa_verifier_auditor APROBADO; tsc exit 0; UI intacta"
-      },
-      {
-        "id": "M14",
-        "description": "Exo Server Fase 2: Integración de Mesas con Cocina (KDS) y Panel Admin. Visualización del número de mesa (Mesa #X / Table #X) en tarjetas de cocina, Realtime listener con JOIN PostgREST a tables, listado de órdenes en Admin, modal de detalle y exportación PDF",
-        "status": "COMPLETED",
-        "verification": "tsc --noEmit exit 0; i18n sincronizado en es.json y en.json; UI y Tailwind intactos"
-      },
-      {
-        "id": "M15",
-        "description": "Exo Server: Visor de Comanda de Mesa con Total de Venta Acumulado y Botón Flotante para Menú. Al abrir la mesa se muestra el resumen de pedidos y total acumulado, desglose de ítems con estados en tiempo real (Supabase Realtime), y botón flotante FAB ('+ Mostrar Menú y Agregar Más') para comandeo ágil",
-        "status": "COMPLETED",
-        "verification": "tsc --noEmit exit 0; Next.js dev server respondiendo 200 OK en /exo/menu/[table_id]; UI Freeze respetado"
-      },
-      {
-        "id": "M16",
-        "description": "Exo Server: Rediseño visual de mesas con efecto neón degradado. Verde neón (border emerald-500, glow shadow, gradiente profundo y badge Disponible) para mesas libres; Rojo neón (border red-500, glow shadow, gradiente profundo y badge Ocupada) para mesas ocupadas.",
-        "status": "COMPLETED",
-        "verification": "tsc exit 0, dev server activo en http://localhost:3000, respetado diseño rounded-[32px] y tipografía font-black."
-      },
-      {
-        "id": "M17",
-        "description": "Exo Server: Visualización del nombre del mesero/a en mesas ocupadas. JOIN PostgREST a profiles!waitress_id(full_name), badge con el nombre debajo del estado 'OCUPADA' dentro del botón en TableGrid, y visualización en el encabezado y alertas de /exo/menu/[table_id].",
-        "status": "COMPLETED",
-        "verification": "tsc exit 0, dev server respondiendo 200 OK en /es/exo/tables y /es/exo/menu/[table_id]."
-      },
-      {
-        "id": "M18",
-        "description": "Exo Server: Sistema Ágil de Personalización de Ingredientes y Modificadores para Meseros. Bottom Sheet ergonómico móvil táctil para quitar ingredientes con un toque (chips neón rojo '✕ Sin [Ingrediente]'), añadir modificadores (+ extras), notas rápidas de cocina ('Bien Cocido', 'Salsa Aparte') y persistencia directa a order_items.removed_ingredients sin requerir migraciones de Supabase (compatible con KDS Cocina y Admin).",
-        "status": "COMPLETED",
-        "verification": "tsc --noEmit exit 0 (0 errores de tipo), comprobación exitosa en Supabase con product_ingredients y order_items.removed_ingredients."
-      },
-      {
-        "id": "M19",
-        "description": "Exo Advance Multi-idioma (ES / EN) y Agente Especialista en Traducciones: Creación y registro de translation_i18n_specialist y skill translation-i18n. Implementación de botón switch con esquinas redondeadas (ExoLanguageSwitch) en header de Exo Server. Catálogo completo de traducciones en messages/es.json y messages/en.json bajo el namespace 'exo'. Traducción exclusiva de todo el módulo Exo (Salón, Mesas, Comanda, Menú, Personalizador de Ingredientes y Modales) sin afectar otros módulos.",
-        "status": "COMPLETED",
-        "verification": "tsc --noEmit exit 0; endpoints /es/exo/tables y /en/exo/tables respondiendo 200 OK; paridad total de claves es.json y en.json."
-      },
-      {
-        "id": "M20",
-        "description": "Términos y Condiciones Legales B2B SaaS con Cumplimiento de Leyes de Florida: Rediseño profesional y exhaustivo del contrato legal para propietarios (Admin Owner) al aceptar su invitación (set-password/page.tsx y legal/terms/page.tsx). Incorpora validez de firma electrónica (Florida UETA, Fla. Stat. § 668.50), deslinde de responsabilidad sanitaria y alérgenos (Florida DBPR / Dept of Health), Merchant of Record y retención de Florida Sales Tax (Fla. Stat. Cap. 212), protección de datos (Florida FIPA, Fla. Stat. § 501.171), limitación de responsabilidad, renuncia a juicio por jurado y renuncia a demandas colectivas (Class Action Waiver) con jurisdicción exclusiva en el Estado de Florida. Bilingüe (Español / Inglés).",
-        "status": "COMPLETED",
-        "verification": "tsc --noEmit exit 0; endpoints /es/legal/terms y /en/legal/terms respondiendo 200 OK; registro de terms_version: 'v2.0-FL' en base de datos."
-      },
-      {
-        "id": "M21",
-        "description": "Agente Especialista en Crecimiento SaaS, Pricing y Marketing Digital: Registro de saas_growth_marketing_strategist y creación de la skill saas-growth-marketing en .agents/skills/. Estructuración y generación del Folleto Comercial One-Pager en PDF vectorial de alta resolución (OrderPoint-One-Pager.pdf) y web (one-pager.html) con oferta dual integrada: 1) Módulo Salón & Cocina Exo Server BYOD ($450 Setup único + $99/mes) para restaurantes con meseros y 2) Kiosko de Autoservicio Pro con Samsung Tab A9+ 11\" y soporte antirrobo ($799 pago único + $99/mes o $150 Setup BYOD), con datos de contacto directo de Ofer Mendoza en Florida.",
-        "status": "COMPLETED",
-        "verification": "PDF generado en public/OrderPoint-One-Pager.pdf (763 KB), vista web en public/one-pager.html, tsc --noEmit exit 0."
-      }
-    ],
-    "active_priorities": [
-      {
-        "id": "PRIO-01",
-        "description": "Robustez en Kiosko y KDS: Garantizar reconexión fluida ante pérdida temporal de conexión y alta concurrencia de órdenes",
-        "priority": "HIGH"
-      },
-      {
-        "id": "PRIO-02",
-        "description": "Notificaciones sonoras en KDS cuando ingresa un pedido nuevo en estado 'pending'",
-        "priority": "MEDIUM"
-      }
-    ]
-  }
+  "project": "orderpoint",
+  "domain": "Restaurante (Kiosko de Autoservicio & Kitchen Display System)",
+  "updated_at": "2026-10-23T22:15:51.100Z",
+  "active_version": "1.0.0",
+  "milestones": [
+    {
+      "id": "M01",
+      "description": "Aislamiento Multi-Tenant Universal: Implementación de AuthContext compartido para Admin, Kiosko y KDS (Cocina), garantizando filtrado estricto por restaurant_id sin fugas de datos",
+      "status": "COMPLETED",
+      "verification": "Verificado en layouts y páginas de Kiosk y Kitchen"
+    },
+    {
+      "id": "M02",
+      "description": "Kitchen Display System (KDS) en Tiempo Real: Recepción reactiva de comandas con Supabase Realtime, desglose de ingredientes y modificadores, y actualización de estados (pending -> preparing -> ready -> completed)",
+      "status": "COMPLETED",
+      "verification": "Canal Realtime conectado y verificado en kitchen/page.tsx"
+    },
+    {
+      "id": "M03",
+      "description": "Módulo de Impresión Térmica Bluetooth ESC/POS: Integración de Web Bluetooth API para emisión instantánea de tickets en Kiosko (58mm/80mm)",
+      "status": "COMPLETED",
+      "verification": "useBluetoothPrinter.ts y BluetoothPrinterModule.tsx activos"
+    },
+    {
+      "id": "M04",
+      "description": "Personalización Avanzada de Productos: Grupos de modificadores (obligatorios/opcionales) y selección de ingredientes removibles en Kiosko",
+      "status": "COMPLETED",
+      "verification": "ProductCustomizationModal.tsx y cálculo de precios unitarios verificados"
+    },
+    {
+      "id": "M05",
+      "description": "Panel Super Admin & Ajustes Dinámicos: Almacenamiento seguro de claves de Stripe y Google Gemini en base de datos con RLS",
+      "status": "COMPLETED",
+      "verification": "Tabla system_settings y acciones del servidor operativas"
+    },
+    {
+      "id": "M06",
+      "description": "Soporte Multi-idioma y Menú QR: Internacionalización con next-intl y generación de menú con código QR para mesas",
+      "status": "COMPLETED",
+      "verification": "Rutas [locale] y conmutadores de idioma en Kiosko y Admin operativos"
+    },
+    {
+      "id": "M07",
+      "description": "Reglas Inquebrantables de Arquitectura: Congelamiento absoluto de UI/diseño gráfico (prohibido alterar Tailwind/layout sin petición expresa) y disciplina estricta de memoria de grafo (sin reescritura de código existente, solo modificaciones quirúrgicas para máximo ahorro de tokens)",
+      "status": "COMPLETED",
+      "verification": "Reflejado y reforzado en invariants.json y graph.json"
+    },
+    {
+      "id": "M08",
+      "description": "Equipo de Subagentes Especializados y Skills: Definición de 5 subagentes operativos (kiosk_hardware_specialist, kds_realtime_specialist, restaurant_data_guard, admin_billing_integrator, qa_verifier_auditor) y sus correspondientes 5 Skills en .agents/skills/",
+      "status": "COMPLETED",
+      "verification": "Subagentes registrados en runtime y archivos SKILL.md creados y validados"
+    },
+    {
+      "id": "M09",
+      "description": "Subagente de Ciberseguridad & Protección de Datos de Clientes: Creación de cybersecurity_guardian y skill infosec-guard para blindaje de PII, cero almacenamiento de tarjetas (PCI-DSS), auditoría RLS, prevención de IDOR, verificación criptográfica de webhooks de Stripe y protección de secretos",
+      "status": "COMPLETED",
+      "verification": "Subagente registrado en runtime, skill infosec-guard creada y regla inquebrantable en invariants.json"
+    },
+    {
+      "id": "M10",
+      "description": "Remediación de Ciberseguridad (Pasos 1-3): Eliminación total del backdoor /api/force-reset-admin, erradicación de escalación de privilegios en middleware.ts (bloqueo de user_metadata spoofing) y blindaje anti-IDOR en gestión de personal (lib/actions/users.ts)",
+      "status": "COMPLETED",
+      "verification": "Verificación estricta con tsc --noEmit (cero errores) y validación de aislamiento multi-tenant"
+    },
+    {
+      "id": "M11",
+      "description": "Ampliación del Equipo Especialista (Backend, Frontend y UI/UX): Registro de backend_core_specialist, frontend_core_specialist y ui_design_specialist con sus respectivas skills en .agents/skills/ y blindaje de la gobernanza de interfaz gráfica",
+      "status": "COMPLETED",
+      "verification": "Subagentes definidos en runtime, skills creadas en .agents/skills/ y memoria actualizada en graph.json e invariants.json"
+    },
+    {
+      "id": "M12",
+      "description": "Validación de Catálogo y Menú en Producción: Prueba automatizada E2E de creación de producto para 'Tacos Fer' (saveProduct en actions/products.ts) con categoría e ingredientes removibles",
+      "status": "COMPLETED",
+      "verification": "Ejecutado por backend_core_specialist con 10/10 aserciones pasadas (Producto ID: 328e6551-0c30-4ff3-87e1-441595c5202f)"
+    },
+    {
+      "id": "M13",
+      "description": "Exo Server Fase 1: Fix crash buscador multilingüe (QuickOrderMenu + getLocalizedValue en lib/utils), carrito aislado por mesa (cartsByTable, persist v2 con migración) y envío atómico (clearCart solo tras éxito en orders/order_items)",
+      "status": "COMPLETED",
+      "verification": "frontend_core_specialist ejecutó; qa_verifier_auditor APROBADO; tsc exit 0; UI intacta"
+    },
+    {
+      "id": "M14",
+      "description": "Exo Server Fase 2: Integración de Mesas con Cocina (KDS) y Panel Admin. Visualización del número de mesa (Mesa #X / Table #X) en tarjetas de cocina, Realtime listener con JOIN PostgREST a tables, listado de órdenes en Admin, modal de detalle y exportación PDF",
+      "status": "COMPLETED",
+      "verification": "tsc --noEmit exit 0; i18n sincronizado en es.json y en.json; UI y Tailwind intactos"
+    },
+    {
+      "id": "M15",
+      "description": "Exo Server: Visor de Comanda de Mesa con Total de Venta Acumulado y Botón Flotante para Menú. Al abrir la mesa se muestra el resumen de pedidos y total acumulado, desglose de ítems con estados en tiempo real (Supabase Realtime), y botón flotante FAB ('+ Mostrar Menú y Agregar Más') para comandeo ágil",
+      "status": "COMPLETED",
+      "verification": "tsc --noEmit exit 0; Next.js dev server respondiendo 200 OK en /exo/menu/[table_id]; UI Freeze respetado"
+    },
+    {
+      "id": "M16",
+      "description": "Exo Server: Rediseño visual de mesas con efecto neón degradado. Verde neón (border emerald-500, glow shadow, gradiente profundo y badge Disponible) para mesas libres; Rojo neón (border red-500, glow shadow, gradiente profundo y badge Ocupada) para mesas ocupadas.",
+      "status": "COMPLETED",
+      "verification": "tsc exit 0, dev server activo en http://localhost:3000, respetado diseño rounded-[32px] y tipografía font-black."
+    },
+    {
+      "id": "M17",
+      "description": "Exo Server: Visualización del nombre del mesero/a en mesas ocupadas. JOIN PostgREST a profiles!waitress_id(full_name), badge con el nombre debajo del estado 'OCUPADA' dentro del botón en TableGrid, y visualización en el encabezado y alertas de /exo/menu/[table_id].",
+      "status": "COMPLETED",
+      "verification": "tsc exit 0, dev server respondiendo 200 OK en /es/exo/tables y /es/exo/menu/[table_id]."
+    },
+    {
+      "id": "M18",
+      "description": "Exo Server: Sistema Ágil de Personalización de Ingredientes y Modificadores para Meseros. Bottom Sheet ergonómico móvil táctil para quitar ingredientes con un toque (chips neón rojo '✕ Sin [Ingrediente]'), añadir modificadores (+ extras), notas rápidas de cocina ('Bien Cocido', 'Salsa Aparte') y persistencia directa a order_items.removed_ingredients sin requerir migraciones de Supabase (compatible con KDS Cocina y Admin).",
+      "status": "COMPLETED",
+      "verification": "tsc --noEmit exit 0 (0 errores de tipo), comprobación exitosa en Supabase con product_ingredients y order_items.removed_ingredients."
+    },
+    {
+      "id": "M19",
+      "description": "Exo Advance Multi-idioma (ES / EN) y Agente Especialista en Traducciones: Creación y registro de translation_i18n_specialist y skill translation-i18n. Implementación de botón switch con esquinas redondeadas (ExoLanguageSwitch) en header de Exo Server. Catálogo completo de traducciones en messages/es.json y messages/en.json bajo el namespace 'exo'. Traducción exclusiva de todo el módulo Exo (Salón, Mesas, Comanda, Menú, Personalizador de Ingredientes y Modales) sin afectar otros módulos.",
+      "status": "COMPLETED",
+      "verification": "tsc --noEmit exit 0; endpoints /es/exo/tables y /en/exo/tables respondiendo 200 OK; paridad total de claves es.json y en.json."
+    },
+    {
+      "id": "M20",
+      "description": "Términos y Condiciones Legales B2B SaaS con Cumplimiento de Leyes de Florida: Rediseño profesional y exhaustivo del contrato legal para propietarios (Admin Owner) al aceptar su invitación (set-password/page.tsx y legal/terms/page.tsx). Incorpora validez de firma electrónica (Florida UETA, Fla. Stat. § 668.50), deslinde de responsabilidad sanitaria y alérgenos (Florida DBPR / Dept of Health), Merchant of Record y retención de Florida Sales Tax (Fla. Stat. Cap. 212), protección de datos (Florida FIPA, Fla. Stat. § 501.171), limitación de responsabilidad, renuncia a juicio por jurado y renuncia a demandas colectivas (Class Action Waiver) con jurisdicción exclusiva en el Estado de Florida. Bilingüe (Español / Inglés).",
+      "status": "COMPLETED",
+      "verification": "tsc --noEmit exit 0; endpoints /es/legal/terms y /en/legal/terms respondiendo 200 OK; registro de terms_version: 'v2.0-FL' en base de datos."
+    },
+    {
+      "id": "M21",
+      "description": "Agente Especialista en Crecimiento SaaS, Pricing y Marketing Digital: Registro de saas_growth_marketing_strategist y creación de la skill saas-growth-marketing en .agents/skills/. Estructuración y generación del Folleto Comercial One-Pager en PDF vectorial de alta resolución (OrderPoint-One-Pager.pdf) y web (one-pager.html) con oferta dual integrada: 1) Módulo Salón & Cocina Exo Server BYOD ($450 Setup único + $99/mes) para restaurantes con meseros y 2) Kiosko de Autoservicio Pro con Samsung Tab A9+ 11\" y soporte antirrobo ($799 pago único + $99/mes o $150 Setup BYOD), con datos de contacto directo de Ofer Mendoza en Florida.",
+      "status": "COMPLETED",
+      "verification": "PDF generado en public/OrderPoint-One-Pager.pdf (763 KB), vista web en public/one-pager.html, tsc --noEmit exit 0."
+    },
+    {
+      "id": "M22",
+      "description": "Integración y Activación MCP (Model Context Protocol) para Supabase y GitHub: Configuración y validación en vivo de las credenciales de Supabase Management API para el proyecto orderpoint (yzxxxtlrkrstmukcccnu) y Personal Access Token de GitHub para el repositorio fermen3012/orderpoint. Cero credenciales expuestas en Git (.env.mcp debidamente ignorado y verificado en verify.js).",
+      "status": "COMPLETED",
+      "verification": "API Supabase verificada con ACTIVE_HEALTHY en yzxxxtlrkrstmukcccnu; API GitHub validada con acceso de lectura/escritura en fermen3012/orderpoint; verify.js PASS."
+    }
+  ],
+  "in_progress": [],
+  "priorities": [
+    "Mapear módulos y dependencias iniciales en graph.json",
+    "Definir invariantes específicas del dominio del proyecto en invariants.json"
+  ],
+  "decisions": [
+    {
+      "id": "DEC-001",
+      "date": "2026-10-23T22:15:51.052Z",
+      "title": "Adopción del Estándar Exo Advance v2.0",
+      "impact": "Persistencia de estado entre sesiones y ahorro de tokens con AST Skeleton"
+    }
+  ],
+  "session_notes": "Ecosistema inicializado con memoria viva persistente y QA Gate activo.",
+  "last_updated": "2026-10-07T19:24:00-04:00",
+  "project_name": "OrderPoint",
+  "recent_milestones": [
+    {
+      "id": "M01",
+      "description": "Aislamiento Multi-Tenant Universal: Implementación de AuthContext compartido para Admin, Kiosko y KDS (Cocina), garantizando filtrado estricto por restaurant_id sin fugas de datos",
+      "status": "COMPLETED",
+      "verification": "Verificado en layouts y páginas de Kiosk y Kitchen"
+    },
+    {
+      "id": "M02",
+      "description": "Kitchen Display System (KDS) en Tiempo Real: Recepción reactiva de comandas con Supabase Realtime, desglose de ingredientes y modificadores, y actualización de estados (pending -> preparing -> ready -> completed)",
+      "status": "COMPLETED",
+      "verification": "Canal Realtime conectado y verificado en kitchen/page.tsx"
+    },
+    {
+      "id": "M03",
+      "description": "Módulo de Impresión Térmica Bluetooth ESC/POS: Integración de Web Bluetooth API para emisión instantánea de tickets en Kiosko (58mm/80mm)",
+      "status": "COMPLETED",
+      "verification": "useBluetoothPrinter.ts y BluetoothPrinterModule.tsx activos"
+    },
+    {
+      "id": "M04",
+      "description": "Personalización Avanzada de Productos: Grupos de modificadores (obligatorios/opcionales) y selección de ingredientes removibles en Kiosko",
+      "status": "COMPLETED",
+      "verification": "ProductCustomizationModal.tsx y cálculo de precios unitarios verificados"
+    },
+    {
+      "id": "M05",
+      "description": "Panel Super Admin & Ajustes Dinámicos: Almacenamiento seguro de claves de Stripe y Google Gemini en base de datos con RLS",
+      "status": "COMPLETED",
+      "verification": "Tabla system_settings y acciones del servidor operativas"
+    },
+    {
+      "id": "M06",
+      "description": "Soporte Multi-idioma y Menú QR: Internacionalización con next-intl y generación de menú con código QR para mesas",
+      "status": "COMPLETED",
+      "verification": "Rutas [locale] y conmutadores de idioma en Kiosko y Admin operativos"
+    },
+    {
+      "id": "M07",
+      "description": "Reglas Inquebrantables de Arquitectura: Congelamiento absoluto de UI/diseño gráfico (prohibido alterar Tailwind/layout sin petición expresa) y disciplina estricta de memoria de grafo (sin reescritura de código existente, solo modificaciones quirúrgicas para máximo ahorro de tokens)",
+      "status": "COMPLETED",
+      "verification": "Reflejado y reforzado en invariants.json y graph.json"
+    },
+    {
+      "id": "M08",
+      "description": "Equipo de Subagentes Especializados y Skills: Definición de 5 subagentes operativos (kiosk_hardware_specialist, kds_realtime_specialist, restaurant_data_guard, admin_billing_integrator, qa_verifier_auditor) y sus correspondientes 5 Skills en .agents/skills/",
+      "status": "COMPLETED",
+      "verification": "Subagentes registrados en runtime y archivos SKILL.md creados y validados"
+    },
+    {
+      "id": "M09",
+      "description": "Subagente de Ciberseguridad & Protección de Datos de Clientes: Creación de cybersecurity_guardian y skill infosec-guard para blindaje de PII, cero almacenamiento de tarjetas (PCI-DSS), auditoría RLS, prevención de IDOR, verificación criptográfica de webhooks de Stripe y protección de secretos",
+      "status": "COMPLETED",
+      "verification": "Subagente registrado en runtime, skill infosec-guard creada y regla inquebrantable en invariants.json"
+    },
+    {
+      "id": "M10",
+      "description": "Remediación de Ciberseguridad (Pasos 1-3): Eliminación total del backdoor /api/force-reset-admin, erradicación de escalación de privilegios en middleware.ts (bloqueo de user_metadata spoofing) y blindaje anti-IDOR en gestión de personal (lib/actions/users.ts)",
+      "status": "COMPLETED",
+      "verification": "Verificación estricta con tsc --noEmit (cero errores) y validación de aislamiento multi-tenant"
+    },
+    {
+      "id": "M11",
+      "description": "Ampliación del Equipo Especialista (Backend, Frontend y UI/UX): Registro de backend_core_specialist, frontend_core_specialist y ui_design_specialist con sus respectivas skills en .agents/skills/ y blindaje de la gobernanza de interfaz gráfica",
+      "status": "COMPLETED",
+      "verification": "Subagentes definidos en runtime, skills creadas en .agents/skills/ y memoria actualizada en graph.json e invariants.json"
+    },
+    {
+      "id": "M12",
+      "description": "Validación de Catálogo y Menú en Producción: Prueba automatizada E2E de creación de producto para 'Tacos Fer' (saveProduct en actions/products.ts) con categoría e ingredientes removibles",
+      "status": "COMPLETED",
+      "verification": "Ejecutado por backend_core_specialist con 10/10 aserciones pasadas (Producto ID: 328e6551-0c30-4ff3-87e1-441595c5202f)"
+    },
+    {
+      "id": "M13",
+      "description": "Exo Server Fase 1: Fix crash buscador multilingüe (QuickOrderMenu + getLocalizedValue en lib/utils), carrito aislado por mesa (cartsByTable, persist v2 con migración) y envío atómico (clearCart solo tras éxito en orders/order_items)",
+      "status": "COMPLETED",
+      "verification": "frontend_core_specialist ejecutó; qa_verifier_auditor APROBADO; tsc exit 0; UI intacta"
+    },
+    {
+      "id": "M14",
+      "description": "Exo Server Fase 2: Integración de Mesas con Cocina (KDS) y Panel Admin. Visualización del número de mesa (Mesa #X / Table #X) en tarjetas de cocina, Realtime listener con JOIN PostgREST a tables, listado de órdenes en Admin, modal de detalle y exportación PDF",
+      "status": "COMPLETED",
+      "verification": "tsc --noEmit exit 0; i18n sincronizado en es.json y en.json; UI y Tailwind intactos"
+    },
+    {
+      "id": "M15",
+      "description": "Exo Server: Visor de Comanda de Mesa con Total de Venta Acumulado y Botón Flotante para Menú. Al abrir la mesa se muestra el resumen de pedidos y total acumulado, desglose de ítems con estados en tiempo real (Supabase Realtime), y botón flotante FAB ('+ Mostrar Menú y Agregar Más') para comandeo ágil",
+      "status": "COMPLETED",
+      "verification": "tsc --noEmit exit 0; Next.js dev server respondiendo 200 OK en /exo/menu/[table_id]; UI Freeze respetado"
+    },
+    {
+      "id": "M16",
+      "description": "Exo Server: Rediseño visual de mesas con efecto neón degradado. Verde neón (border emerald-500, glow shadow, gradiente profundo y badge Disponible) para mesas libres; Rojo neón (border red-500, glow shadow, gradiente profundo y badge Ocupada) para mesas ocupadas.",
+      "status": "COMPLETED",
+      "verification": "tsc exit 0, dev server activo en http://localhost:3000, respetado diseño rounded-[32px] y tipografía font-black."
+    },
+    {
+      "id": "M17",
+      "description": "Exo Server: Visualización del nombre del mesero/a en mesas ocupadas. JOIN PostgREST a profiles!waitress_id(full_name), badge con el nombre debajo del estado 'OCUPADA' dentro del botón en TableGrid, y visualización en el encabezado y alertas de /exo/menu/[table_id].",
+      "status": "COMPLETED",
+      "verification": "tsc exit 0, dev server respondiendo 200 OK en /es/exo/tables y /es/exo/menu/[table_id]."
+    },
+    {
+      "id": "M18",
+      "description": "Exo Server: Sistema Ágil de Personalización de Ingredientes y Modificadores para Meseros. Bottom Sheet ergonómico móvil táctil para quitar ingredientes con un toque (chips neón rojo '✕ Sin [Ingrediente]'), añadir modificadores (+ extras), notas rápidas de cocina ('Bien Cocido', 'Salsa Aparte') y persistencia directa a order_items.removed_ingredients sin requerir migraciones de Supabase (compatible con KDS Cocina y Admin).",
+      "status": "COMPLETED",
+      "verification": "tsc --noEmit exit 0 (0 errores de tipo), comprobación exitosa en Supabase con product_ingredients y order_items.removed_ingredients."
+    },
+    {
+      "id": "M19",
+      "description": "Exo Advance Multi-idioma (ES / EN) y Agente Especialista en Traducciones: Creación y registro de translation_i18n_specialist y skill translation-i18n. Implementación de botón switch con esquinas redondeadas (ExoLanguageSwitch) en header de Exo Server. Catálogo completo de traducciones en messages/es.json y messages/en.json bajo el namespace 'exo'. Traducción exclusiva de todo el módulo Exo (Salón, Mesas, Comanda, Menú, Personalizador de Ingredientes y Modales) sin afectar otros módulos.",
+      "status": "COMPLETED",
+      "verification": "tsc --noEmit exit 0; endpoints /es/exo/tables y /en/exo/tables respondiendo 200 OK; paridad total de claves es.json y en.json."
+    },
+    {
+      "id": "M20",
+      "description": "Términos y Condiciones Legales B2B SaaS con Cumplimiento de Leyes de Florida: Rediseño profesional y exhaustivo del contrato legal para propietarios (Admin Owner) al aceptar su invitación (set-password/page.tsx y legal/terms/page.tsx). Incorpora validez de firma electrónica (Florida UETA, Fla. Stat. § 668.50), deslinde de responsabilidad sanitaria y alérgenos (Florida DBPR / Dept of Health), Merchant of Record y retención de Florida Sales Tax (Fla. Stat. Cap. 212), protección de datos (Florida FIPA, Fla. Stat. § 501.171), limitación de responsabilidad, renuncia a juicio por jurado y renuncia a demandas colectivas (Class Action Waiver) con jurisdicción exclusiva en el Estado de Florida. Bilingüe (Español / Inglés).",
+      "status": "COMPLETED",
+      "verification": "tsc --noEmit exit 0; endpoints /es/legal/terms y /en/legal/terms respondiendo 200 OK; registro de terms_version: 'v2.0-FL' en base de datos."
+    },
+    {
+      "id": "M21",
+      "description": "Agente Especialista en Crecimiento SaaS, Pricing y Marketing Digital: Registro de saas_growth_marketing_strategist y creación de la skill saas-growth-marketing en .agents/skills/. Estructuración y generación del Folleto Comercial One-Pager en PDF vectorial de alta resolución (OrderPoint-One-Pager.pdf) y web (one-pager.html) con oferta dual integrada: 1) Módulo Salón & Cocina Exo Server BYOD ($450 Setup único + $99/mes) para restaurantes con meseros y 2) Kiosko de Autoservicio Pro con Samsung Tab A9+ 11\" y soporte antirrobo ($799 pago único + $99/mes o $150 Setup BYOD), con datos de contacto directo de Ofer Mendoza en Florida.",
+      "status": "COMPLETED",
+      "verification": "PDF generado en public/OrderPoint-One-Pager.pdf (763 KB), vista web en public/one-pager.html, tsc --noEmit exit 0."
+    },
+    {
+      "id": "M22",
+      "description": "Integración y Activación MCP (Model Context Protocol) para Supabase y GitHub: Configuración y validación en vivo de las credenciales de Supabase Management API para el proyecto orderpoint (yzxxxtlrkrstmukcccnu) y Personal Access Token de GitHub para el repositorio fermen3012/orderpoint. Cero credenciales expuestas en Git (.env.mcp debidamente ignorado y verificado en verify.js).",
+      "status": "COMPLETED",
+      "verification": "API Supabase verificada con ACTIVE_HEALTHY en yzxxxtlrkrstmukcccnu; API GitHub validada con acceso de lectura/escritura en fermen3012/orderpoint; verify.js PASS."
+    }
+  ],
+  "active_priorities": [
+    {
+      "id": "PRIO-01",
+      "description": "Robustez en Kiosko y KDS: Garantizar reconexión fluida ante pérdida temporal de conexión y alta concurrencia de órdenes",
+      "priority": "HIGH"
+    },
+    {
+      "id": "PRIO-02",
+      "description": "Notificaciones sonoras en KDS cuando ingresa un pedido nuevo en estado 'pending'",
+      "priority": "MEDIUM"
+    }
+  ]
 }

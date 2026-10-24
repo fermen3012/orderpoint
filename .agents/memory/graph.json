@@ -15,114 +15,148 @@
   },
   "nodes": [
     {
-      "id": "node_kiosk",
-      "name": "Módulo Kiosko de Autoservicio",
+      "id": "mod_actions",
+      "name": "Módulo actions",
       "type": "module",
-      "files": [
-        "app/[locale]/(kiosk)/menu/page.tsx",
-        "app/[locale]/(kiosk)/categories/page.tsx",
-        "components/kiosk/Cart.tsx",
-        "components/kiosk/CartFloatingBar.tsx",
-        "components/kiosk/ProductModal.tsx",
-        "components/kiosk/ProductCustomizationModal.tsx",
-        "components/kiosk/OrderTicket.tsx",
-        "components/kiosk/BluetoothPrinterModule.tsx"
-      ],
-      "responsibilities": [
-        "Navegación visual del menú por categorías para comensales",
-        "Personalización detallada con grupos de modificadores y exclusión de ingredientes",
-        "Gestión del carrito reactivo y cálculo de totales en tiempo real",
-        "Emisión de pedidos con número de llamado a pantalla de cocina",
-        "Impresión de comprobante/ticket térmico vía Bluetooth ESC/POS"
+      "directory": "actions",
+      "sample_files": [
+        "actions/invite-owner.ts",
+        "actions/modifiers.ts",
+        "actions/plans-admin.ts",
+        "actions/products.ts",
+        "actions/restaurant.ts"
       ]
     },
     {
-      "id": "node_kds",
-      "name": "Módulo Kitchen Display System (KDS / Pantalla de Cocina)",
+      "id": "mod_app",
+      "name": "Módulo app",
       "type": "module",
-      "files": [
-        "app/[locale]/(kitchen)/kitchen/page.tsx",
-        "app/[locale]/(kitchen)/layout.tsx"
-      ],
-      "responsibilities": [
-        "Visualización en tiempo real de comandas vía Supabase Realtime",
-        "Control del ciclo de vida de comandas: Pendiente -> Preparando -> Listo -> Completado",
-        "Desglose de productos, modificadores seleccionados e ingredientes removidos",
-        "Cálculo de tiempos transcurridos de espera y preparación",
-        "Aislamiento riguroso por restaurant_id"
+      "directory": "app",
+      "sample_files": [
+        "app/actions/stripe.ts",
+        "app/api/webhooks/stripe/route.ts",
+        "app/layout.tsx",
+        "app/page.tsx",
+        "app/[locale]/(admin)/admin/billing/page.tsx"
       ]
     },
     {
-      "id": "node_exo_server",
-      "name": "Módulo de Salón & Garzones (Exo Server)",
+      "id": "mod_root",
+      "name": "Módulo root",
       "type": "module",
-      "files": [
-        "app/[locale]/(exo-server)/exo/tables/page.tsx",
-        "app/[locale]/(exo-server)/exo/menu/[table_id]/page.tsx"
-      ],
-      "responsibilities": [
-        "Asignación y visualización de mesas físicas del salón",
-        "Comanda directa de órdenes por garzones asociadas a mesas"
-      ]
-    },
-    {
-      "id": "node_restaurant_admin",
-      "name": "Módulo Administración de Restaurante (Tenant Owner/Admin)",
-      "type": "module",
-      "files": [
-        "app/[locale]/(admin)/admin/dashboard/page.tsx",
-        "app/[locale]/(admin)/admin/products/page.tsx",
-        "app/[locale]/(admin)/admin/categories/page.tsx",
-        "app/[locale]/(admin)/admin/ingredients/page.tsx",
-        "app/[locale]/(admin)/admin/orders/page.tsx",
-        "app/[locale]/(admin)/admin/tables/page.tsx",
-        "app/[locale]/(admin)/admin/schedule/page.tsx",
-        "app/[locale]/(admin)/admin/billing/page.tsx",
-        "app/[locale]/(admin)/admin/users/page.tsx"
-      ],
-      "responsibilities": [
-        "Gestión completa de menú: productos, precios, fotos, categorías y disponibilidad",
-        "Configuración de grupos de modificadores e ingredientes de platos",
-        "Historial y auditoría de órdenes de venta",
-        "Configuración de mesas del restaurante y horarios semanales",
-        "Gestión de personal de restaurante (admin, kitchen, kiosk, mesera)",
-        "Suscripción a la plataforma y facturación Stripe"
-      ]
-    },
-    {
-      "id": "node_super_admin",
-      "name": "Módulo Super Administrador (Control Plane Multi-Tenant)",
-      "type": "module",
-      "files": [
-        "app/[locale]/(super-admin)/super-admin/dashboard/page.tsx",
-        "app/[locale]/(super-admin)/super-admin/restaurants/page.tsx",
-        "app/[locale]/(super-admin)/super-admin/settings/page.tsx",
-        "app/[locale]/(super-admin)/super-admin/billing/page.tsx",
-        "actions/settings.ts",
-        "actions/stripe-admin.ts"
-      ],
-      "responsibilities": [
-        "Aprovisionamiento y alta de nuevos restaurantes (Tenants)",
-        "Configuración global y segura de API Keys (Stripe, Gemini IA) en system_settings",
-        "Métricas globales de volumen, facturación y restaurantes activos",
-        "Importación masiva de productos e ingredientes"
-      ]
-    },
-    {
-      "id": "node_auth",
-      "name": "Módulo Autenticación & Aislamiento Multi-Tenant",
-      "type": "module",
-      "files": [
-        "components/auth/AuthContext.tsx",
+      "directory": "root",
+      "sample_files": [
+        "check_users.js",
+        "manage_auth.js",
         "middleware.ts",
-        "lib/supabase/client.ts",
-        "actions/users.ts",
-        "app/[locale]/(admin)/login/page.tsx"
-      ],
-      "responsibilities": [
-        "Control de acceso basado en roles (super_admin, owner, admin, kitchen, kiosk, mesera)",
-        "Inyección y validación del contexto restaurant_id en toda la aplicación",
-        "Protección de rutas en middleware y sesiones seguras en cookies SSR"
+        "next-env.d.ts",
+        "next.config.ts"
+      ]
+    },
+    {
+      "id": "mod_components",
+      "name": "Módulo components",
+      "type": "module",
+      "directory": "components",
+      "sample_files": [
+        "components/admin/AdminLanguageSwitcher.tsx",
+        "components/admin/ProductsPageContent.tsx",
+        "components/admin/SidebarLink.tsx",
+        "components/auth/AuthContext.tsx",
+        "components/exo/ConnectivityIndicator.tsx"
+      ]
+    },
+    {
+      "id": "mod_hooks",
+      "name": "Módulo hooks",
+      "type": "module",
+      "directory": "hooks",
+      "sample_files": [
+        "hooks/useBluetoothPrinter.ts"
+      ]
+    },
+    {
+      "id": "mod_i18n",
+      "name": "Módulo i18n",
+      "type": "module",
+      "directory": "i18n",
+      "sample_files": [
+        "i18n/request.ts",
+        "i18n/routing.ts"
+      ]
+    },
+    {
+      "id": "mod_lib",
+      "name": "Módulo lib",
+      "type": "module",
+      "directory": "lib",
+      "sample_files": [
+        "lib/actions/users.ts",
+        "lib/auth/guards.ts",
+        "lib/escpos.ts",
+        "lib/rawbt.ts",
+        "lib/stripe.ts"
+      ]
+    },
+    {
+      "id": "mod_public",
+      "name": "Módulo public",
+      "type": "module",
+      "directory": "public",
+      "sample_files": [
+        "public/sw.js"
+      ]
+    },
+    {
+      "id": "mod_scratch",
+      "name": "Módulo scratch",
+      "type": "module",
+      "directory": "scratch",
+      "sample_files": [
+        "scratch/diagnose_restaurant.ts",
+        "scratch/seed_demo_restaurant.ts",
+        "scratch/test_create_demo_restaurant.ts"
+      ]
+    },
+    {
+      "id": "mod_scripts",
+      "name": "Módulo scripts",
+      "type": "module",
+      "directory": "scripts",
+      "sample_files": [
+        "scripts/test-webhook.js"
+      ]
+    },
+    {
+      "id": "mod_store",
+      "name": "Módulo store",
+      "type": "module",
+      "directory": "store",
+      "sample_files": [
+        "store/cart-store.ts",
+        "store/exo-cart-store.ts",
+        "store/kiosk-menu-cache.ts",
+        "store/printer-store.ts",
+        "store/restaurant-store.ts"
+      ]
+    },
+    {
+      "id": "mod_supabase",
+      "name": "Módulo supabase",
+      "type": "module",
+      "directory": "supabase",
+      "sample_files": [
+        "supabase/functions/translate-product/index.ts"
+      ]
+    },
+    {
+      "id": "mod_types",
+      "name": "Módulo types",
+      "type": "module",
+      "directory": "types",
+      "sample_files": [
+        "types/index.ts",
+        "types/web-bluetooth.d.ts"
       ]
     },
     {
@@ -277,26 +311,116 @@
     }
   ],
   "edges": [
-    { "from": "node_auth", "to": "node_database_schema", "relation": "resolves_role_and_tenant" },
-    { "from": "node_kiosk", "to": "node_database_schema", "relation": "creates_order_and_items" },
-    { "from": "node_kiosk", "to": "node_printing_hardware", "relation": "prints_receipt_via" },
-    { "from": "node_database_schema", "to": "node_kds", "relation": "streams_orders_via_realtime" },
-    { "from": "node_kds", "to": "node_database_schema", "relation": "updates_order_status" },
-    { "from": "node_exo_server", "to": "node_database_schema", "relation": "places_table_order" },
-    { "from": "node_restaurant_admin", "to": "node_database_schema", "relation": "manages_catalog_and_orders" },
-    { "from": "node_super_admin", "to": "node_database_schema", "relation": "manages_restaurants_and_settings" },
-    { "from": "node_super_admin", "to": "node_billing_stripe", "relation": "manages_saas_billing" },
-    { "from": "node_restaurant_admin", "to": "node_ai_translation", "relation": "auto_translates_menu_items" },
-    { "from": "node_security_guardian", "to": "node_database_schema", "relation": "audits_rls_and_data_isolation" },
-    { "from": "node_security_guardian", "to": "node_billing_stripe", "relation": "verifies_webhook_signatures" },
-    { "from": "node_backend_core", "to": "node_database_schema", "relation": "executes_server_business_logic" },
-    { "from": "node_frontend_core", "to": "node_backend_core", "relation": "invokes_typed_server_actions" },
-    { "from": "node_ui_design", "to": "node_frontend_core", "relation": "applies_visual_styling_on_demand" },
-    { "from": "node_growth_marketing", "to": "node_billing_stripe", "relation": "defines_subscription_tiers_and_pricing" },
-    { "from": "node_growth_marketing", "to": "node_kiosk", "relation": "optimizes_conversion_and_sales_pitch" }
+    {
+      "source": "mod_actions",
+      "target": "mod_lib",
+      "relation": "imports_and_uses"
+    },
+    {
+      "source": "mod_app",
+      "target": "mod_lib",
+      "relation": "imports_and_uses"
+    },
+    {
+      "source": "mod_app",
+      "target": "mod_components",
+      "relation": "imports_and_uses"
+    },
+    {
+      "source": "mod_app",
+      "target": "mod_actions",
+      "relation": "imports_and_uses"
+    },
+    {
+      "source": "mod_app",
+      "target": "mod_i18n",
+      "relation": "imports_and_uses"
+    },
+    {
+      "source": "mod_app",
+      "target": "mod_store",
+      "relation": "imports_and_uses"
+    },
+    {
+      "source": "mod_app",
+      "target": "mod_hooks",
+      "relation": "imports_and_uses"
+    },
+    {
+      "source": "mod_app",
+      "target": "mod_types",
+      "relation": "imports_and_uses"
+    },
+    {
+      "source": "mod_root",
+      "target": "mod_i18n",
+      "relation": "imports_and_uses"
+    },
+    {
+      "source": "mod_root",
+      "target": "mod_lib",
+      "relation": "imports_and_uses"
+    },
+    {
+      "source": "mod_components",
+      "target": "mod_i18n",
+      "relation": "imports_and_uses"
+    },
+    {
+      "source": "mod_components",
+      "target": "mod_lib",
+      "relation": "imports_and_uses"
+    },
+    {
+      "source": "mod_components",
+      "target": "mod_actions",
+      "relation": "imports_and_uses"
+    },
+    {
+      "source": "mod_components",
+      "target": "mod_store",
+      "relation": "imports_and_uses"
+    },
+    {
+      "source": "mod_components",
+      "target": "mod_types",
+      "relation": "imports_and_uses"
+    },
+    {
+      "source": "mod_components",
+      "target": "mod_hooks",
+      "relation": "imports_and_uses"
+    },
+    {
+      "source": "mod_components",
+      "target": "mod_app",
+      "relation": "imports_and_uses"
+    },
+    {
+      "source": "mod_hooks",
+      "target": "mod_store",
+      "relation": "imports_and_uses"
+    },
+    {
+      "source": "mod_store",
+      "target": "mod_types",
+      "relation": "imports_and_uses"
+    },
+    {
+      "source": "mod_store",
+      "target": "mod_lib",
+      "relation": "imports_and_uses"
+    },
+    {
+      "from": "node_auth",
+      "to": "node_database_schema",
+      "relation": "resolves_role_and_tenant"
+    }
   ],
   "token_efficiency_protocol": {
     "unbreakable_rule": true,
     "rule": "INQUEBRANTABLE: Consultar este grafo para identificar el nodo y archivo exacto a intervenir. Prohibido reescribir código existente funcional, regenerar archivos enteros o alterar la interfaz gráfica/diseño sin instrucción explícita. Toda modificación debe ser quirúrgica sobre bloques contiguos puntuales para maximizar el ahorro de tokens y garantizar la estabilidad total."
-  }
+  },
+  "last_upgraded": "2026-10-23T22:15:51.084Z",
+  "last_synced": "2026-10-23T22:15:52.646Z"
 }

@@ -1,0 +1,49 @@
+{
+  "version": "2.0.0",
+  "routing_policy": "automatic_intent_match",
+  "auto_spawn_enabled": true,
+  "skills": [
+    {
+      "id": "backend-architecture",
+      "role": "Backend Architect & Distributed Systems Specialist",
+      "triggers": ["api", "backend", "base de datos", "database", "endpoint", "supabase", "supabase mcp", "postgres mcp", "query", "sql", "transaccion", "transaction", "orm", "prisma", "drizzle", "migration", "migracion", "servidor", "server", "rls", "idempotency"],
+      "path": ".agents/skills/backend-architecture/SKILL.md"
+    },
+    {
+      "id": "frontend-architecture",
+      "role": "Frontend Architect & Client Performance Specialist",
+      "triggers": ["frontend", "componente", "component", "hook", "estado", "state", "react", "next.js", "props", "context", "zustand", "interfaz reactiva", "cliente", "rsc", "core web vitals", "vercel", "vercel mcp", "deployments", "deployment logs"],
+      "path": ".agents/skills/frontend-architecture/SKILL.md"
+    },
+    {
+      "id": "ui-design-craft",
+      "role": "UI/UX Design Specialist & Commercial Visual Systems",
+      "triggers": ["ui", "ux", "diseno", "design", "estilos", "styles", "css", "tailwind", "layout", "colores", "palette", "botones", "buttons", "modal", "animacion", "responsive", "visual", "rounded-[32px]"],
+      "path": ".agents/skills/ui-design-craft/SKILL.md"
+    },
+    {
+      "id": "qa-integrity",
+      "role": "QA Integrity & Static Verification Specialist",
+      "triggers": ["test", "prueba", "qa", "typecheck", "tsc", "lint", "verificar", "verify", "auditoria", "audit", "regresion", "regression", "calidad", "quality", "compilacion"],
+      "path": ".agents/skills/qa-integrity/SKILL.md"
+    },
+    {
+      "id": "infosec-guard",
+      "role": "InfoSec Guardian & Application Security Specialist",
+      "triggers": ["seguridad", "security", "auth", "secretos", "secrets", "token", "cifrado", "encryption", "sanitizacion", "xss", "sqli", "idor", "vulnerabilidad", "vulnerability", "permisos", "permissions", "owasp"],
+      "path": ".agents/skills/infosec-guard/SKILL.md"
+    },
+    {
+      "id": "legal-compliance",
+      "role": "Legal Counsel & SaaS Regulatory Specialist",
+      "triggers": ["terminos y condiciones", "terms of service", "tos", "politica de privacidad", "privacy policy", "privacidad", "legal", "law", "contrato", "contract", "aviso legal", "disclaimer", "gdpr", "ccpa", "reembolso", "refund", "stripe terms", "msa"],
+      "path": ".agents/skills/legal-compliance/SKILL.md"
+    },
+    {
+      "id": "growth-marketing",
+      "role": "Chief Marketing Officer & Direct Response Specialist",
+      "triggers": ["marketing", "growth", "copy", "copywriting", "anuncio", "ads", "campana", "campaign", "landing page", "funnel", "conversion", "cro", "email marketing", "buyer persona", "gancho", "hook", "propuesta de valor", "retention"],
+      "path": ".agents/skills/growth-marketing/SKILL.md"
+    }
+  ]
+}

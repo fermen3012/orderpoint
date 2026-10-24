@@ -1,25 +1,24 @@
 ---
 name: infosec-guard
-description: Directivas de ciberseguridad, protección de datos confidenciales de clientes (PII), auditoría de permisos RLS y mitigación de vulnerabilidades web.
+description: World-class cybersecurity standards, OWASP Top 10 threat mitigation, zero-trust secrets management, defensive input sanitization, and PII protection.
 ---
 
-# Skill: Ciberseguridad & Protección de Datos de Clientes
+# Skill: InfoSec Guardian & Application Security Engineering
 
-Esta skill define los protocolos y salvaguardas obligatorias para blindar la información de los clientes, restaurantes y comensales en la plataforma OrderPoint.
+Establishes mandatory defensive engineering standards to protect Exo Advance platforms and customer data against vulnerabilities, zero-day exploits, and data breaches.
 
-## 1. Protección de Datos del Cliente (PII y Comandas)
-- **Principio de Mínimo Privilegio:** Ningún cliente o usuario anónimo en el Kiosko debe tener visibilidad sobre las órdenes, nombres ni consumos de otros clientes.
-- **Aislamiento de Órdenes:** Las consultas a `orders` y `order_items` deben validar que el solicitante pertenezca exclusivamente al `restaurant_id` de la comanda.
-- **Sanitización de Entradas:** Filtrar y sanitizar notas especiales del cliente o nombres en el Kiosko para prevenir inyección de código (XSS) en la pantalla de cocina (KDS).
+## 1. OWASP Top 10 Active Mitigation
+- **A01 Broken Access Control / IDOR:** Validate tenant isolation and user authorization on every single resource request (`/api/entity/:id`). Never trust client-supplied identity parameters.
+- **A02 Cryptographic Failures:** Ensure all transit communication is enforced over TLS 1.3 (HTTPS/WSS). Protect data at rest with industry-standard encryption (AES-256).
+- **A03 Injection (SQLi, XSS, Command Injection):**
+  - Prohibit raw string concatenation in SQL queries, command executions, or shell commands.
+  - Escape and sanitize all user-generated content before rendering to the DOM to eliminate Cross-Site Scripting (XSS).
+- **A07 Identification & Authentication Failures:** Enforce secure session cookies (`HttpOnly`, `Secure`, `SameSite=Strict`), brute-force rate-limiting, and multi-factor authentication (MFA) resilience.
 
-## 2. Seguridad en Pagos & Cumplimiento PCI-DSS
-- **Cero Almacenamiento de Tarjetas:** Prohibido solicitar, transmitir o almacenar números de tarjeta, CVV o fechas de vencimiento en bases de datos o logs. Todo cobro debe delegarse exclusivamente a Stripe Checkout o Stripe Elements.
-- **Validación de Webhooks:** Todo webhook proveniente de Stripe (`/api/webhooks/stripe`) debe validar criptográficamente el encabezado `stripe-signature` con el `STRIPE_WEBHOOK_SECRET` antes de modificar cualquier estado de suscripción.
+## 2. Zero-Trust Secrets Management
+- **Zero Secrets in Client Bundles:** Never expose service role keys, database connection strings, or private API credentials in client-accessible code or environment variables (`NEXT_PUBLIC_*`).
+- **Environment Isolation:** Ensure `.env*` files are strictly excluded via `.gitignore`. Verify runtime credentials via isolated server context.
 
-## 3. Higiene de Secretos y Llaves de API
-- **Exclusión de Service Role:** La variable `SUPABASE_SERVICE_ROLE_KEY` JAMÁS debe ser importada o referenciada en componentes marcados con `'use client'`.
-- **Variables Públicas vs Privadas:** Solo las variables con prefijo `NEXT_PUBLIC_` pueden exponerse al cliente (ej. `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`). Claves como `STRIPE_SECRET_KEY` o `GEMINI_API_KEY` deben residir estrictamente en Server Actions o API Routes protegidas por autenticación de Super Admin.
-
-## 4. Prevención de IDOR y Escalamiento de Privilegios
-- **Verificación de Propiedad:** En cualquier acción que modifique precios, productos, mesas o pedidos, no confiar únicamente en el ID recibido por parámetro. Validar que dicho registro pertenezca efectivamente al `restaurant_id` del usuario autenticado en sesión.
-- **Políticas RLS en Supabase:** Auditar que toda tabla nueva tenga `ALTER TABLE ... ENABLE ROW LEVEL SECURITY;` y que no existan políticas permisivas de tipo `USING (true)` para operaciones destructivas (`UPDATE`, `DELETE`).
+## 3. Defense-in-Depth & Edge Validation
+- **Schema Validation at the Boundary:** Validate and parse 100% of incoming payloads at the API boundary using schema validators (e.g., Zod, Valibot) before triggering business logic.
+- **Strict Content Security Policy (CSP):** Restrict script execution, frame embedding (`X-Frame-Options: DENY`), and external resource loading to authenticated origins.

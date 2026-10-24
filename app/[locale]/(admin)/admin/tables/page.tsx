@@ -241,7 +241,7 @@ export default function TablesPage() {
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
                     <div className="bg-slate-900 w-full max-w-md rounded-[32px] border border-slate-800 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 relative">
-                        <div className="p-8 border-b border-slate-800 flex justify-between items-center bg-slate-955">
+                        <div className="p-8 border-b border-slate-800 flex justify-between items-center bg-slate-950">
                             <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase">
                                 {editingTable ? t('editTable') : t('newTable')}
                             </h2>
@@ -263,7 +263,7 @@ export default function TablesPage() {
                                     required
                                     value={newTable.number}
                                     onChange={(e) => setNewTable({ ...newTable, number: e.target.value })}
-                                    className="w-full px-5 py-4 bg-slate-955 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-black text-white text-sm"
+                                    className="w-full px-5 py-4 bg-slate-950 border border-slate-800 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-black text-white text-sm placeholder:text-slate-500"
                                     placeholder={t('placeholderTableName')}
                                 />
                             </div>
@@ -281,7 +281,7 @@ export default function TablesPage() {
                                         const val = e.target.value === '' ? 0 : parseInt(e.target.value);
                                         setNewTable({ ...newTable, capacity: val });
                                     }}
-                                    className="w-full px-5 py-4 bg-slate-955 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-black text-white text-sm"
+                                    className="w-full px-5 py-4 bg-slate-950 border border-slate-800 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-black text-white text-sm placeholder:text-slate-500"
                                 />
                             </div>
 
@@ -299,7 +299,7 @@ export default function TablesPage() {
 
             {/* Modal de Confirmación de Borrado */}
             {tableToDelete && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-955/85 backdrop-blur-md animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
                     <div className="bg-slate-900 w-full max-w-md rounded-[32px] border border-red-500/30 shadow-[0_0_50px_rgba(239,68,68,0.2)] p-8 relative overflow-hidden animate-in zoom-in-95 duration-200">
                         {/* Ambient glow highlight rojo */}
                         <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full blur-3xl bg-red-500/20 pointer-events-none" />

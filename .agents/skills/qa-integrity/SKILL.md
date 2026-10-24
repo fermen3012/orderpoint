@@ -1,20 +1,28 @@
 ---
 name: qa-integrity
-description: Procedimientos de control de calidad, verificación de tipos TypeScript, auditoría de no-regresión visual (Tailwind freeze) y cumplimiento de invariantes de OrderPoint.
+description: World-class quality assurance engineering, strict TypeScript type checking, AST static analysis, regression prevention, and automated QA Gate verification.
 ---
 
-# Skill: Control de Calidad (QA), Verificación TypeScript & Auditoría
+# Skill: QA Integrity & Static Verification Engineering
 
-Esta skill define el protocolo de verificación previa a la entrega de cualquier cambio en OrderPoint.
+Governs automated quality control, strict type safety, invariant auditing, and zero-regression standards before concluding any task.
 
-## 1. Alcance y Tareas de Auditoría
-- **Chequeo de Tipos TypeScript:** Ejecución y verificación estricta de compilación (`tsc --noEmit` o `npm run type-check`). Cero errores de tipos permitidos.
-- **Auditoría de Invariantes Visuales:** Comprobar que ningún cambio modifique clases de diseño visual (Tailwind), bordes redondeados, colores o fuentes preexistentes.
-- **Auditoría de Invariantes Multi-Tenant:** Asegurar que ninguna consulta o modificación a base de datos carezca del filtro `restaurant_id`.
-- **Auditoría de Diffs Quirúrgicos:** Verificar que las modificaciones utilicen bloques contiguos precisos para ahorrar tokens y evitar reescritura de código que ya funciona.
+## 1. Strict TypeScript Enforcement & Type Safety
+- **Zero-Tolerance for Compilation Errors:** All code changes must pass strict type-checking (`tsc --noEmit` or stack equivalent) with zero errors and zero warnings.
+- **Strict Mode Compliance:** Prohibit `any` casting, untyped function arguments, or unvalidated type assertions (`as unknown as T`).
+- **Exhaustive Type Narrowing:** Handle union types, optional properties, and nullability with exhaustive type guards (`switch (type)` or discriminated unions) to prevent runtime exceptions.
 
-## 2. Salida de Reporte
-Todo reporte de QA debe ser conciso, estructurado y listar:
-1. Estado del type-check (`PASS` / `FAIL` con detalles).
-2. Verificación de diseño congelado (`INTACTO`).
-3. Verificación de aislamiento multi-tenant (`PROTEGIDO`).
+## 2. Invariant & Contract Protection
+- **Pre-Flight Invariant Audit:** Verify that no modification violates the core rules in `.agents/memory/invariants.json` or architectural boundaries in `graph.json`.
+- **Surgical Diff Integrity:** Audit git diffs to ensure only authorized, requested blocks were touched. Reject extraneous refactoring, cosmetic rewrites, or deleted comments.
+
+## 3. Automated Single-Command Verification (QA Gate)
+Before marking any deliverable as completed, execute the unified verification gate:
+```bash
+node .agents/bin/verify.js
+```
+The output must report:
+1. `[PASS]` Memory & Invariant Integrity.
+2. `[PASS]` InfoSec Secret Audit (zero credentials exposed).
+3. `[PASS]` Static Type Compilation.
+4. `[PASS]` AST Skeleton Synchronization.

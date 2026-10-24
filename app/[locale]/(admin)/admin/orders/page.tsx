@@ -676,7 +676,7 @@ export default function OrdersPage() {
                             placeholder={locale === 'es' ? 'BUSCAR ORDEN #, MESERA, MESA O PLATO...' : 'SEARCH ORDER #, WAITRESS, TABLE OR DISH...'}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3.5 bg-slate-955 border border-slate-800 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-wider"
+                            className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-wider placeholder:text-slate-500"
                         />
                     </div>
 
@@ -685,7 +685,7 @@ export default function OrdersPage() {
                         <select
                             value={sourceFilter}
                             onChange={(e) => setSourceFilter(e.target.value as any)}
-                            className="w-full px-5 py-3.5 bg-slate-955 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-wider cursor-pointer"
+                            className="w-full px-5 py-3.5 bg-slate-950 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-wider cursor-pointer"
                         >
                             <option value="all">{locale === 'es' ? 'TODOS LOS CANALES' : 'ALL CHANNELS'}</option>
                             <option value="kiosk">{locale === 'es' ? 'KIOSKO (AUTOSERVICIO)' : 'KIOSK (SELF-SERVICE)'}</option>
@@ -698,7 +698,7 @@ export default function OrdersPage() {
                         <select
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
-                            className="w-full px-5 py-3.5 bg-slate-955 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-wider cursor-pointer"
+                            className="w-full px-5 py-3.5 bg-slate-950 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-wider cursor-pointer"
                         >
                             <option value="all">{t('allStatuses')}</option>
                             <option value="pending">{locale === 'es' ? 'PENDIENTES' : 'PENDING'}</option>
@@ -714,7 +714,7 @@ export default function OrdersPage() {
                         <select
                             value={typeFilter}
                             onChange={(e) => setTypeFilter(e.target.value)}
-                            className="w-full px-5 py-3.5 bg-slate-955 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-wider cursor-pointer"
+                            className="w-full px-5 py-3.5 bg-slate-950 border border-slate-800 rounded-2xl focus:border-emerald-500 outline-none transition-all font-black text-white text-[10px] uppercase tracking-wider cursor-pointer"
                         >
                             <option value="all">{t('allTypes')}</option>
                             <option value="dine_in">{locale === 'es' ? 'COMER EN SALA (DINE-IN)' : 'DINE IN'}</option>
@@ -749,7 +749,7 @@ export default function OrdersPage() {
                                     className={`px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${
                                         active
                                             ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                                            : 'bg-slate-955 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
+                                            : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
                                     }`}
                                 >
                                     {locale === 'es' ? df.labelEs : df.labelEn}
@@ -765,7 +765,7 @@ export default function OrdersPage() {
                                 type="date"
                                 value={customDate}
                                 onChange={(e) => setCustomDate(e.target.value)}
-                                className="px-4 py-2 bg-slate-955 border border-emerald-500/50 rounded-xl font-black text-white text-[10px] outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                className="px-4 py-2 bg-slate-950 border border-emerald-500/50 rounded-xl font-black text-white text-[10px] outline-none focus:ring-2 focus:ring-emerald-500/20"
                             />
                         </div>
                     )}
@@ -775,13 +775,13 @@ export default function OrdersPage() {
                 <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-800/60">
                     <div className="flex flex-wrap items-center gap-4">
                         {/* Count Badge */}
-                        <div className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-955 border border-slate-800 rounded-xl">
+                        <div className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl">
                             <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">{locale === 'es' ? 'RESULTADOS:' : 'RESULTS:'}</span>
                             <span className="text-[11px] font-black text-emerald-400">{filteredOrders.length} {locale === 'es' ? 'pedidos' : 'orders'}</span>
                         </div>
 
                         {/* Amount Badge */}
-                        <div className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-955 border border-slate-800 rounded-xl">
+                        <div className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl">
                             <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">{locale === 'es' ? 'TOTAL FACTURADO:' : 'TOTAL BILLED:'}</span>
                             <span className="text-[11px] font-black text-white italic">
                                 {formatPrice(filteredTotalAmount, locale === 'es' ? 'es-SV' : 'en-US')}
@@ -789,7 +789,7 @@ export default function OrdersPage() {
                         </div>
 
                         {/* Avg Ticket Badge */}
-                        <div className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-955 border border-slate-800 rounded-xl">
+                        <div className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl">
                             <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">{locale === 'es' ? 'TICKET PROMEDIO:' : 'AVG TICKET:'}</span>
                             <span className="text-[11px] font-black text-amber-400 italic">
                                 {formatPrice(filteredAverageTicket, locale === 'es' ? 'es-SV' : 'en-US')}
@@ -827,7 +827,7 @@ export default function OrdersPage() {
                     <div className="hidden lg:block bg-slate-900/40 backdrop-blur-sm rounded-[3rem] border border-slate-800 overflow-hidden shadow-lg">
                         <div className="overflow-x-auto custom-scrollbar">
                             <table className="w-full text-left">
-                                <thead className="bg-slate-955/20 border-b border-slate-800/50">
+                                <thead className="bg-slate-950/20 border-b border-slate-800/50">
                                     <tr>
                                         <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">{t('tableColOrder')}</th>
                                         <th className="px-10 py-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">{t('tableColProducts')}</th>
@@ -933,7 +933,7 @@ export default function OrdersPage() {
                                                 <td className="px-10 py-8 text-right">
                                                     <button
                                                         onClick={() => setSelectedOrder(order)}
-                                                        className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-slate-955 border border-slate-800 text-slate-400 rounded-xl font-black text-[9px] uppercase tracking-wider hover:text-white transition-colors"
+                                                        className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-slate-950 border border-slate-800 text-slate-400 rounded-xl font-black text-[9px] uppercase tracking-wider hover:text-white transition-colors"
                                                     >
                                                         <Eye className="w-3.5 h-3.5" />
                                                         <span>{t('viewDetail')}</span>
@@ -1060,7 +1060,7 @@ export default function OrdersPage() {
 
                                         <button
                                             onClick={() => setSelectedOrder(order)}
-                                            className="flex items-center gap-2 px-5 py-3 bg-slate-955 border border-slate-800 text-slate-400 rounded-xl font-black text-[9px] uppercase tracking-wider hover:text-white transition-colors"
+                                            className="flex items-center gap-2 px-5 py-3 bg-slate-950 border border-slate-800 text-slate-400 rounded-xl font-black text-[9px] uppercase tracking-wider hover:text-white transition-colors"
                                         >
                                             <Eye className="w-3.5 h-3.5" />
                                             <span>{t('viewDetail')}</span>
@@ -1075,7 +1075,7 @@ export default function OrdersPage() {
 
             {/* Modal Order Details */}
             {selectedOrder && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-955/80 backdrop-blur-md animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
                     <div className="bg-slate-900 w-full max-w-2xl rounded-[3rem] border border-slate-800 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
                         <div className="p-8 flex justify-between items-start border-b border-slate-800/50">
                             <div className="flex items-center gap-6">
@@ -1129,7 +1129,7 @@ export default function OrdersPage() {
 
                         <div className="p-8 max-h-[50vh] overflow-y-auto custom-scrollbar space-y-4">
                             {selectedOrder.order_items.map((item) => (
-                                <div key={item.id} className="flex gap-6 p-6 bg-slate-955/50 rounded-[2rem] border border-slate-800/50">
+                                <div key={item.id} className="flex gap-6 p-6 bg-slate-950/50 rounded-[2rem] border border-slate-800/50">
                                     <div className="w-12 h-12 bg-slate-800 text-white rounded-2xl flex items-center justify-center font-black text-xl border border-slate-700">
                                         {item.quantity}
                                     </div>
@@ -1165,7 +1165,7 @@ export default function OrdersPage() {
                             ))}
                         </div>
 
-                        <div className="p-8 bg-slate-955/50 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-8">
+                        <div className="p-8 bg-slate-950/50 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-8">
                             <div className="flex flex-col">
                                 <span className="text-slate-500 text-[10px] font-black uppercase tracking-wider">{t('tableColPrepTime')}</span>
                                 <span className="text-lg font-black text-white tracking-widest uppercase">
